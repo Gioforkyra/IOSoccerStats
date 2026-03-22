@@ -1,0 +1,94 @@
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --pitch-950: #050810;
+  --pitch-900: #080d1a;
+  --pitch-800: #0d1528;
+  --grass-500: #00e676;
+  --amber-500: #ffb300;
+  --chalk-100: #f0f4ff;
+  --chalk-300: #8a9dc4;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background-color: var(--pitch-950);
+  color: var(--chalk-100);
+  font-family: 'DM Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Grass stripe effect for field backgrounds */
+.field-stripes {
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 40px,
+    rgba(0, 230, 118, 0.03) 40px,
+    rgba(0, 230, 118, 0.03) 80px
+  );
+}
+
+/* Glowing stat number */
+.stat-glow {
+  text-shadow: 0 0 20px rgba(0, 230, 118, 0.4);
+}
+
+/* Animated underline for nav links */
+.nav-link {
+  position: relative;
+}
+.nav-link::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: var(--grass-500);
+  transition: width 0.2s ease;
+}
+.nav-link:hover::after { width: 100%; }
+
+/* Table row hover */
+.stat-row {
+  transition: background 0.15s ease;
+  border-bottom: 1px solid rgba(138, 157, 196, 0.08);
+}
+.stat-row:hover {
+  background: rgba(0, 230, 118, 0.04);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--pitch-900); }
+::-webkit-scrollbar-thumb { background: rgba(138,157,196,0.2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0,230,118,0.3); }
+
+/* Fade in animation */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-up {
+  animation: fadeUp 0.4s ease forwards;
+}
+.fade-up-1 { animation-delay: 0.05s; opacity: 0; }
+.fade-up-2 { animation-delay: 0.10s; opacity: 0; }
+.fade-up-3 { animation-delay: 0.15s; opacity: 0; }
+.fade-up-4 { animation-delay: 0.20s; opacity: 0; }
+.fade-up-5 { animation-delay: 0.25s; opacity: 0; }
+
+/* Pulsing live dot */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.4); }
+}
+.live-dot {
+  animation: pulse-dot 1.4s ease-in-out infinite;
+}
