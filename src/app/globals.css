@@ -16,6 +16,10 @@
 
 * { box-sizing: border-box; }
 
+html {
+  font-size: 18px;
+}
+
 body {
   background-color: var(--pitch-950);
   color: var(--chalk-100);

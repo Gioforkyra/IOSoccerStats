@@ -113,18 +113,9 @@ export default async function PlayerLayout({
       <div
         className="relative rounded-xl border border-chalk-100/8 overflow-hidden mb-6"
         style={{
-          background: teamColor
-            ? `linear-gradient(135deg, ${teamColor}40 0%, ${teamColor}25 50%, rgba(23,23,23,0.95) 100%)`
-            : undefined,
-          backgroundColor: teamColor ? undefined : "rgb(var(--pitch-900))",
+          backgroundColor: teamColor ? `${teamColor}35` : "rgb(var(--pitch-900))",
         }}
       >
-        {currentTeam?.team_logo && (
-          <div className="absolute right-6 md:right-10 top-1/2 -translate-y-1/2 opacity-[0.15] pointer-events-none">
-            <img src={proxyImg(currentTeam.team_logo)!} alt="" className="w-28 h-28 md:w-40 md:h-40 object-contain" />
-          </div>
-        )}
-
         <div className="relative flex flex-col md:flex-row items-start md:items-center gap-6 p-6 md:p-8">
           <a
             href={`https://steamcommunity.com/profiles/${player.steamId}`}
@@ -166,7 +157,7 @@ export default async function PlayerLayout({
                     className="flex items-center gap-2 text-lg font-display font-700 text-chalk-100 hover:text-grass-400 transition-colors"
                   >
                     {currentTeam.team_logo && (
-                      <img src={proxyImg(currentTeam.team_logo)!} alt="" className="w-6 h-6 object-contain" />
+                      <img src={proxyImg(currentTeam.team_logo)!} alt="" className="w-8 h-8 object-contain" />
                     )}
                     {currentTeam.team_name}
                   </Link>
@@ -196,6 +187,17 @@ export default async function PlayerLayout({
               </div>
             )}
           </div>
+
+          {/* Team logo on the right */}
+          {currentTeam?.team_logo && (
+            <Link href={`/teams/${currentTeam.team_id}`} className="hidden md:block shrink-0">
+              <img
+                src={proxyImg(currentTeam.team_logo)!}
+                alt={currentTeam.team_name}
+                className="w-28 h-28 lg:w-36 lg:h-36 object-contain opacity-40 hover:opacity-60 transition-opacity"
+              />
+            </Link>
+          )}
         </div>
       </div>
 

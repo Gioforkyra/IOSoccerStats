@@ -55,16 +55,18 @@ async def scrape_team_roster(client: httpx.AsyncClient, pool: asyncpg.Pool, team
             if not steam_id:
                 continue
 
+            iosoccer_id = player.get("id")  # IOSoccer internal player ID
             join_date = parse_date(entry.get("joinDate"))
             leave_date = parse_date(entry.get("leaveDate"))
             is_current = entry.get("isCurrentTeam", False)
+            team_role = entry.get("teamRole")  # 1=Owner,2=Manager,3=Captain,4=ViceCaptain,5=Coach,6=Player,7=Reserve,8=Loaned
 
             # Insert "join" transfer
             if join_date:
                 try:
                     await conn.execute("""
-                        INSERT INTO transfers (player_steam_id, from_team_id, to_team_id, date, type)
-                        SELECT $1, NULL, $2, $3, 'join'
+                        INSERT INTO transfers (player_steam_id, from_team_id, to_team_id, date, type, role)
+                        SELECT $1, NULL, $2, $3, 'join', $4
                         WHERE NOT EXISTS (
                             SELECT 1 FROM transfers
                             WHERE player_steam_id = $1
@@ -72,8 +74,22 @@ async def scrape_team_roster(client: httpx.AsyncClient, pool: asyncpg.Pool, team
                               AND date = $3
                               AND type = 'join'
                         )
-                    """, steam_id, team_id, join_date, )
+                    """, steam_id, team_id, join_date, team_role)
                     inserted += 1
+                except Exception:
+                    pass
+
+            # Update role on existing join transfers
+            if join_date and team_role is not None:
+                try:
+                    await conn.execute("""
+                        UPDATE transfers SET role = $4
+                        WHERE player_steam_id = $1
+                          AND to_team_id = $2
+                          AND date = $3
+                          AND type = 'join'
+                          AND (role IS NULL OR role != $4)
+                    """, steam_id, team_id, join_date, team_role)
                 except Exception:
                     pass
 
@@ -95,15 +111,17 @@ async def scrape_team_roster(client: httpx.AsyncClient, pool: asyncpg.Pool, team
                 except Exception:
                     pass
 
-            # Also ensure the player exists in our DB
+            # Ensure the player exists and has iosoccer_id
             player_name = player.get("name", "")
             if steam_id and player_name:
                 try:
                     await conn.execute("""
-                        INSERT INTO players (steam_id, username, created_at, updated_at)
-                        VALUES ($1, $2, NOW(), NOW())
-                        ON CONFLICT (steam_id) DO NOTHING
-                    """, steam_id, player_name)
+                        INSERT INTO players (steam_id, iosoccer_id, username, created_at, updated_at)
+                        VALUES ($1, $2, $3, NOW(), NOW())
+                        ON CONFLICT (steam_id) DO UPDATE SET
+                          iosoccer_id = COALESCE(EXCLUDED.iosoccer_id, players.iosoccer_id),
+                          username = EXCLUDED.username
+                    """, steam_id, iosoccer_id, player_name)
                 except Exception:
                     pass
 

@@ -36,8 +36,8 @@ export default async function PlayersPage({
   searchParams: Promise<{ sort?: string; dir?: string; page?: string; pos?: string }>;
 }) {
   const params = await searchParams;
-  const sortKey = params.sort && SORT_OPTIONS[params.sort] ? params.sort : "goals";
-  const dir = params.dir === "asc" ? "ASC" : "DESC";
+  const sortKey = params.sort && SORT_OPTIONS[params.sort] ? params.sort : "apps";
+  const dir = params.dir === "asc" ? "ASC" : params.dir === "desc" ? "DESC" : (params.sort ? "DESC" : "DESC");
   const page = Math.max(1, parseInt(params.page || "1", 10));
   const posFilter = params.pos || "";
   const offset = (page - 1) * PAGE_SIZE;

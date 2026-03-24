@@ -146,8 +146,8 @@ export default async function MatchPage({
         potm: match.potm,
         homeScore: match.homeScore,
         awayScore: match.awayScore,
-        homeTeam: { id: match.homeTeamId, name: match.homeTeam.name, logo: homeLogoUrl },
-        awayTeam: { id: match.awayTeamId, name: match.awayTeam.name, logo: awayLogoUrl },
+        homeTeam: { id: match.homeTeamId, name: match.homeTeam.name, logo: homeLogoUrl, color: match.homeTeam.color },
+        awayTeam: { id: match.awayTeamId, name: match.awayTeam.name, logo: awayLogoUrl, color: match.awayTeam.color },
       }}
       playerStats={playerStats.map((p) => {
         const n: Record<string, unknown> = { ...p };

@@ -28,7 +28,6 @@ export default async function PlayerTeamHistoryPage({
   const player = await prisma.player.findUnique({ where: { steamId } });
   if (!player) return notFound();
 
-  // Use transfer data for official team history, enriched with match stats
   const teams = await prisma.$queryRaw<TeamTransfer[]>`
     WITH team_stints AS (
       SELECT
@@ -46,37 +45,54 @@ export default async function PlayerTeamHistoryPage({
       WHERE tr.player_steam_id = ${steamId}
         AND tr.type = 'join'
         AND tr.to_team_id IS NOT NULL
+    ),
+    stint_stats AS (
+      SELECT
+        ts.team_id,
+        ts.join_date,
+        ts.leave_date,
+        COUNT(DISTINCT mps.match_id) AS apps,
+        COALESCE(SUM(mps.goals), 0) AS goals,
+        COALESCE(SUM(mps.assists), 0) AS assists,
+        COUNT(DISTINCT CASE WHEN
+          (mps.team_side = 'home' AND m.home_score > m.away_score) OR
+          (mps.team_side = 'away' AND m.away_score > m.home_score)
+        THEN m.id END) AS wins,
+        COUNT(DISTINCT CASE WHEN m.home_score = m.away_score THEN m.id END) AS draws,
+        COUNT(DISTINCT CASE WHEN
+          (mps.team_side = 'home' AND m.home_score < m.away_score) OR
+          (mps.team_side = 'away' AND m.away_score < m.home_score)
+        THEN m.id END) AS losses
+      FROM team_stints ts
+      LEFT JOIN matches m ON (
+        m.home_team_id = ts.team_id OR m.away_team_id = ts.team_id
+      )
+      LEFT JOIN match_player_stats mps ON mps.match_id = m.id
+        AND mps.player_steam_id = ${steamId}
+        AND (
+          (mps.team_side = 'home' AND m.home_team_id = ts.team_id) OR
+          (mps.team_side = 'away' AND m.away_team_id = ts.team_id)
+        )
+      WHERE mps.match_id IS NOT NULL
+      GROUP BY ts.team_id, ts.join_date, ts.leave_date
     )
     SELECT
       t.id AS team_id,
       t.name AS team_name,
       t.logo AS team_logo,
       t.color AS team_color,
-      ts.join_date,
-      ts.leave_date,
-      COUNT(DISTINCT mps.match_id) AS apps,
-      COALESCE(SUM(mps.goals), 0) AS goals,
-      COALESCE(SUM(mps.assists), 0) AS assists,
-      COUNT(DISTINCT CASE WHEN
-        (mps.team_side = 'home' AND m.home_score > m.away_score) OR
-        (mps.team_side = 'away' AND m.away_score > m.home_score)
-      THEN m.id END) AS wins,
-      COUNT(DISTINCT CASE WHEN m.home_score = m.away_score THEN m.id END) AS draws,
-      COUNT(DISTINCT CASE WHEN
-        (mps.team_side = 'home' AND m.home_score < m.away_score) OR
-        (mps.team_side = 'away' AND m.away_score < m.home_score)
-      THEN m.id END) AS losses
-    FROM team_stints ts
-    JOIN teams t ON t.id = ts.team_id
-    LEFT JOIN match_player_stats mps ON mps.player_steam_id = ${steamId}
-    LEFT JOIN matches m ON m.id = mps.match_id
-      AND (
-        (mps.team_side = 'home' AND m.home_team_id = ts.team_id) OR
-        (mps.team_side = 'away' AND m.away_team_id = ts.team_id)
-      )
+      ss.join_date,
+      ss.leave_date,
+      COALESCE(ss.apps, 0) AS apps,
+      COALESCE(ss.goals, 0) AS goals,
+      COALESCE(ss.assists, 0) AS assists,
+      COALESCE(ss.wins, 0) AS wins,
+      COALESCE(ss.draws, 0) AS draws,
+      COALESCE(ss.losses, 0) AS losses
+    FROM stint_stats ss
+    JOIN teams t ON t.id = ss.team_id
     WHERE t.name NOT IN ('IOSoccer All', 'IOSoccer Overlap', 'IOSoccer Challenge', 'IOSoccer Premier')
-    GROUP BY t.id, t.name, t.logo, t.color, ts.join_date, ts.leave_date
-    ORDER BY ts.join_date DESC NULLS LAST
+    ORDER BY ss.join_date DESC NULLS LAST
   `;
 
   return (

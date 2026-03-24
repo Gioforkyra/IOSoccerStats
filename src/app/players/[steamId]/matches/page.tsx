@@ -145,10 +145,10 @@ export default async function PlayerMatchesPage({
               const won = isHome ? m.home_score > m.away_score : m.away_score > m.home_score;
               const draw = m.home_score === m.away_score;
               const rowBg = won
-                ? "bg-green-500/8 border-l-2 border-l-green-500"
+                ? "bg-green-500/15 border-l-2 border-l-green-500"
                 : draw
-                  ? "bg-chalk-300/5 border-l-2 border-l-chalk-400"
-                  : "bg-red-500/8 border-l-2 border-l-red-500";
+                  ? "bg-amber-500/10 border-l-2 border-l-amber-400"
+                  : "bg-red-500/15 border-l-2 border-l-red-500";
 
               const passAcc = m.passes > 0 ? ((m.passes_completed / m.passes) * 100).toFixed(0) : "0";
               const dist = (m.distance_run / 1000).toFixed(2);

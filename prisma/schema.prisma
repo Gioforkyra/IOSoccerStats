@@ -9,6 +9,7 @@ datasource db {
 
 model Player {
   steamId         String                 @id @map("steam_id")
+  iosoccerId      Int?                   @unique @map("iosoccer_id")
   username        String
   country         String?
   position        String?
@@ -183,6 +184,7 @@ model Transfer {
   toTeamId      Int?     @map("to_team_id")
   date          DateTime
   type          String   @default("transfer")
+  role          Int?
   fromTeam      Team?    @relation("TeamTransferFrom", fields: [fromTeamId], references: [id])
   player        Player   @relation(fields: [playerSteamId], references: [steamId])
   toTeam        Team?    @relation("TeamTransferTo", fields: [toTeamId], references: [id])

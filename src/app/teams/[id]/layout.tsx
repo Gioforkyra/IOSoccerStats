@@ -79,27 +79,18 @@ export default async function TeamLayout({
       <div
         className="relative rounded-xl border border-chalk-100/8 overflow-hidden mb-6"
         style={{
-          background: teamColor
-            ? `linear-gradient(135deg, ${teamColor}40 0%, ${teamColor}25 50%, rgba(23,23,23,0.95) 100%)`
-            : undefined,
-          backgroundColor: teamColor ? undefined : "rgb(var(--pitch-900))",
+          backgroundColor: teamColor ? `${teamColor}35` : "rgb(var(--pitch-900))",
         }}
       >
-        {team.logo && (
-          <div className="absolute right-6 md:right-10 top-1/2 -translate-y-1/2 opacity-[0.15] pointer-events-none">
-            <img src={proxyImg(team.logo)!} alt="" className="w-28 h-28 md:w-40 md:h-40 object-contain" />
-          </div>
-        )}
-
         <div className="relative flex items-center gap-6 p-6 md:p-8">
           {team.logo ? (
             <img
               src={proxyImg(team.logo)!}
               alt={team.name}
-              className="w-20 h-20 md:w-24 md:h-24 object-contain shrink-0"
+              className="w-24 h-24 md:w-32 md:h-32 object-contain shrink-0"
             />
           ) : (
-            <div className="w-20 h-20 md:w-24 md:h-24 flex items-center justify-center text-2xl font-display font-900 text-chalk-300 shrink-0 rounded-lg border-2 border-chalk-100/10 bg-pitch-700">
+            <div className="w-24 h-24 md:w-32 md:h-32 flex items-center justify-center text-3xl font-display font-900 text-chalk-300 shrink-0 rounded-lg border-2 border-chalk-100/10 bg-pitch-700">
               {team.slug?.slice(0, 3).toUpperCase() || "?"}
             </div>
           )}
