@@ -1,49 +1,142 @@
-"use client";
-import { useState } from "react";
+import { prisma } from "@/lib/prisma";
 import Link from "next/link";
+import { Prisma } from "@/generated/prisma/client";
 
-// Mock — sostituisci con fetch da /api/players?sort=goals&page=1
-const MOCK_PLAYERS = [
-  { name: "aryan",    nationality: "NL", rating: 9.2, apps: 3188, winPct: "61%", wins: 1945, losses: 874,  draws: 369, goals: 2155, goalsAvg: 0.68, shotAcc: "78.23%", assists: 1658, assistsAvg: 0.52, passesAvg: 38.32, passCompl: "83.69%", xg: 1823, xgAvg: 0.57 },
-  { name: "Nuri",     nationality: "?",  rating: 7.9, apps: 2282, winPct: "45%", wins: 1017, losses: 990,  draws: 275, goals: 2310, goalsAvg: 1.01, shotAcc: "77.96%", assists: 1541, assistsAvg: 0.68, passesAvg: 23.75, passCompl: "67.73%", xg: 2011, xgAvg: 0.88 },
-  { name: "Janir",    nationality: "PL", rating: 8.0, apps: 2128, winPct: "46%", wins: 985,  losses: 896,  draws: 247, goals: 1999, goalsAvg: 0.94, shotAcc: "76.97%", assists: 1235, assistsAvg: 0.58, passesAvg: 23.00, passCompl: "72.30%", xg: 1742, xgAvg: 0.82 },
-  { name: "tet-",     nationality: "NP", rating: 8.2, apps: 3109, winPct: "45%", wins: 1402, losses: 1260, draws: 447, goals: 708,  goalsAvg: 0.23, shotAcc: "73.83%", assists: 1487, assistsAvg: 0.48, passesAvg: 29.75, passCompl: "76.46%", xg: 621,  xgAvg: 0.20 },
-  { name: "Kobe",     nationality: "BE", rating: 8.3, apps: 967,  winPct: "51%", wins: 495,  losses: 339,  draws: 133, goals: 546,  goalsAvg: 0.56, shotAcc: "76.52%", assists: 640,  assistsAvg: 0.66, passesAvg: 29.04, passCompl: "76.58%", xg: 498,  xgAvg: 0.52 },
-  { name: "NightFire",nationality: "BE", rating: 7.9, apps: 412,  winPct: "56%", wins: 229,  losses: 129,  draws: 54,  goals: 490,  goalsAvg: 1.19, shotAcc: "82.55%", assists: 231,  assistsAvg: 0.56, passesAvg: 25.14, passCompl: "72.19%", xg: 412,  xgAvg: 1.00 },
-  { name: "Bas",      nationality: "GB", rating: 7.2, apps: 790,  winPct: "50%", wins: 392,  losses: 302,  draws: 96,  goals: 188,  goalsAvg: 0.24, shotAcc: "72.64%", assists: 318,  assistsAvg: 0.40, passesAvg: 28.31, passCompl: "69.37%", xg: 155,  xgAvg: 0.20 },
-  { name: "Phenom",   nationality: "AR", rating: 7.0, apps: 564,  winPct: "39%", wins: 219,  losses: 261,  draws: 84,  goals: 313,  goalsAvg: 0.55, shotAcc: "77.87%", assists: 321,  assistsAvg: 0.57, passesAvg: 20.62, passCompl: "68.44%", xg: 271,  xgAvg: 0.48 },
-];
+const PAGE_SIZE = 20;
 
-const COLUMNS = [
-  { key: "rating",    label: "RTG",      title: "Rating" },
-  { key: "apps",      label: "APPS",     title: "Appearances" },
-  { key: "winPct",    label: "WIN%",     title: "Win Percentage" },
-  { key: "goals",     label: "GOALS",    title: "Total Goals" },
-  { key: "goalsAvg",  label: "G/APP",    title: "Goals per App" },
-  { key: "xg",        label: "xG",       title: "Expected Goals (IOStats exclusive)" },
-  { key: "shotAcc",   label: "SHOT%",    title: "Shot Accuracy" },
-  { key: "assists",   label: "AST",      title: "Assists" },
-  { key: "passCompl", label: "PASS%",    title: "Pass Completion" },
-];
+const SORT_OPTIONS: Record<string, { label: string; orderBy: Prisma.Sql }> = {
+  rating:   { label: "Rating",  orderBy: Prisma.sql`p.rating` },
+  goals:    { label: "Goals",    orderBy: Prisma.sql`total_goals` },
+  assists:  { label: "Assists",  orderBy: Prisma.sql`total_assists` },
+  apps:     { label: "Apps",     orderBy: Prisma.sql`apps` },
+  xg:       { label: "xG",      orderBy: Prisma.sql`total_xg` },
+  shotAcc:  { label: "Shot%",   orderBy: Prisma.sql`shot_accuracy` },
+  passAcc:  { label: "Pass%",   orderBy: Prisma.sql`pass_accuracy` },
+  saves:    { label: "Saves",   orderBy: Prisma.sql`total_saves` },
+};
 
-export default function PlayersPage() {
-  const [sortKey, setSortKey] = useState("goals");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+type PlayerRow = {
+  steam_id: string;
+  username: string;
+  position: string | null;
+  avatar: string | null;
+  rating: number | null;
+  apps: bigint;
+  total_goals: bigint;
+  total_assists: bigint;
+  total_saves: bigint;
+  total_xg: number;
+  shot_accuracy: number;
+  pass_accuracy: number;
+};
 
-  function handleSort(key: string) {
-    if (sortKey === key) {
-      setSortDir(d => d === "desc" ? "asc" : "desc");
-    } else {
-      setSortKey(key);
-      setSortDir("desc");
-    }
+export default async function PlayersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ sort?: string; dir?: string; page?: string; pos?: string }>;
+}) {
+  const params = await searchParams;
+  const sortKey = params.sort && SORT_OPTIONS[params.sort] ? params.sort : "goals";
+  const dir = params.dir === "asc" ? "ASC" : "DESC";
+  const page = Math.max(1, parseInt(params.page || "1", 10));
+  const posFilter = params.pos || "";
+  const offset = (page - 1) * PAGE_SIZE;
+
+  const posWhere = posFilter
+    ? Prisma.sql`AND mps.position = ${posFilter}`
+    : Prisma.empty;
+
+  const orderCol = SORT_OPTIONS[sortKey].orderBy;
+
+  // Set longer timeout for this heavy query
+  await prisma.$executeRaw`SET LOCAL statement_timeout = '30s'`;
+
+  const players = await prisma.$queryRaw<PlayerRow[]>`
+    SELECT
+      p.steam_id,
+      p.username,
+      p.position,
+      p.avatar,
+      p.rating,
+      agg.apps,
+      agg.total_goals,
+      agg.total_assists,
+      agg.total_saves,
+      agg.total_xg,
+      agg.shot_accuracy,
+      agg.pass_accuracy
+    FROM players p
+    JOIN (
+      SELECT
+        mps.player_steam_id,
+        COUNT(DISTINCT mps.match_id) AS apps,
+        COALESCE(SUM(mps.goals), 0) AS total_goals,
+        COALESCE(SUM(mps.assists), 0) AS total_assists,
+        COALESCE(SUM(mps.saves), 0) AS total_saves,
+        COALESCE(SUM(mps.shots_on_target)::float / NULLIF(SUM(mps.shots), 0) * 100, 0) AS shot_accuracy,
+        COALESCE(SUM(mps.passes_completed)::float / NULLIF(SUM(mps.passes), 0) * 100, 0) AS pass_accuracy,
+        0::float AS total_xg
+      FROM match_player_stats mps
+      ${posFilter ? Prisma.sql`WHERE mps.position = ${posFilter}` : Prisma.empty}
+      GROUP BY mps.player_steam_id
+      HAVING COUNT(DISTINCT mps.match_id) >= 5
+    ) agg ON agg.player_steam_id = p.steam_id
+    ORDER BY ${orderCol} ${Prisma.raw(dir)} NULLS LAST
+    LIMIT ${PAGE_SIZE} OFFSET ${offset}
+  `;
+
+  // Count total players
+  const countResult = await prisma.$queryRaw<{ total: bigint }[]>`
+    SELECT COUNT(*) AS total FROM (
+      SELECT p.steam_id
+      FROM players p
+      JOIN match_player_stats mps ON mps.player_steam_id = p.steam_id
+      ${posFilter ? Prisma.sql`WHERE mps.position = ${posFilter}` : Prisma.empty}
+      GROUP BY p.steam_id
+      HAVING COUNT(DISTINCT mps.match_id) >= 5
+    ) sub
+  `;
+  const totalPlayers = Number(countResult[0]?.total || 0);
+  const totalPages = Math.max(1, Math.ceil(totalPlayers / PAGE_SIZE));
+
+  function sortUrl(key: string) {
+    const newDir = key === sortKey && dir === "DESC" ? "asc" : "desc";
+    const p = new URLSearchParams();
+    p.set("sort", key);
+    p.set("dir", newDir);
+    if (posFilter) p.set("pos", posFilter);
+    return `/players?${p.toString()}`;
   }
 
-  const sorted = [...MOCK_PLAYERS].sort((a, b) => {
-    const av = parseFloat(String((a as any)[sortKey])) || 0;
-    const bv = parseFloat(String((b as any)[sortKey])) || 0;
-    return sortDir === "desc" ? bv - av : av - bv;
-  });
+  function pageUrl(p: number) {
+    const sp = new URLSearchParams();
+    sp.set("sort", sortKey);
+    sp.set("dir", dir.toLowerCase());
+    if (posFilter) sp.set("pos", posFilter);
+    sp.set("page", String(p));
+    return `/players?${sp.toString()}`;
+  }
+
+  function posUrl(pos: string) {
+    const sp = new URLSearchParams();
+    sp.set("sort", sortKey);
+    sp.set("dir", dir.toLowerCase());
+    if (pos) sp.set("pos", pos);
+    return `/players?${sp.toString()}`;
+  }
+
+  const COLUMNS = [
+    { key: "rating",  label: "RTG" },
+    { key: "apps",    label: "APPS" },
+    { key: "goals",   label: "GOALS" },
+    { key: "assists", label: "AST" },
+    { key: "xg",      label: "xG" },
+    { key: "shotAcc", label: "SHOT%" },
+    { key: "passAcc", label: "PASS%" },
+    { key: "saves",   label: "SAVES" },
+  ];
+
+  const positions = ["GK", "DEF", "MID", "ATT"];
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -54,28 +147,39 @@ export default function PlayersPage() {
             PLAYER STATS
           </h1>
           <p className="text-chalk-400 text-sm font-body mt-1">
-            6,790 players · sorted by{" "}
-            <span className="text-grass-500 font-mono">{sortKey}</span>
+            {totalPlayers.toLocaleString()} players · sorted by{" "}
+            <span className="text-grass-500 font-mono">{SORT_OPTIONS[sortKey].label}</span>
           </p>
         </div>
-        {/* xG badge */}
         <div className="hidden md:flex items-center gap-2 text-xs font-mono text-grass-500 border border-grass-500/30 rounded-full px-3 py-1">
-          ◎ xG data exclusive to IOStats
+          xG data exclusive to IOStats
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Position filters */}
       <div className="flex items-center gap-3 mb-4 text-xs font-mono flex-wrap">
-        {["ALL TIME", "THIS MONTH", "THIS WEEK"].map(t => (
-          <button key={t} className="px-3 py-1 rounded border border-chalk-100/10 text-chalk-400 hover:border-grass-500/40 hover:text-grass-500 transition-colors">
-            {t}
-          </button>
-        ))}
-        <div className="h-4 w-px bg-chalk-100/10" />
-        {["ALL POSITIONS", "GK", "DEF", "MID", "ATT"].map(p => (
-          <button key={p} className="px-3 py-1 rounded border border-chalk-100/10 text-chalk-400 hover:border-grass-500/40 hover:text-grass-500 transition-colors">
+        <Link
+          href={posUrl("")}
+          className={`px-3 py-1 rounded border transition-colors ${
+            !posFilter
+              ? "border-grass-500 text-grass-500 bg-grass-500/10"
+              : "border-chalk-100/10 text-chalk-400 hover:border-grass-500/40 hover:text-grass-500"
+          }`}
+        >
+          ALL
+        </Link>
+        {positions.map((p) => (
+          <Link
+            key={p}
+            href={posUrl(p === "ATT" ? "Forward" : p === "DEF" ? "Defender" : p === "MID" ? "Midfielder" : "Goalkeeper")}
+            className={`px-3 py-1 rounded border transition-colors ${
+              posFilter === (p === "ATT" ? "Forward" : p === "DEF" ? "Defender" : p === "MID" ? "Midfielder" : "Goalkeeper")
+                ? "border-grass-500 text-grass-500 bg-grass-500/10"
+                : "border-chalk-100/10 text-chalk-400 hover:border-grass-500/40 hover:text-grass-500"
+            }`}
+          >
             {p}
-          </button>
+          </Link>
         ))}
       </div>
 
@@ -86,82 +190,155 @@ export default function PlayersPage() {
             <tr className="border-b border-chalk-100/8">
               <th className="text-left px-4 py-3 font-mono text-xs text-chalk-400 w-8">#</th>
               <th className="text-left px-4 py-3 font-mono text-xs text-chalk-400">PLAYER</th>
-              {COLUMNS.map(col => (
-                <th
-                  key={col.key}
-                  className="px-4 py-3 font-mono text-xs text-chalk-400 cursor-pointer hover:text-chalk-100 transition-colors text-right"
-                  title={col.title}
-                  onClick={() => handleSort(col.key)}
-                >
-                  <span className="flex items-center justify-end gap-1">
+              {COLUMNS.map((col) => (
+                <th key={col.key} className="px-4 py-3 font-mono text-xs text-chalk-400 text-right">
+                  <Link
+                    href={sortUrl(col.key)}
+                    className="flex items-center justify-end gap-1 hover:text-chalk-100 transition-colors"
+                  >
                     {col.label}
                     {sortKey === col.key && (
                       <span className="text-grass-500">
-                        {sortDir === "desc" ? "↓" : "↑"}
+                        {dir === "DESC" ? "\u2193" : "\u2191"}
                       </span>
                     )}
-                  </span>
+                  </Link>
                 </th>
               ))}
               <th className="px-4 py-3 w-8" />
             </tr>
           </thead>
           <tbody>
-            {sorted.map((p, i) => (
-              <tr key={p.name} className="stat-row group">
-                <td className="px-4 py-3 font-display font-700 text-chalk-100/20 text-base">
-                  {i + 1}
+            {players.map((p, i) => {
+              const apps = Number(p.apps);
+              const goals = Number(p.total_goals);
+              const assists = Number(p.total_assists);
+              const xg = p.total_xg;
+              const shotAcc = p.shot_accuracy;
+              const passAcc = p.pass_accuracy;
+              const saves = Number(p.total_saves);
+
+              return (
+                <tr key={p.steam_id} className={`stat-row group ${i % 2 === 0 ? "bg-pitch-600/15" : "bg-transparent"}`}>
+                  <td className="px-4 py-3 font-display font-700 text-chalk-100/20 text-base">
+                    {offset + i + 1}
+                  </td>
+                  <td className="px-4 py-3">
+                    <Link
+                      href={`/players/${p.steam_id}`}
+                      className="flex items-center gap-2.5 hover:text-grass-400 transition-colors"
+                    >
+                      {p.avatar ? (
+                        <img
+                          src={p.avatar}
+                          alt=""
+                          className="w-7 h-7 rounded object-cover shrink-0"
+                        />
+                      ) : (
+                        <div className="w-7 h-7 rounded bg-pitch-700 flex items-center justify-center text-xs font-display font-700 text-chalk-300 shrink-0">
+                          {p.username[0]?.toUpperCase() || "?"}
+                        </div>
+                      )}
+                      <span className="font-body font-medium text-chalk-100 group-hover:text-grass-400 transition-colors">
+                        {p.username}
+                      </span>
+                      {p.position && (
+                        <span className="text-[10px] font-mono text-chalk-400 bg-pitch-800 px-1.5 py-0.5 rounded">
+                          {p.position}
+                        </span>
+                      )}
+                    </Link>
+                  </td>
+                  <td className={`px-4 py-3 text-right font-mono font-medium ${
+                    p.rating && p.rating >= 8 ? "text-grass-500" : p.rating && p.rating >= 6 ? "text-amber-400" : "text-chalk-300"
+                  }`}>
+                    {p.rating ? p.rating.toFixed(1) : "-"}
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono text-chalk-300">
+                    {apps.toLocaleString()}
+                  </td>
+                  <td className={`px-4 py-3 text-right font-mono font-medium ${sortKey === "goals" ? "text-grass-400" : "text-chalk-200"}`}>
+                    {goals.toLocaleString()}
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono text-chalk-300">
+                    {assists.toLocaleString()}
+                  </td>
+                  <td className={`px-4 py-3 text-right font-mono ${sortKey === "xg" ? "text-grass-400" : "text-grass-500/70"}`}>
+                    {xg.toFixed(1)}
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono text-chalk-300">
+                    {shotAcc.toFixed(1)}%
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono text-chalk-300">
+                    {passAcc.toFixed(1)}%
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono text-chalk-300">
+                    {saves.toLocaleString()}
+                  </td>
+                  <td className="px-4 py-3 text-right text-chalk-400/20 group-hover:text-grass-500 transition-colors">
+                    {"\u2192"}
+                  </td>
+                </tr>
+              );
+            })}
+            {players.length === 0 && (
+              <tr>
+                <td colSpan={11} className="px-4 py-12 text-center text-chalk-400 font-body">
+                  No players found.
                 </td>
-                <td className="px-4 py-3">
-                  <Link
-                    href={`/players/${p.name}`}
-                    className="flex items-center gap-2 hover:text-grass-400 transition-colors"
-                  >
-                    <div className="w-6 h-6 rounded bg-pitch-700 flex items-center justify-center text-xs font-display font-700 text-chalk-300 shrink-0">
-                      {p.name[0].toUpperCase()}
-                    </div>
-                    <span className="font-body font-medium text-chalk-100 group-hover:text-grass-400 transition-colors">
-                      {p.name}
-                    </span>
-                  </Link>
-                </td>
-                <td className="px-4 py-3 text-right font-mono text-chalk-200">{p.rating}</td>
-                <td className="px-4 py-3 text-right font-mono text-chalk-300">{p.apps.toLocaleString()}</td>
-                <td className="px-4 py-3 text-right font-mono text-chalk-300">{p.winPct}</td>
-                <td className={`px-4 py-3 text-right font-mono font-medium ${sortKey === "goals" ? "text-grass-400" : "text-chalk-200"}`}>
-                  {p.goals.toLocaleString()}
-                </td>
-                <td className="px-4 py-3 text-right font-mono text-chalk-300">{p.goalsAvg}</td>
-                {/* xG — our exclusive */}
-                <td className={`px-4 py-3 text-right font-mono ${sortKey === "xg" ? "text-grass-400" : "text-grass-500/70"}`}>
-                  {p.xg.toLocaleString()}
-                </td>
-                <td className="px-4 py-3 text-right font-mono text-chalk-300">{p.shotAcc}</td>
-                <td className="px-4 py-3 text-right font-mono text-chalk-300">{p.assists.toLocaleString()}</td>
-                <td className="px-4 py-3 text-right font-mono text-chalk-300">{p.passCompl}</td>
-                <td className="px-4 py-3 text-right text-chalk-400/20 group-hover:text-grass-500 transition-colors">→</td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
       </div>
 
       {/* Pagination */}
       <div className="flex items-center justify-between mt-4">
-        <span className="text-xs font-mono text-chalk-400">Page 1 of 679</span>
+        <span className="text-xs font-mono text-chalk-400">
+          Page {page} of {totalPages}
+        </span>
         <div className="flex items-center gap-1">
-          {[1, 2, 3, "...", 679].map((p, i) => (
-            <button
-              key={i}
-              className={`w-8 h-8 rounded text-xs font-mono transition-colors ${
-                p === 1
-                  ? "bg-grass-500 text-pitch-950 font-700"
-                  : "text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30"
-              }`}
+          {page > 1 && (
+            <Link
+              href={pageUrl(page - 1)}
+              className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center"
             >
-              {p}
-            </button>
-          ))}
+              &lt;
+            </Link>
+          )}
+          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+            let p: number;
+            if (totalPages <= 5) {
+              p = i + 1;
+            } else if (page <= 3) {
+              p = i + 1;
+            } else if (page >= totalPages - 2) {
+              p = totalPages - 4 + i;
+            } else {
+              p = page - 2 + i;
+            }
+            return (
+              <Link
+                key={p}
+                href={pageUrl(p)}
+                className={`w-8 h-8 rounded text-xs font-mono transition-colors flex items-center justify-center ${
+                  p === page
+                    ? "bg-grass-500 text-pitch-950 font-700"
+                    : "text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30"
+                }`}
+              >
+                {p}
+              </Link>
+            );
+          })}
+          {page < totalPages && (
+            <Link
+              href={pageUrl(page + 1)}
+              className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center"
+            >
+              &gt;
+            </Link>
+          )}
         </div>
       </div>
     </div>

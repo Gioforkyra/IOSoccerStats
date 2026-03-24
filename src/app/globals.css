@@ -5,9 +5,9 @@
 @tailwind utilities;
 
 :root {
-  --pitch-950: #050810;
-  --pitch-900: #080d1a;
-  --pitch-800: #0d1528;
+  --pitch-950: #171717;
+  --pitch-900: #1c1c1c;
+  --pitch-800: #232323;
   --grass-500: #00e676;
   --amber-500: #ffb300;
   --chalk-100: #f0f4ff;

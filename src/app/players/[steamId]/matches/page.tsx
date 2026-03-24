@@ -1,0 +1,236 @@
+import { prisma } from "@/lib/prisma";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { proxyImg } from "@/lib/img";
+
+const MATCHES_PER_PAGE = 20;
+
+type MatchRow = {
+  match_id: number;
+  date: Date;
+  team_name: string;
+  team_logo: string | null;
+  team_side: string;
+  home_score: number;
+  away_score: number;
+  position: string | null;
+  goals: number;
+  assists: number;
+  shots: number;
+  shots_on_target: number;
+  passes: number;
+  passes_completed: number;
+  interceptions: number;
+  possession: number;
+  saves: number;
+  goals_conceded: number;
+  offsides: number;
+  yellow_cards: number;
+  red_cards: number;
+  distance_run: number;
+};
+
+export default async function PlayerMatchesPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ steamId: string }>;
+  searchParams: Promise<{ page?: string }>;
+}) {
+  const { steamId } = await params;
+  const sp = await searchParams;
+  const page = Math.max(1, parseInt(sp.page || "1", 10));
+  const offset = (page - 1) * MATCHES_PER_PAGE;
+
+  const player = await prisma.player.findUnique({ where: { steamId } });
+  if (!player) return notFound();
+
+  const [countResult] = await prisma.$queryRaw<[{ total: bigint }]>`
+    SELECT COUNT(*) AS total FROM match_player_stats WHERE player_steam_id = ${steamId}
+  `;
+  const totalMatches = Number(countResult?.total || 0);
+  const totalPages = Math.max(1, Math.ceil(totalMatches / MATCHES_PER_PAGE));
+
+  const matches = await prisma.$queryRaw<MatchRow[]>`
+    SELECT
+      m.id AS match_id,
+      m.date,
+      t.name AS team_name,
+      t.logo AS team_logo,
+      mps.team_side,
+      m.home_score,
+      m.away_score,
+      mps.position,
+      mps.goals,
+      mps.assists,
+      mps.shots,
+      mps.shots_on_target,
+      mps.passes,
+      mps.passes_completed,
+      mps.interceptions,
+      mps.possession,
+      mps.saves,
+      mps.goals_conceded,
+      mps.offsides,
+      mps.yellow_cards,
+      mps.red_cards,
+      mps.distance_run
+    FROM match_player_stats mps
+    JOIN matches m ON m.id = mps.match_id
+    JOIN teams t ON t.id = CASE
+      WHEN mps.team_side = 'home' THEN m.home_team_id
+      WHEN mps.team_side = 'away' THEN m.away_team_id
+    END
+    WHERE mps.player_steam_id = ${steamId}
+    ORDER BY m.date DESC
+    LIMIT ${MATCHES_PER_PAGE} OFFSET ${offset}
+  `;
+
+  const pageW = matches.filter((m) => {
+    const isHome = m.team_side === "home";
+    return isHome ? m.home_score > m.away_score : m.away_score > m.home_score;
+  }).length;
+  const pageD = matches.filter((m) => m.home_score === m.away_score).length;
+  const pageL = matches.length - pageW - pageD;
+
+  const COLS = [
+    { key: "goals", label: "G" },
+    { key: "assists", label: "A" },
+    { key: "shots", label: "SH" },
+    { key: "shots_on_target", label: "SOT" },
+    { key: "passes", label: "PAS" },
+    { key: "passes_completed", label: "CMP" },
+    { key: "interceptions", label: "INT" },
+    { key: "possession", label: "POS%" },
+    { key: "saves", label: "SAV" },
+    { key: "goals_conceded", label: "CON" },
+    { key: "offsides", label: "OFF" },
+    { key: "yellow_cards", label: "YC" },
+    { key: "red_cards", label: "RC" },
+    { key: "distance_run", label: "DIST" },
+  ] as const;
+
+  return (
+    <>
+      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-4">
+        <h3 className="font-display font-700 text-lg tracking-wider text-chalk-100 uppercase">
+          Matches
+        </h3>
+        <div className="flex items-center gap-3 text-sm font-mono">
+          <span className="text-grass-500">{pageW}W</span>
+          <span className="text-chalk-400">{pageD}D</span>
+          <span className="text-red-400">{pageL}L</span>
+          <span className="text-chalk-300 text-xs">({totalMatches} total)</span>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-chalk-100/8 overflow-x-auto bg-pitch-900/40">
+        <table className="w-full text-sm whitespace-nowrap">
+          <thead>
+            <tr className="border-b border-chalk-100/8">
+              <th className="text-left px-3 py-3 font-mono text-[10px] text-chalk-400 sticky left-0 bg-pitch-900 z-10">DATE</th>
+              <th className="text-center px-2 py-3 font-mono text-[10px] text-chalk-400">POS</th>
+              <th className="text-left px-3 py-3 font-mono text-[10px] text-chalk-400">TEAM</th>
+              <th className="text-center px-2 py-3 font-mono text-[10px] text-chalk-400">RES</th>
+              {COLS.map((c) => (
+                <th key={c.key} className="text-center px-2 py-3 font-mono text-[10px] text-chalk-400">
+                  {c.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {matches.map((m) => {
+              const isHome = m.team_side === "home";
+              const won = isHome ? m.home_score > m.away_score : m.away_score > m.home_score;
+              const draw = m.home_score === m.away_score;
+              const rowBg = won
+                ? "bg-green-500/8 border-l-2 border-l-green-500"
+                : draw
+                  ? "bg-chalk-300/5 border-l-2 border-l-chalk-400"
+                  : "bg-red-500/8 border-l-2 border-l-red-500";
+
+              const passAcc = m.passes > 0 ? ((m.passes_completed / m.passes) * 100).toFixed(0) : "0";
+              const dist = (m.distance_run / 1000).toFixed(2);
+
+              return (
+                <tr key={m.match_id} className={`${rowBg} transition-colors hover:brightness-125`}>
+                  <td className="px-3 py-2.5 font-mono text-[11px] text-chalk-400 sticky left-0 bg-inherit z-10">
+                    {new Date(m.date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                  </td>
+                  <td className="px-2 py-2.5 text-center">
+                    <span className="text-[10px] font-mono text-chalk-400">{m.position || "-"}</span>
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <Link href={`/matches/${m.match_id}`} className="flex items-center gap-1.5 hover:text-grass-400 transition-colors">
+                      {m.team_logo && <img src={proxyImg(m.team_logo)!} alt="" className="w-4 h-4 object-contain" />}
+                      <span className="font-body text-xs text-chalk-200">{m.team_name}</span>
+                    </Link>
+                  </td>
+                  <td className="px-2 py-2.5 text-center">
+                    <span className={`inline-flex items-center justify-center w-6 h-6 rounded text-[10px] font-mono font-700 ${
+                      won ? "bg-green-500/20 text-green-400" : draw ? "bg-chalk-400/20 text-chalk-400" : "bg-red-500/20 text-red-400"
+                    }`}>
+                      {won ? "W" : draw ? "D" : "L"}
+                    </span>
+                  </td>
+                  <td className={`px-2 py-2.5 text-center font-mono text-xs ${m.goals > 0 ? "text-grass-400 font-medium" : "text-chalk-300"}`}>{m.goals}</td>
+                  <td className={`px-2 py-2.5 text-center font-mono text-xs ${m.assists > 0 ? "text-grass-400" : "text-chalk-300"}`}>{m.assists}</td>
+                  <td className="px-2 py-2.5 text-center font-mono text-xs text-chalk-300">{m.shots}</td>
+                  <td className="px-2 py-2.5 text-center font-mono text-xs text-chalk-300">{m.shots_on_target}</td>
+                  <td className="px-2 py-2.5 text-center font-mono text-xs text-chalk-300">{m.passes}</td>
+                  <td className="px-2 py-2.5 text-center font-mono text-xs text-chalk-300">{m.passes_completed}</td>
+                  <td className="px-2 py-2.5 text-center font-mono text-xs text-chalk-300">{m.interceptions}</td>
+                  <td className="px-2 py-2.5 text-center font-mono text-xs text-chalk-300">{passAcc}%</td>
+                  <td className={`px-2 py-2.5 text-center font-mono text-xs ${m.saves > 0 ? "text-cyan-400" : "text-chalk-300"}`}>{m.saves}</td>
+                  <td className="px-2 py-2.5 text-center font-mono text-xs text-chalk-300">{m.goals_conceded}</td>
+                  <td className="px-2 py-2.5 text-center font-mono text-xs text-chalk-300">{m.offsides}</td>
+                  <td className={`px-2 py-2.5 text-center font-mono text-xs ${m.yellow_cards > 0 ? "text-amber-400" : "text-chalk-300"}`}>{m.yellow_cards}</td>
+                  <td className={`px-2 py-2.5 text-center font-mono text-xs ${m.red_cards > 0 ? "text-red-400 font-medium" : "text-chalk-300"}`}>{m.red_cards}</td>
+                  <td className="px-2 py-2.5 text-center font-mono text-xs text-chalk-300">{dist}km</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-3 text-xs font-mono">
+          <span className="text-chalk-400">Page {page} of {totalPages}</span>
+          <div className="flex gap-1">
+            {page > 1 && (
+              <Link href={`/players/${steamId}/matches?page=${page - 1}`} className="px-3 py-1.5 rounded bg-pitch-800 text-chalk-300 hover:bg-pitch-700 transition-colors">
+                Prev
+              </Link>
+            )}
+            {Array.from({ length: Math.min(7, totalPages) }, (_, i) => {
+              let p: number;
+              if (totalPages <= 7) p = i + 1;
+              else if (page <= 4) p = i + 1;
+              else if (page >= totalPages - 3) p = totalPages - 6 + i;
+              else p = page - 3 + i;
+              return (
+                <Link
+                  key={p}
+                  href={`/players/${steamId}/matches?page=${p}`}
+                  className={`px-3 py-1.5 rounded transition-colors ${
+                    p === page ? "bg-grass-600 text-chalk-100" : "bg-pitch-800 text-chalk-300 hover:bg-pitch-700"
+                  }`}
+                >
+                  {p}
+                </Link>
+              );
+            })}
+            {page < totalPages && (
+              <Link href={`/players/${steamId}/matches?page=${page + 1}`} className="px-3 py-1.5 rounded bg-pitch-800 text-chalk-300 hover:bg-pitch-700 transition-colors">
+                Next
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}

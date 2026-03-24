@@ -1,0 +1,256 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Player {
+  steamId         String                 @id @map("steam_id")
+  username        String
+  country         String?
+  position        String?
+  avatar          String?
+  avatarUpdatedAt DateTime?              @map("avatar_updated_at")
+  rating          Float?
+  createdAt       DateTime               @default(now()) @map("created_at")
+  updatedAt       DateTime               @updatedAt @map("updated_at")
+  achievements    Achievement[]
+  matchStats      MatchPlayerStats[]
+  aggregateStats  PlayerAggregateStats[]
+  shots           Shot[]
+  transfers       Transfer[]
+
+  @@map("players")
+}
+
+model Team {
+  id             Int                  @id @default(autoincrement())
+  name           String
+  slug           String
+  logo           String?
+  region         String?
+  color          String?
+  inactive       Boolean              @default(false)
+  createdAt      DateTime             @default(now()) @map("created_at")
+  regionId       Int?                 @map("region_id")
+  teamType       Int?                 @map("team_type")
+  awayMatches    Match[]              @relation("AwayTeam")
+  homeMatches    Match[]              @relation("HomeTeam")
+  aggregateStats TeamAggregateStats[]
+  standings      TournamentStanding[]
+  transfersFrom  Transfer[]           @relation("TeamTransferFrom")
+  transfersTo    Transfer[]           @relation("TeamTransferTo")
+
+  @@map("teams")
+}
+
+model Match {
+  id           Int                @id
+  date         DateTime
+  homeTeamId   Int                @map("home_team_id")
+  awayTeamId   Int                @map("away_team_id")
+  homeScore    Int                @map("home_score")
+  awayScore    Int                @map("away_score")
+  tournamentId Int?               @map("tournament_id")
+  matchType    String             @default("friendly") @map("match_type")
+  status       String             @default("completed")
+  map          String?
+  server       String?
+  potm         String?
+  fieldMinX    Float?             @map("field_min_x")
+  fieldMinY    Float?             @map("field_min_y")
+  fieldMaxX    Float?             @map("field_max_x")
+  fieldMaxY    Float?             @map("field_max_y")
+  createdAt    DateTime           @default(now()) @map("created_at")
+  playerStats  MatchPlayerStats[]
+  awayTeam     Team               @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  homeTeam     Team               @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  tournament   Tournament?        @relation(fields: [tournamentId], references: [id])
+  shots        Shot[]
+
+  @@index([date])
+  @@index([homeTeamId])
+  @@index([awayTeamId])
+  @@index([tournamentId])
+  @@map("matches")
+}
+
+model MatchPlayerStats {
+  matchId         Int     @map("match_id")
+  playerSteamId   String  @map("player_steam_id")
+  teamSide        String  @map("team_side")
+  position        String?
+  goals           Int     @default(0)
+  assists         Int     @default(0)
+  shots           Int     @default(0)
+  shotsOnTarget   Int     @default(0) @map("shots_on_target")
+  passes          Int     @default(0)
+  passesCompleted Int     @default(0) @map("passes_completed")
+  saves           Int     @default(0)
+  fouls           Int     @default(0)
+  yellowCards     Int     @default(0) @map("yellow_cards")
+  redCards        Int     @default(0) @map("red_cards")
+  interceptions   Int     @default(0)
+  corners         Int     @default(0)
+  keyPasses       Int     @default(0) @map("key_passes")
+  distanceRun     Int     @default(0) @map("distance_run")
+  possession      Float   @default(0)
+  minutesPlayed   Int     @default(0) @map("minutes_played")
+  isSubstitute    Boolean @default(false) @map("is_substitute")
+  isPotm          Boolean @default(false) @map("is_potm")
+  chancesCreated  Int     @default(0) @map("chances_created")
+  foulsSuffered   Int     @default(0) @map("fouls_suffered")
+  freeKicks       Int     @default(0) @map("free_kicks")
+  goalKicks       Int     @default(0) @map("goal_kicks")
+  goalsConceded   Int     @default(0) @map("goals_conceded")
+  offsides        Int     @default(0)
+  ownGoals        Int     @default(0) @map("own_goals")
+  penalties       Int     @default(0)
+  secondAssists   Int     @default(0) @map("second_assists")
+  throwIns        Int     @default(0) @map("throw_ins")
+  match           Match   @relation(fields: [matchId], references: [id])
+  player          Player  @relation(fields: [playerSteamId], references: [steamId])
+
+  @@id([matchId, playerSteamId])
+  @@index([playerSteamId])
+  @@map("match_player_stats")
+}
+
+model Shot {
+  id            Int     @id @default(autoincrement())
+  matchId       Int     @map("match_id")
+  playerSteamId String  @map("player_steam_id")
+  rawX          Float   @map("raw_x")
+  rawY          Float   @map("raw_y")
+  normalizedX   Float   @map("normalized_x")
+  normalizedY   Float   @map("normalized_y")
+  isGoal        Boolean @map("is_goal")
+  isSave        Boolean @default(false) @map("is_save")
+  xg            Float   @default(0)
+  minute        Int?
+  match         Match   @relation(fields: [matchId], references: [id])
+  player        Player  @relation(fields: [playerSteamId], references: [steamId])
+
+  @@index([matchId])
+  @@index([playerSteamId])
+  @@index([isGoal])
+  @@map("shots")
+}
+
+model Tournament {
+  id                Int                  @id @default(autoincrement())
+  name              String
+  type              String               @default("league")
+  region            String?
+  startDate         DateTime?            @map("start_date")
+  endDate           DateTime?            @map("end_date")
+  status            String               @default("active")
+  organisation      String?
+  tournament_format String?
+  team_type_id      Int?
+  match_format      Int?
+  winning_team_id   Int?
+  matches           Match[]
+  standings         TournamentStanding[]
+
+  @@map("tournaments")
+}
+
+model TournamentStanding {
+  tournamentId Int        @map("tournament_id")
+  teamId       Int        @map("team_id")
+  played       Int        @default(0)
+  won          Int        @default(0)
+  drawn        Int        @default(0)
+  lost         Int        @default(0)
+  goalsFor     Int        @default(0) @map("goals_for")
+  goalsAgainst Int        @default(0) @map("goals_against")
+  points       Int        @default(0)
+  team         Team       @relation(fields: [teamId], references: [id])
+  tournament   Tournament @relation(fields: [tournamentId], references: [id])
+
+  @@id([tournamentId, teamId])
+  @@map("tournament_standings")
+}
+
+model Transfer {
+  id            Int      @id @default(autoincrement())
+  playerSteamId String   @map("player_steam_id")
+  fromTeamId    Int?     @map("from_team_id")
+  toTeamId      Int?     @map("to_team_id")
+  date          DateTime
+  type          String   @default("transfer")
+  fromTeam      Team?    @relation("TeamTransferFrom", fields: [fromTeamId], references: [id])
+  player        Player   @relation(fields: [playerSteamId], references: [steamId])
+  toTeam        Team?    @relation("TeamTransferTo", fields: [toTeamId], references: [id])
+
+  @@index([playerSteamId])
+  @@map("transfers")
+}
+
+model Achievement {
+  id            Int      @id @default(autoincrement())
+  playerSteamId String   @map("player_steam_id")
+  type          String
+  earnedDate    DateTime @map("earned_date")
+  metadata      Json?
+  player        Player   @relation(fields: [playerSteamId], references: [steamId])
+
+  @@index([playerSteamId])
+  @@map("achievements")
+}
+
+model PlayerAggregateStats {
+  id                   Int    @id @default(autoincrement())
+  playerSteamId        String @map("player_steam_id")
+  season               String
+  totalMatches         Int    @default(0) @map("total_matches")
+  totalWins            Int    @default(0) @map("total_wins")
+  totalDraws           Int    @default(0) @map("total_draws")
+  totalLosses          Int    @default(0) @map("total_losses")
+  totalGoals           Int    @default(0) @map("total_goals")
+  totalAssists         Int    @default(0) @map("total_assists")
+  totalShots           Int    @default(0) @map("total_shots")
+  totalShotsOnTarget   Int    @default(0) @map("total_shots_on_target")
+  totalPasses          Int    @default(0) @map("total_passes")
+  totalPassesCompleted Int    @default(0) @map("total_passes_completed")
+  totalSaves           Int    @default(0) @map("total_saves")
+  totalCleanSheets     Int    @default(0) @map("total_clean_sheets")
+  totalXg              Float  @default(0) @map("total_xg")
+  avgRating            Float  @default(0) @map("avg_rating")
+  player               Player @relation(fields: [playerSteamId], references: [steamId])
+
+  @@unique([playerSteamId, season])
+  @@index([season])
+  @@index([totalGoals])
+  @@index([totalXg])
+  @@map("player_aggregate_stats")
+}
+
+model TeamAggregateStats {
+  id           Int    @id @default(autoincrement())
+  teamId       Int    @map("team_id")
+  season       String
+  totalMatches Int    @default(0) @map("total_matches")
+  wins         Int    @default(0)
+  draws        Int    @default(0)
+  losses       Int    @default(0)
+  goalsFor     Int    @default(0) @map("goals_for")
+  goalsAgainst Int    @default(0) @map("goals_against")
+  team         Team   @relation(fields: [teamId], references: [id])
+
+  @@unique([teamId, season])
+  @@index([season])
+  @@map("team_aggregate_stats")
+}
+
+model ScraperState {
+  id       Int       @id @default(1)
+  lastPage Int       @default(0) @map("last_page")
+  lastRun  DateTime? @map("last_run")
+
+  @@map("scraper_state")
+}

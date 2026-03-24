@@ -10,11 +10,11 @@ module.exports = {
       },
       colors: {
         pitch: {
-          950: "#050810",
-          900: "#080d1a",
-          800: "#0d1528",
-          700: "#121e38",
-          600: "#1a2d52",
+          950: "#171717",
+          900: "#1c1c1c",
+          800: "#232323",
+          700: "#2a2a2a",
+          600: "#333333",
         },
         grass: {
           500: "#00e676",
@@ -34,7 +34,7 @@ module.exports = {
       },
       backgroundImage: {
         "field-gradient":
-          "linear-gradient(180deg, #050810 0%, #080d1a 40%, #0a1220 100%)",
+          "linear-gradient(180deg, #171717 0%, #1c1c1c 40%, #1f1f1f 100%)",
       },
     },
   },

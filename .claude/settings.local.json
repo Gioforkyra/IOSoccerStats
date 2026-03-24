@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(psql --version)"
+      "Bash(psql --version)",
+      "Bash(python main.py --from 1 --workers 20)",
+      "Bash(tasklist)",
+      "Bash(wmic process:*)",
+      "Bash(taskkill //F //IM python3.11.exe)"
     ]
   }
 }

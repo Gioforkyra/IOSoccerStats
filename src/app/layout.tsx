@@ -15,7 +15,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Navbar />
         <main>{children}</main>
         <footer className="border-t border-chalk-100/5 py-8 mt-16">
-          <div className="max-w-7xl mx-auto px-6 flex items-center justify-between text-chalk-400 text-sm font-body">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-chalk-400 text-sm font-body">
             <span>IOStats — not affiliated with IOSoccer Team</span>
             <span className="font-mono text-xs">v0.1.0</span>
           </div>
