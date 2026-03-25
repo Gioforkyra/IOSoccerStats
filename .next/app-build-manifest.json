@@ -55,6 +55,16 @@
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/players/loading.js"
+    ],
+    "/matches/live/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/matches/live/page.js"
+    ],
+    "/matches/loading": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/matches/loading.js"
     ]
   }
 }
