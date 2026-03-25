@@ -82,23 +82,23 @@ export default async function TeamResultsPage({
               const draw = m.home_score === m.away_score;
               const result = draw ? "D" : won ? "W" : "L";
 
-              const borderClass = draw
-                ? "border-l-chalk-400 bg-chalk-300/5"
+              const rowBg = draw
+                ? "border-l-[#5a6e94] bg-[#5a6e94]/10"
                 : won
-                  ? "border-l-green-500 bg-green-500/10"
-                  : "border-l-red-500 bg-red-500/10";
+                  ? "border-l-[#22c55e] bg-[#22c55e]/10"
+                  : "border-l-[#ef4444] bg-[#ef4444]/10";
 
               const badgeClass = draw
-                ? "bg-chalk-400/20 text-chalk-400"
+                ? "bg-[#5a6e94]/20 text-[#5a6e94]"
                 : won
-                  ? "bg-grass-500/20 text-grass-500"
-                  : "bg-red-400/20 text-red-400";
+                  ? "bg-[#22c55e]/20 text-[#22c55e]"
+                  : "bg-[#ef4444]/20 text-[#ef4444]";
 
               return (
                 <Link
                   key={m.match_id}
                   href={`/matches/${m.match_id}`}
-                  className={`flex items-center px-4 py-2 border-l-4 pink-hover ${borderClass}`}
+                  className={`flex items-center px-4 py-2 border-l-4 pink-hover ${rowBg}`}
                 >
                   <span className="text-xs font-mono text-chalk-400 w-24 shrink-0">
                     {new Date(m.date).toLocaleDateString("en-GB", {

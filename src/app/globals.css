@@ -72,34 +72,15 @@ body {
   box-shadow: 0 10px 24px rgba(20, 82, 119, 0.3);
 }
 
+/* Home card hover (kept for any remaining usage) */
 .home-card-hover {
   transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
 }
 
 .home-card-hover:hover {
-  transform: translateY(-2px);
-  border-color: rgba(131, 208, 203, 0.42);
-  box-shadow: 0 28px 72px rgba(6, 30, 42, 0.34);
-}
-
-.home-accent-link {
-  color: var(--stats-accent-end);
-  transition: color 0.2s ease;
-}
-
-.group:hover .home-accent-link,
-.home-accent-link:hover {
-  color: var(--stats-accent-soft);
-}
-
-.home-accent-outline {
-  transition: border-color 0.2s ease, color 0.2s ease, background-color 0.2s ease;
-}
-
-.home-accent-outline:hover {
-  border-color: rgba(131, 208, 203, 0.38);
-  color: var(--stats-accent-soft);
-  background-color: rgba(131, 208, 203, 0.06);
+  transform: translateY(-1px);
+  border-color: rgba(244, 17, 158, 0.25);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.25);
 }
 
 /* Animated underline for nav links */
@@ -133,6 +114,23 @@ body {
 }
 .stat-row:hover {
   background: rgba(244, 17, 158, 0.06);
+}
+
+/* Scrolling square grid background */
+@keyframes scrollBg {
+  from { background-position: 0 0; }
+  to   { background-position: -80px 0; }
+}
+
+.scroll-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-image:
+    linear-gradient(rgba(244, 17, 158, 0.12) 2px, transparent 2px),
+    linear-gradient(90deg, rgba(244, 17, 158, 0.12) 2px, transparent 2px);
+  background-size: 80px 80px;
+  animation: scrollBg 4s linear infinite;
 }
 
 /* Scrollbar */

@@ -61,6 +61,7 @@ function parseMatch(raw: any) {
     awayScore: (ms.matchGoalsAway || 0) as number,
     matchType: matchTypeRaw === 2 ? "competitive" : "friendly",
     status: "completed",
+    tournamentId: (raw.tournamentId as number | null) || null,
     map: mapObj.name || mi.mapName || null,
     server: serverObj.name || null,
     potm: potmObj.name || null,
@@ -135,9 +136,9 @@ export async function GET() {
 
           // Insert match
           await prisma.$executeRaw`
-            INSERT INTO matches (id, date, home_team_id, away_team_id, home_score, away_score, match_type, status, map, server, potm, field_min_x, field_min_y, field_max_x, field_max_y)
-            VALUES (${m.id}, ${m.date}, ${m.homeTeamId}, ${m.awayTeamId}, ${m.homeScore}, ${m.awayScore}, ${m.matchType}, ${m.status}, ${m.map}, ${m.server}, ${m.potm}, ${m.fieldMinX}, ${m.fieldMinY}, ${m.fieldMaxX}, ${m.fieldMaxY})
-            ON CONFLICT (id) DO NOTHING
+            INSERT INTO matches (id, date, home_team_id, away_team_id, home_score, away_score, match_type, status, tournament_id, map, server, potm, field_min_x, field_min_y, field_max_x, field_max_y)
+            VALUES (${m.id}, ${m.date}, ${m.homeTeamId}, ${m.awayTeamId}, ${m.homeScore}, ${m.awayScore}, ${m.matchType}, ${m.status}, ${m.tournamentId}, ${m.map}, ${m.server}, ${m.potm}, ${m.fieldMinX}, ${m.fieldMinY}, ${m.fieldMaxX}, ${m.fieldMaxY})
+            ON CONFLICT (id) DO UPDATE SET tournament_id = COALESCE(EXCLUDED.tournament_id, matches.tournament_id)
           `;
           inserted++;
         } catch (err) {

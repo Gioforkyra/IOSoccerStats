@@ -1,11 +1,9 @@
 {
   "/page": "app/page.js",
-  "/api/img/route": "app/api/img/route.js",
-  "/matches/page": "app/matches/page.js",
-  "/api/sync-matches/route": "app/api/sync-matches/route.js",
-  "/players/page": "app/players/page.js",
-  "/teams/page": "app/teams/page.js",
   "/tournaments/page": "app/tournaments/page.js",
+  "/teams/page": "app/teams/page.js",
+  "/players/page": "app/players/page.js",
   "/matches/live/page": "app/matches/live/page.js",
-  "/api/live/route": "app/api/live/route.js"
+  "/api/live/route": "app/api/live/route.js",
+  "/teams/[id]/page": "app/teams/[id]/page.js"
 }

@@ -126,70 +126,54 @@ export default async function TournamentsPage({
             return (
               <div
                 key={t.id}
-                className="bg-pitch-900/40 border border-chalk-100/8 rounded-lg p-5 hover:border-chalk-100/15 transition-colors"
+                className="bg-pitch-900/40 border border-chalk-100/8 rounded-lg p-5 hover:border-[#F4119E]/20 transition-colors"
               >
-                <div className="flex items-start gap-4">
-                  {/* Winner logo or placeholder */}
-                  <div
-                    className="w-14 h-14 rounded-lg flex items-center justify-center shrink-0"
-                    style={{
-                      backgroundColor: t.winner_color ? `${t.winner_color}30` : "rgba(35,35,35,1)",
-                    }}
-                  >
-                    {t.winner_logo ? (
-                      <img src={proxyImg(t.winner_logo)!} alt="" className="w-10 h-10 object-contain" />
-                    ) : (
-                      <span className="text-2xl">
-                        {isActive ? "⚽" : "🏆"}
-                      </span>
-                    )}
-                  </div>
+                <div className="flex items-center gap-3 mb-1 flex-wrap">
+                  {/* Winner logo as icon, or emoji fallback */}
+                  {t.winner_logo ? (
+                    <Link href={`/teams/${t.winning_team_id}`} className="shrink-0">
+                      <img src={proxyImg(t.winner_logo)!} alt="" className="w-8 h-8 object-contain" />
+                    </Link>
+                  ) : (
+                    <span className="text-lg shrink-0">
+                      {isActive ? "\u26BD" : "\u{1F3C6}"}
+                    </span>
+                  )}
+                  <h3 className="font-display font-700 text-lg text-chalk-100">
+                    {t.name}
+                  </h3>
+                  {t.winner_name && (
+                    <Link
+                      href={`/teams/${t.winning_team_id}`}
+                      className="flex items-center gap-1.5 hover:opacity-80 transition-opacity"
+                    >
+                      <span className="text-[10px] font-mono text-[#F4119E] uppercase tracking-wider">{"\u{1F3C6}"}</span>
+                      <span className="font-display font-700 text-sm text-[#F4119E]">{t.winner_name}</span>
+                    </Link>
+                  )}
+                  {isActive && (
+                    <span className="text-[10px] font-mono bg-grass-500/20 text-grass-400 px-2 py-0.5 rounded">
+                      ACTIVE
+                    </span>
+                  )}
+                  {t.organisation && (
+                    <span className="text-[10px] font-mono bg-[#F4119E]/15 text-[#F4119E] px-2 py-0.5 rounded">
+                      {t.organisation}
+                    </span>
+                  )}
+                </div>
 
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 mb-1 flex-wrap">
-                      <h3 className="font-display font-700 text-lg text-chalk-100">
-                        {t.name}
-                      </h3>
-                      {isActive && (
-                        <span className="text-[10px] font-mono bg-grass-500/20 text-grass-400 px-2 py-0.5 rounded">
-                          ACTIVE
-                        </span>
-                      )}
-                      {t.organisation && (
-                        <span className="text-[10px] font-mono bg-cyan-500/15 text-cyan-400 px-2 py-0.5 rounded">
-                          {t.organisation}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-mono text-chalk-400">
-                      <span>{startStr} — {endStr}</span>
-                      {t.tournament_format && (
-                        <span>{FORMAT_LABELS[t.tournament_format] || t.tournament_format}</span>
-                      )}
-                      {t.team_type_id && (
-                        <span>{TEAM_TYPES[t.team_type_id] || "Unknown"}</span>
-                      )}
-                      {t.match_format && <span>{t.match_format}v{t.match_format}</span>}
-                      <span>{teams} teams</span>
-                      <span>{matches} matches</span>
-                    </div>
-
-                    {t.winner_name && (
-                      <div className="flex items-center gap-2 mt-2">
-                        <span className="text-[10px] font-mono text-amber-400 uppercase">Winner:</span>
-                        <Link
-                          href={`/teams/${t.winning_team_id}`}
-                          className="flex items-center gap-1.5 text-sm font-body text-chalk-100 hover:text-grass-400 transition-colors"
-                        >
-                          {t.winner_logo && (
-                            <img src={proxyImg(t.winner_logo)!} alt="" className="w-4 h-4 object-contain" />
-                          )}
-                          {t.winner_name}
-                        </Link>
-                      </div>
-                    )}
-                  </div>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-mono text-chalk-400 ml-0">
+                  <span>{startStr} — {endStr}</span>
+                  {t.tournament_format && (
+                    <span>{FORMAT_LABELS[t.tournament_format] || t.tournament_format}</span>
+                  )}
+                  {t.team_type_id && (
+                    <span>{TEAM_TYPES[t.team_type_id] || "Unknown"}</span>
+                  )}
+                  {t.match_format && <span>{t.match_format}v{t.match_format}</span>}
+                  <span>{teams} teams</span>
+                  <span>{matches} matches</span>
                 </div>
               </div>
             );

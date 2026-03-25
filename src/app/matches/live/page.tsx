@@ -170,7 +170,7 @@ export default function LiveScoresPage() {
             LIVE SCORES
           </h1>
           <p className="text-chalk-400 text-sm font-body mt-1">
-            Europe region &middot; auto-refreshing every 30s
+            Europe region
           </p>
         </div>
         <div className="flex items-center gap-4">
@@ -238,7 +238,7 @@ export default function LiveScoresPage() {
             return (
               <div
                 key={meta.id}
-                className="rounded-lg border border-chalk-100/8 bg-pitch-900/60 overflow-hidden cursor-pointer hover:border-chalk-100/15 transition-colors"
+                className="rounded-lg border border-chalk-100/8 bg-pitch-900/60 overflow-hidden cursor-pointer hover:border-[#F4119E]/30 hover:bg-[#F4119E]/3 transition-colors"
                 onClick={() => setExpandedMatch(isExpanded ? null : meta.id)}
               >
                 {/* Top bar */}
@@ -267,48 +267,44 @@ export default function LiveScoresPage() {
                 </div>
 
                 {/* Score area */}
-                <div className="flex items-center justify-center gap-4 sm:gap-8 px-4 py-6">
-                  {/* Home */}
-                  <div className="flex flex-col items-center gap-2 flex-1 min-w-0">
+                <div className="flex items-center justify-center px-4 py-6">
+                  {/* Home: logo + name */}
+                  <div className="flex items-center gap-3 flex-1 min-w-0 justify-end">
                     {homeBadge ? (
-                      <img src={homeBadge} alt={meta.teamHome.name} className="w-12 h-12 sm:w-14 sm:h-14 object-contain" />
+                      <img src={homeBadge} alt={meta.teamHome.name} className="w-12 h-12 sm:w-14 sm:h-14 object-contain shrink-0" />
                     ) : (
-                      <div className="w-12 h-12 sm:w-14 sm:h-14 rounded bg-pitch-700 flex items-center justify-center text-xs font-display font-700 text-chalk-300">
+                      <div className="w-12 h-12 sm:w-14 sm:h-14 rounded bg-pitch-700 flex items-center justify-center text-xs font-display font-700 text-chalk-300 shrink-0">
                         {live.teamCodeHome}
                       </div>
                     )}
-                    <span className="font-body text-sm text-chalk-100 text-center leading-tight">
+                    <span className="font-body text-sm text-chalk-100 text-right leading-tight truncate">
                       {meta.teamHome.name}
                     </span>
                   </div>
 
                   {/* Score */}
-                  <div className="flex items-center gap-3 shrink-0">
-                    <span className={`font-display font-800 text-5xl sm:text-6xl tabular-nums ${
-                      live.matchGoalsHome > live.matchGoalsAway ? "text-grass-400" : "text-chalk-100"
-                    }`}>
+                  <div className="flex items-center gap-4 shrink-0 mx-6 sm:mx-10">
+                    <span className="font-display font-800 text-5xl sm:text-6xl tabular-nums text-chalk-100">
                       {live.matchGoalsHome}
                     </span>
                     <span className="text-chalk-400/30 font-display text-3xl">:</span>
-                    <span className={`font-display font-800 text-5xl sm:text-6xl tabular-nums ${
-                      live.matchGoalsAway > live.matchGoalsHome ? "text-grass-400" : "text-chalk-100"
-                    }`}>
+                    <span className="font-display font-800 text-5xl sm:text-6xl tabular-nums text-chalk-100">
                       {live.matchGoalsAway}
                     </span>
                   </div>
 
-                  {/* Away */}
-                  <div className="flex flex-col items-center gap-2 flex-1 min-w-0">
+                  {/* Away: name + logo */}
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <span className="font-body text-sm text-chalk-100 leading-tight truncate">
+                      {meta.teamAway.name}
+                    </span>
                     {awayBadge ? (
-                      <img src={awayBadge} alt={meta.teamAway.name} className="w-12 h-12 sm:w-14 sm:h-14 object-contain" />
+                      <img src={awayBadge} alt={meta.teamAway.name} className="w-12 h-12 sm:w-14 sm:h-14 object-contain shrink-0" />
                     ) : (
-                      <div className="w-12 h-12 sm:w-14 sm:h-14 rounded bg-pitch-700 flex items-center justify-center text-xs font-display font-700 text-chalk-300">
+                      <div className="w-12 h-12 sm:w-14 sm:h-14 rounded bg-pitch-700 flex items-center justify-center text-xs font-display font-700 text-chalk-300 shrink-0">
                         {live.teamCodeAway}
                       </div>
                     )}
-                    <span className="font-body text-sm text-chalk-100 text-center leading-tight">
-                      {meta.teamAway.name}
-                    </span>
                   </div>
                 </div>
 
@@ -367,18 +363,24 @@ export default function LiveScoresPage() {
                         <h4 className="text-[10px] font-mono text-chalk-400 uppercase mb-2">Match Events</h4>
                         <div className="space-y-1 max-h-60 overflow-y-auto">
                           {live.matchEvents
-                            .filter((e) => e.event !== "CELEBRATION")
+                            .filter((e) => ["GOAL", "SAVE", "MISS", "YELLOW CARD", "RED CARD"].includes(e.event))
                             .map((e, i) => {
                               const min = Math.floor(e.second / 60);
-                              const icon = e.event === "GOAL" ? "&#9917;" : e.event === "SAVE" ? "&#128077;" : e.event === "MISS" ? "&#10060;" : e.event === "YELLOW CARD" ? "&#129000;" : e.event === "RED CARD" ? "&#128308;" : "&#8226;";
+                              const icon = e.event === "GOAL" ? "\u26BD" : e.event === "SAVE" ? "\u{1F9E4}" : e.event === "MISS" ? "\u274C" : e.event === "YELLOW CARD" ? "\u{1F7E8}" : e.event === "RED CARD" ? "\u{1F7E5}" : "\u2022";
                               return (
                                 <div key={i} className="flex items-center gap-2 text-xs">
                                   <span className="font-mono text-chalk-400 w-8 text-right shrink-0">{min}&apos;</span>
-                                  <span dangerouslySetInnerHTML={{ __html: icon }} />
+                                  <span>{icon}</span>
                                   <span className={`font-body ${e.event === "GOAL" ? "text-grass-400 font-medium" : "text-chalk-300"}`}>
                                     {e.player1Name}
                                   </span>
-                                  {e.player2Name && (
+                                  {e.event === "GOAL" && e.player2Name && (
+                                    <span className="text-chalk-400/60">(ast. {e.player2Name})</span>
+                                  )}
+                                  {e.event === "SAVE" && e.player2Name && (
+                                    <span className="text-chalk-400/60">(shot: {e.player2Name})</span>
+                                  )}
+                                  {e.event !== "GOAL" && e.event !== "SAVE" && e.player2Name && (
                                     <span className="text-chalk-400/60">({e.player2Name})</span>
                                   )}
                                   <span className="text-chalk-400/40 ml-auto text-[10px] font-mono">{e.team}</span>
@@ -398,15 +400,6 @@ export default function LiveScoresPage() {
                   </div>
                 )}
 
-                {/* Footer */}
-                <div className="px-4 py-2 border-t border-chalk-100/5 bg-pitch-800/30 flex items-center justify-between">
-                  <span className="text-[11px] font-mono text-chalk-400/50 truncate">
-                    {live.mapName} &middot; {meta.server.name}
-                  </span>
-                  <span className="text-[10px] font-mono text-chalk-400/30">
-                    {live.serverPlayerCount}/{live.serverMaxPlayers} players
-                  </span>
-                </div>
               </div>
             );
           })}

@@ -90,20 +90,20 @@ export default function MatchClient({
           {match.server && <> Â· {serverFlag && <>{serverFlag} </>}{match.server}</>}
         </div>
 
-        <div className="flex items-center justify-center gap-8 md:gap-14">
+        <div className="flex items-center justify-center gap-5 md:gap-8">
           <div className="text-right flex-1">
-            <Link href={`/teams/${match.homeTeam.id}`} className="group inline-flex flex-col items-end gap-3">
+            <Link href={`/teams/${match.homeTeam.id}`} className="group inline-flex flex-col items-end gap-2">
               {match.homeTeam.logo && <img src={match.homeTeam.logo} alt="" className="w-20 h-20 md:w-28 md:h-28 object-contain" />}
               <span className="font-display font-800 text-xl md:text-2xl text-chalk-100 group-hover:text-grass-400 transition-colors">{match.homeTeam.name}</span>
             </Link>
           </div>
-          <div className="font-display font-900 text-5xl md:text-7xl flex items-center gap-4 shrink-0">
+          <div className="font-display font-900 text-5xl md:text-7xl flex items-center gap-5 shrink-0">
             <span className="text-chalk-100">{match.homeScore}</span>
-            <span className="text-chalk-400/30 text-2xl md:text-3xl">-</span>
+            <span className="text-chalk-400/30 text-2xl md:text-3xl">:</span>
             <span className="text-chalk-100">{match.awayScore}</span>
           </div>
           <div className="flex-1">
-            <Link href={`/teams/${match.awayTeam.id}`} className="group inline-flex flex-col items-start gap-3">
+            <Link href={`/teams/${match.awayTeam.id}`} className="group inline-flex flex-col items-start gap-2">
               {match.awayTeam.logo && <img src={match.awayTeam.logo} alt="" className="w-20 h-20 md:w-28 md:h-28 object-contain" />}
               <span className="font-display font-800 text-xl md:text-2xl text-chalk-100 group-hover:text-grass-400 transition-colors">{match.awayTeam.name}</span>
             </Link>

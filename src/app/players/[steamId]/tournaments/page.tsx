@@ -116,7 +116,7 @@ export default async function PlayerTournamentsPage({
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-pitch-950/60 to-transparent pointer-events-none" />
 
-                <div className="relative z-10 flex items-start gap-4">
+                <div className="relative z-10 flex items-center gap-4">
                   {/* Team logo */}
                   <Link href={`/teams/${t.team_id}`} className="shrink-0">
                     {t.team_logo ? (
@@ -153,24 +153,23 @@ export default async function PlayerTournamentsPage({
 
                     <div className="flex items-center gap-2 text-sm">
                       <span className="text-[10px] font-mono text-chalk-400 uppercase">With:</span>
-                      <Link href={`/teams/${t.team_id}`} className="font-body text-chalk-200 hover:text-grass-400 transition-colors">
+                      <Link href={`/teams/${t.team_id}`} className="font-body text-chalk-200 hover:text-[#F4119E] transition-colors">
                         {t.team_name}
                       </Link>
                     </div>
-
-                    {t.winning_team_name && (
-                      <div className="flex items-center gap-2 mt-1 text-sm">
-                        <span className="text-[10px] font-mono text-amber-400 uppercase">Winner:</span>
-                        <Link
-                          href={`/teams/${t.winning_team_id}`}
-                          className="flex items-center gap-1.5 font-body text-chalk-200 hover:text-grass-400 transition-colors"
-                        >
-                          {t.winning_team_logo && <img src={proxyImg(t.winning_team_logo)!} alt="" className="w-4 h-4 object-contain" />}
-                          {t.winning_team_name}
-                        </Link>
-                      </div>
-                    )}
                   </div>
+
+                  {/* Winner on the right */}
+                  {t.winning_team_name && (
+                    <Link
+                      href={`/teams/${t.winning_team_id}`}
+                      className="shrink-0 flex flex-col items-center gap-1.5 hover:opacity-80 transition-opacity"
+                    >
+                      <span className="text-[10px] font-mono text-amber-400 uppercase tracking-wider">Winner</span>
+                      {t.winning_team_logo && <img src={proxyImg(t.winning_team_logo)!} alt="" className="w-10 h-10 object-contain" />}
+                      <span className="font-display font-700 text-sm text-chalk-100">{t.winning_team_name}</span>
+                    </Link>
+                  )}
                 </div>
               </div>
             );

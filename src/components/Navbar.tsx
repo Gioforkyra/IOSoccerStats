@@ -89,7 +89,7 @@ export default function Navbar() {
         value={query}
         onChange={(e) => handleInput(e.target.value)}
         onFocus={() => query.length >= 2 && setShowResults(true)}
-        className="w-full bg-pitch-800 border border-chalk-100/10 rounded px-3 py-1.5 text-sm font-body text-chalk-200 placeholder-chalk-400 focus:outline-none focus:border-grass-500/50"
+        className="w-full bg-pitch-800 border border-chalk-100/10 rounded px-3 py-1.5 text-sm font-body text-chalk-200 placeholder-chalk-400 focus:outline-none focus:border-[#F4119E]/50"
       />
       {showResults && (results.length > 0 || loading) && (
         <div className="absolute top-full left-0 right-0 mt-1 bg-pitch-900 border border-chalk-100/10 rounded-lg shadow-xl overflow-hidden z-50 max-h-80 overflow-y-auto">
@@ -117,6 +117,9 @@ export default function Navbar() {
       )}
     </div>
   );
+
+  // Hide navbar on home page
+  if (path === "/") return null;
 
   return (
     <nav className="sticky top-0 z-50 border-b border-chalk-100/5 bg-pitch-950/90 backdrop-blur-md">

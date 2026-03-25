@@ -107,12 +107,12 @@ export default function SquadClient({ squad }: { squad: SquadPlayer[] }) {
             sorted.map((p, idx) => (
               <tr
                 key={p.steam_id}
-                className={`${idx % 2 === 0 ? "bg-pitch-600/15" : "bg-transparent"} hover:bg-chalk-100/8 transition-colors`}
+                className={`${idx % 2 === 0 ? "bg-pitch-600/15" : "bg-transparent"} pink-hover group`}
               >
                 <td className="px-4 py-3">
                   <Link
                     href={`/players/${p.steam_id}`}
-                    className="font-body text-chalk-100 hover:text-grass-400 transition-colors"
+                    className="font-body text-chalk-100 group-hover:text-[#F4119E] transition-colors"
                   >
                     {p.username}
                   </Link>
