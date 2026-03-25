@@ -45,7 +45,7 @@ export default async function TeamSquadPage({
         AND tr.type = 'join'
     ),
     active_members AS (
-      SELECT steam_id, join_date, role
+      SELECT steam_id, join_date, COALESCE(role, 4) AS role
       FROM current_members
       WHERE leave_date IS NULL AND rn = 1
     ),

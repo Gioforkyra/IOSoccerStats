@@ -1,10 +1,11 @@
 {
-  "/matches/page": "app/matches/page.js",
-  "/matches/[id]/page": "app/matches/[id]/page.js",
+  "/page": "app/page.js",
   "/api/img/route": "app/api/img/route.js",
-  "/players/[steamId]/page": "app/players/[steamId]/page.js",
-  "/players/[steamId]/matches/page": "app/players/[steamId]/matches/page.js",
-  "/players/[steamId]/team-history/page": "app/players/[steamId]/team-history/page.js",
-  "/players/[steamId]/tournaments/page": "app/players/[steamId]/tournaments/page.js",
-  "/teams/[id]/page": "app/teams/[id]/page.js"
+  "/matches/page": "app/matches/page.js",
+  "/api/sync-matches/route": "app/api/sync-matches/route.js",
+  "/players/page": "app/players/page.js",
+  "/teams/page": "app/teams/page.js",
+  "/tournaments/page": "app/tournaments/page.js",
+  "/matches/live/page": "app/matches/live/page.js",
+  "/api/live/route": "app/api/live/route.js"
 }

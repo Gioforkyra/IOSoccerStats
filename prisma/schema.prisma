@@ -24,6 +24,7 @@ model Player {
   shots           Shot[]
   transfers       Transfer[]
 
+  @@index([username])
   @@map("players")
 }
 
@@ -45,6 +46,7 @@ model Team {
   transfersFrom  Transfer[]           @relation("TeamTransferFrom")
   transfersTo    Transfer[]           @relation("TeamTransferTo")
 
+  @@index([name])
   @@map("teams")
 }
 

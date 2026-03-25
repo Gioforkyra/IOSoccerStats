@@ -65,7 +65,7 @@ export default async function TeamLayout({
   const teamColor = team.color || null;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
       {/* Breadcrumb */}
       <div className="text-xs font-mono text-chalk-400 mb-6">
         <Link href="/teams" className="hover:text-grass-500 transition-colors">

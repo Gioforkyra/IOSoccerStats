@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 
-const AVATAR_TTL_MS = 60 * 60 * 1000; // 1 hour
+const AVATAR_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 /** Fetch avatar URL from Steam community XML profile. */
 async function fetchFromSteam(steamId64: string): Promise<string | null> {

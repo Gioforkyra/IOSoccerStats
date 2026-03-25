@@ -1,73 +1,126 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import { proxyImg } from "@/lib/img";
 
-/* ── Types ─────────────────────────────────────────────────────────── */
+/* ── Types matching actual API response ──────────────────────────── */
+
+interface BadgeImage {
+  smallUrl: string;
+  mediumUrl: string;
+}
 
 interface TeamInfo {
   id: number;
   name: string;
   teamCode: string;
   color: string;
-  badgeImage: { smallUrl: string } | null;
+  badgeImage: BadgeImage | null;
+  inactive: boolean;
 }
 
-interface MatchInfo {
+interface ServerInfo {
+  id: number;
+  name: string;
+}
+
+interface MatchEvent {
+  second: number;
+  event: string;
+  period: string;
+  team: string;
+  player1SteamId: string;
+  player1Name: string;
+  player2SteamId: string;
+  player2Name: string;
+  bodyPart: number;
+  startPosition: { x: number; y: number } | null;
+}
+
+interface PlayerSlot {
+  position: string;
+  name: string | null;
+  steamId: string | null;
+}
+
+interface MatchMeta {
   id: number;
   teamHomeId: number;
   teamHome: TeamInfo;
   teamAwayId: number;
   teamAway: TeamInfo;
-  matchType: number; // 0 = RankedFriendly, 1 = Competition
-  format: number; // 8 = 8v8, 11 = 11v11
-  serverName: string;
+  serverId: number;
+  server: ServerInfo;
+  matchType: number; // 1 = Competition, 0 = Friendly
+  format: number;
+  tournamentId: number | null;
+  createdDate: string;
 }
 
-interface LiveData {
-  matchDataToken: string | null;
-  period: number; // 0=NotStarted 1=FirstHalf 2=HalfTime 3=SecondHalf 4=FullTime
-  homeGoals: number;
-  awayGoals: number;
+interface LiveState {
+  matchPeriod: string;
+  startTime: number;
+  matchSeconds: number;
+  matchDisplaySeconds: string;
+  mapName: string;
+  serverPlayerCount: number;
+  serverMaxPlayers: number;
+  matchFormat: number;
+  matchGoalsHome: number;
+  matchGoalsAway: number;
+  teamNameHome: string;
+  teamNameAway: string;
+  teamCodeHome: string;
+  teamCodeAway: string;
+  teamLineupHome: PlayerSlot[];
+  teamLineupAway: PlayerSlot[];
+  matchEvents: MatchEvent[];
+  allPlayers: PlayerSlot[];
 }
 
 interface LiveMatch {
-  item1: MatchInfo;
-  item2: LiveData;
+  item1: MatchMeta;
+  item2: LiveState;
 }
 
-/* ── Helpers ───────────────────────────────────────────────────────── */
+/* ── Helpers ─────────────────────────────────────────────────────── */
 
-const PERIOD_LABELS: Record<number, string> = {
-  0: "Not Started",
-  1: "First Half",
-  2: "Half Time",
-  3: "Second Half",
-  4: "Full Time",
-};
-
-function periodLabel(period: number) {
-  return PERIOD_LABELS[period] ?? `Period ${period}`;
+function periodLabel(period: string): string {
+  const map: Record<string, string> = {
+    "WARM-UP": "Warm-Up",
+    "FIRST HALF": "First Half",
+    "HALF TIME": "Half Time",
+    "SECOND HALF": "Second Half",
+    "FULL TIME": "Full Time",
+    "EXTRA TIME FIRST HALF": "Extra Time 1H",
+    "EXTRA TIME SECOND HALF": "Extra Time 2H",
+    "PENALTIES": "Penalties",
+  };
+  return map[period] || period || "Warm-Up";
 }
 
-function matchTypeLabel(type: number) {
-  return type === 1 ? "Competition" : "Ranked Friendly";
-}
-
-function formatLabel(format: number) {
-  return `${format}v${format}`;
-}
-
-function periodColor(period: number) {
-  if (period === 1 || period === 3) return "text-grass-500"; // live
-  if (period === 2) return "text-amber-400"; // half time
-  if (period === 4) return "text-chalk-400"; // finished
+function periodColor(period: string): string {
+  if (period === "FIRST HALF" || period === "SECOND HALF") return "text-grass-500";
+  if (period === "HALF TIME") return "text-amber-400";
+  if (period === "FULL TIME") return "text-chalk-400";
   return "text-chalk-400";
+}
+
+function isLivePeriod(period: string): boolean {
+  return period === "FIRST HALF" || period === "SECOND HALF";
+}
+
+function matchTimeDisplay(displaySeconds: string, period: string): string {
+  if (period === "WARM-UP") return "Pre-Match";
+  if (period === "HALF TIME") return "HT";
+  if (period === "FULL TIME") return "FT";
+  return displaySeconds || "0:00";
 }
 
 const REFRESH_INTERVAL = 30_000;
 
-/* ── Component ─────────────────────────────────────────────────────── */
+/* ── Component ───────────────────────────────────────────────────── */
 
 export default function LiveScoresPage() {
   const [matches, setMatches] = useState<LiveMatch[]>([]);
@@ -76,6 +129,7 @@ export default function LiveScoresPage() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [secondsAgo, setSecondsAgo] = useState(0);
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [expandedMatch, setExpandedMatch] = useState<number | null>(null);
 
   const fetchLive = useCallback(async () => {
     try {
@@ -93,7 +147,6 @@ export default function LiveScoresPage() {
     }
   }, []);
 
-  // initial + auto-refresh
   useEffect(() => {
     fetchLive();
     if (!autoRefresh) return;
@@ -101,18 +154,15 @@ export default function LiveScoresPage() {
     return () => clearInterval(id);
   }, [fetchLive, autoRefresh]);
 
-  // tick "seconds ago" counter
   useEffect(() => {
     const id = setInterval(() => {
-      if (lastUpdated) {
-        setSecondsAgo(Math.floor((Date.now() - lastUpdated.getTime()) / 1000));
-      }
+      if (lastUpdated) setSecondsAgo(Math.floor((Date.now() - lastUpdated.getTime()) / 1000));
     }, 1000);
     return () => clearInterval(id);
   }, [lastUpdated]);
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-8">
         <div>
@@ -123,22 +173,14 @@ export default function LiveScoresPage() {
             Europe region &middot; auto-refreshing every 30s
           </p>
         </div>
-
         <div className="flex items-center gap-4">
-          {/* Auto-refresh toggle */}
           <button
             onClick={() => setAutoRefresh((v) => !v)}
             className="flex items-center gap-2 text-xs font-mono text-chalk-400 hover:text-chalk-100 transition-colors"
           >
-            <span
-              className={`inline-block w-2 h-2 rounded-full ${
-                autoRefresh ? "bg-grass-500 animate-pulse" : "bg-chalk-400/30"
-              }`}
-            />
+            <span className={`inline-block w-2 h-2 rounded-full ${autoRefresh ? "bg-grass-500 animate-pulse" : "bg-chalk-400/30"}`} />
             {autoRefresh ? "Auto-refresh ON" : "Auto-refresh OFF"}
           </button>
-
-          {/* Manual refresh */}
           <button
             onClick={fetchLive}
             className="text-xs font-mono px-2.5 py-1 rounded border border-chalk-100/10 text-chalk-400 hover:text-chalk-100 hover:border-chalk-100/30 transition-colors"
@@ -148,157 +190,221 @@ export default function LiveScoresPage() {
         </div>
       </div>
 
-      {/* Updated indicator */}
       {lastUpdated && (
         <p className="text-[11px] font-mono text-chalk-400/60 mb-4">
           Last updated {secondsAgo}s ago
         </p>
       )}
 
-      {/* Loading */}
       {loading && (
         <div className="text-center py-20">
           <div className="inline-block w-6 h-6 border-2 border-grass-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-chalk-400 font-body text-sm mt-3">
-            Fetching live scores...
-          </p>
+          <p className="text-chalk-400 font-body text-sm mt-3">Fetching live scores...</p>
         </div>
       )}
 
-      {/* Error */}
       {!loading && error && (
         <div className="rounded-lg border border-red-500/20 bg-red-500/5 px-5 py-4 text-sm font-body text-red-400">
           Failed to load live scores: {error}
         </div>
       )}
 
-      {/* No matches */}
       {!loading && !error && matches.length === 0 && (
         <div className="text-center py-20">
           <div className="text-4xl mb-3 opacity-30">&#9917;</div>
-          <p className="text-chalk-400 font-body">
-            No live matches right now
-          </p>
-          <p className="text-chalk-400/50 font-mono text-xs mt-2">
-            Check back later or enable auto-refresh
-          </p>
+          <p className="text-chalk-400 font-body">No live matches right now</p>
+          <p className="text-chalk-400/50 font-mono text-xs mt-2">Check back later or enable auto-refresh</p>
         </div>
       )}
 
-      {/* Match cards */}
       {!loading && !error && matches.length > 0 && (
         <div className="grid gap-4">
           {matches.map((m) => {
-            const match = m.item1;
+            const meta = m.item1;
             const live = m.item2;
-            const homeBadge = match.teamHome.badgeImage?.smallUrl
-              ? proxyImg(match.teamHome.badgeImage.smallUrl)
+            const homeBadge = meta.teamHome.badgeImage?.mediumUrl
+              ? proxyImg(meta.teamHome.badgeImage.mediumUrl)
               : null;
-            const awayBadge = match.teamAway.badgeImage?.smallUrl
-              ? proxyImg(match.teamAway.badgeImage.smallUrl)
+            const awayBadge = meta.teamAway.badgeImage?.mediumUrl
+              ? proxyImg(meta.teamAway.badgeImage.mediumUrl)
               : null;
-            const isLive = live.period === 1 || live.period === 3;
+            const isLive = isLivePeriod(live.matchPeriod);
+            const isExpanded = expandedMatch === meta.id;
+            const isTournament = meta.tournamentId != null;
+
+            // Filter goal events for display
+            const goalEvents = live.matchEvents.filter((e) => e.event === "GOAL");
 
             return (
               <div
-                key={match.id}
-                className="rounded-lg border border-chalk-100/8 bg-pitch-900/60 overflow-hidden"
+                key={meta.id}
+                className="rounded-lg border border-chalk-100/8 bg-pitch-900/60 overflow-hidden cursor-pointer hover:border-chalk-100/15 transition-colors"
+                onClick={() => setExpandedMatch(isExpanded ? null : meta.id)}
               >
-                {/* Top bar: period + meta */}
+                {/* Top bar */}
                 <div className="flex items-center justify-between px-4 py-2 bg-pitch-800/60 border-b border-chalk-100/5">
                   <div className="flex items-center gap-2">
-                    {isLive && (
-                      <span className="inline-block w-1.5 h-1.5 rounded-full bg-grass-500 animate-pulse" />
-                    )}
-                    <span
-                      className={`text-xs font-mono font-700 uppercase tracking-wide ${periodColor(
-                        live.period,
-                      )}`}
-                    >
-                      {periodLabel(live.period)}
+                    {isLive && <span className="inline-block w-1.5 h-1.5 rounded-full bg-grass-500 animate-pulse" />}
+                    <span className={`text-xs font-mono font-700 uppercase tracking-wide ${periodColor(live.matchPeriod)}`}>
+                      {matchTimeDisplay(live.matchDisplaySeconds, live.matchPeriod)}
                     </span>
+                    {isLive && (
+                      <span className={`text-[10px] font-mono ${periodColor(live.matchPeriod)}`}>
+                        {periodLabel(live.matchPeriod)}
+                      </span>
+                    )}
                   </div>
-
                   <div className="flex items-center gap-3">
-                    <span
-                      className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
-                        match.matchType === 1
-                          ? "text-amber-400 bg-amber-400/10"
-                          : "text-chalk-400 bg-pitch-800"
-                      }`}
-                    >
-                      {matchTypeLabel(match.matchType)}
+                    <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
+                      isTournament ? "text-amber-400 bg-amber-400/10" : "text-chalk-400 bg-pitch-800"
+                    }`}>
+                      {isTournament ? "Competition" : "Friendly"}
                     </span>
                     <span className="text-[10px] font-mono text-chalk-400 bg-pitch-800 px-1.5 py-0.5 rounded">
-                      {formatLabel(match.format)}
+                      {live.matchFormat}v{live.matchFormat}
                     </span>
                   </div>
                 </div>
 
-                {/* Main score area */}
+                {/* Score area */}
                 <div className="flex items-center justify-center gap-4 sm:gap-8 px-4 py-6">
-                  {/* Home team */}
+                  {/* Home */}
                   <div className="flex flex-col items-center gap-2 flex-1 min-w-0">
                     {homeBadge ? (
-                      <img
-                        src={homeBadge}
-                        alt={match.teamHome.name}
-                        className="w-12 h-12 sm:w-14 sm:h-14 object-contain"
-                      />
+                      <img src={homeBadge} alt={meta.teamHome.name} className="w-12 h-12 sm:w-14 sm:h-14 object-contain" />
                     ) : (
-                      <div className="w-12 h-12 sm:w-14 sm:h-14 rounded bg-pitch-700" />
+                      <div className="w-12 h-12 sm:w-14 sm:h-14 rounded bg-pitch-700 flex items-center justify-center text-xs font-display font-700 text-chalk-300">
+                        {live.teamCodeHome}
+                      </div>
                     )}
-                    <span className="font-body text-sm text-chalk-100 text-center truncate max-w-[120px]">
-                      {match.teamHome.name}
+                    <span className="font-body text-sm text-chalk-100 text-center leading-tight">
+                      {meta.teamHome.name}
                     </span>
                   </div>
 
                   {/* Score */}
                   <div className="flex items-center gap-3 shrink-0">
-                    <span
-                      className={`font-display font-800 text-5xl sm:text-6xl tabular-nums ${
-                        live.homeGoals > live.awayGoals
-                          ? "text-grass-400"
-                          : "text-chalk-100"
-                      }`}
-                    >
-                      {live.homeGoals}
+                    <span className={`font-display font-800 text-5xl sm:text-6xl tabular-nums ${
+                      live.matchGoalsHome > live.matchGoalsAway ? "text-grass-400" : "text-chalk-100"
+                    }`}>
+                      {live.matchGoalsHome}
                     </span>
-                    <span className="text-chalk-400/30 font-display text-3xl">
-                      :
-                    </span>
-                    <span
-                      className={`font-display font-800 text-5xl sm:text-6xl tabular-nums ${
-                        live.awayGoals > live.homeGoals
-                          ? "text-grass-400"
-                          : "text-chalk-100"
-                      }`}
-                    >
-                      {live.awayGoals}
+                    <span className="text-chalk-400/30 font-display text-3xl">:</span>
+                    <span className={`font-display font-800 text-5xl sm:text-6xl tabular-nums ${
+                      live.matchGoalsAway > live.matchGoalsHome ? "text-grass-400" : "text-chalk-100"
+                    }`}>
+                      {live.matchGoalsAway}
                     </span>
                   </div>
 
-                  {/* Away team */}
+                  {/* Away */}
                   <div className="flex flex-col items-center gap-2 flex-1 min-w-0">
                     {awayBadge ? (
-                      <img
-                        src={awayBadge}
-                        alt={match.teamAway.name}
-                        className="w-12 h-12 sm:w-14 sm:h-14 object-contain"
-                      />
+                      <img src={awayBadge} alt={meta.teamAway.name} className="w-12 h-12 sm:w-14 sm:h-14 object-contain" />
                     ) : (
-                      <div className="w-12 h-12 sm:w-14 sm:h-14 rounded bg-pitch-700" />
+                      <div className="w-12 h-12 sm:w-14 sm:h-14 rounded bg-pitch-700 flex items-center justify-center text-xs font-display font-700 text-chalk-300">
+                        {live.teamCodeAway}
+                      </div>
                     )}
-                    <span className="font-body text-sm text-chalk-100 text-center truncate max-w-[120px]">
-                      {match.teamAway.name}
+                    <span className="font-body text-sm text-chalk-100 text-center leading-tight">
+                      {meta.teamAway.name}
                     </span>
                   </div>
                 </div>
 
-                {/* Footer: server name */}
-                <div className="px-4 py-2 border-t border-chalk-100/5 bg-pitch-800/30">
-                  <span className="text-[11px] font-mono text-chalk-400/50 truncate block">
-                    {match.serverName}
+                {/* Goal scorers summary */}
+                {goalEvents.length > 0 && (
+                  <div className="px-4 pb-3 flex flex-col gap-1">
+                    {goalEvents.map((g, i) => {
+                      const min = Math.floor(g.second / 60);
+                      const isHome = g.team === "home";
+                      return (
+                        <div key={i} className={`flex items-center gap-2 text-xs font-mono ${isHome ? "justify-start" : "justify-end"}`}>
+                          {isHome && <span className="text-grass-400">&#9917;</span>}
+                          <span className="text-chalk-300">
+                            {g.player1Name} {min}&apos;
+                          </span>
+                          {g.player2Name && <span className="text-chalk-400/60">(ast. {g.player2Name})</span>}
+                          {!isHome && <span className="text-grass-400">&#9917;</span>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Expanded detail */}
+                {isExpanded && (
+                  <div className="border-t border-chalk-100/5 bg-pitch-800/30 px-4 py-4">
+                    {/* Lineups */}
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <h4 className="text-[10px] font-mono text-chalk-400 uppercase mb-2">{meta.teamHome.name}</h4>
+                        <div className="space-y-1">
+                          {live.teamLineupHome.filter(p => p.name).map((p, i) => (
+                            <div key={i} className="flex items-center justify-between text-xs">
+                              <span className="font-body text-chalk-200">{p.name}</span>
+                              <span className="font-mono text-chalk-400 text-[10px] bg-pitch-700 px-1.5 py-0.5 rounded">{p.position}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <h4 className="text-[10px] font-mono text-chalk-400 uppercase mb-2">{meta.teamAway.name}</h4>
+                        <div className="space-y-1">
+                          {live.teamLineupAway.filter(p => p.name).map((p, i) => (
+                            <div key={i} className="flex items-center justify-between text-xs">
+                              <span className="font-body text-chalk-200">{p.name}</span>
+                              <span className="font-mono text-chalk-400 text-[10px] bg-pitch-700 px-1.5 py-0.5 rounded">{p.position}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Events timeline */}
+                    {live.matchEvents.length > 0 && (
+                      <div>
+                        <h4 className="text-[10px] font-mono text-chalk-400 uppercase mb-2">Match Events</h4>
+                        <div className="space-y-1 max-h-60 overflow-y-auto">
+                          {live.matchEvents
+                            .filter((e) => e.event !== "CELEBRATION")
+                            .map((e, i) => {
+                              const min = Math.floor(e.second / 60);
+                              const icon = e.event === "GOAL" ? "&#9917;" : e.event === "SAVE" ? "&#128077;" : e.event === "MISS" ? "&#10060;" : e.event === "YELLOW CARD" ? "&#129000;" : e.event === "RED CARD" ? "&#128308;" : "&#8226;";
+                              return (
+                                <div key={i} className="flex items-center gap-2 text-xs">
+                                  <span className="font-mono text-chalk-400 w-8 text-right shrink-0">{min}&apos;</span>
+                                  <span dangerouslySetInnerHTML={{ __html: icon }} />
+                                  <span className={`font-body ${e.event === "GOAL" ? "text-grass-400 font-medium" : "text-chalk-300"}`}>
+                                    {e.player1Name}
+                                  </span>
+                                  {e.player2Name && (
+                                    <span className="text-chalk-400/60">({e.player2Name})</span>
+                                  )}
+                                  <span className="text-chalk-400/40 ml-auto text-[10px] font-mono">{e.team}</span>
+                                </div>
+                              );
+                            })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Map + Server info */}
+                    <div className="flex items-center gap-4 mt-3 pt-3 border-t border-chalk-100/5 text-[10px] font-mono text-chalk-400/60">
+                      <span>Map: {live.mapName}</span>
+                      <span>Server: {meta.server.name}</span>
+                      <span>Players: {live.serverPlayerCount}/{live.serverMaxPlayers}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Footer */}
+                <div className="px-4 py-2 border-t border-chalk-100/5 bg-pitch-800/30 flex items-center justify-between">
+                  <span className="text-[11px] font-mono text-chalk-400/50 truncate">
+                    {live.mapName} &middot; {meta.server.name}
+                  </span>
+                  <span className="text-[10px] font-mono text-chalk-400/30">
+                    {live.serverPlayerCount}/{live.serverMaxPlayers} players
                   </span>
                 </div>
               </div>

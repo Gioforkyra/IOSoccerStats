@@ -1,262 +1,356 @@
 import Link from "next/link";
+import { prisma } from "@/lib/prisma";
+import { proxyImg } from "@/lib/img";
+import HomeSearchPanel from "@/components/HomeSearchPanel";
 
-// Mock data — sostituisci con fetch reale dal tuo backend
-const RECENT_MATCHES = [
-  { id: 229807, home: "Joga Bonito", homeCode: "JB", away: "Vision", awayCode: "VSN", homeGoals: 8, awayGoals: 1, map: "stanley_park", kickOff: "2h ago" },
-  { id: 229806, home: "Esperanza", homeCode: "pZ", away: "Project X", awayCode: "X", homeGoals: 5, awayGoals: 2, map: "london", kickOff: "3h ago" },
-  { id: 229805, home: "Yutes", homeCode: "Yutes", away: "Inspiration", awayCode: "INP", homeGoals: 3, awayGoals: 5, map: "vienna", kickOff: "4h ago" },
-  { id: 229804, home: "Joga Bonito", homeCode: "JB", away: "IOSoccer Challenge", awayCode: "IOSC", homeGoals: 4, awayGoals: 2, map: "london", kickOff: "5h ago" },
-  { id: 229802, home: "Project X", homeCode: "X", away: "IOSoccer Premier", awayCode: "IOSP", homeGoals: 5, awayGoals: 4, map: "court_hey", kickOff: "6h ago" },
+const HIDDEN_TEAMS = [
+  "IOSoccer All",
+  "IOSoccer Overlap",
+  "IOSoccer Challenge",
+  "IOSoccer Premier",
 ];
 
-const TOP_SCORERS = [
-  { name: "aryan", goals: 2155, apps: 3188, avg: 0.68, rating: 9.2 },
-  { name: "Nuri",  goals: 2310, apps: 2282, avg: 1.01, rating: 7.9 },
-  { name: "Janir", goals: 1999, apps: 2128, avg: 0.94, rating: 8.0 },
-  { name: "tet-",  goals: 708,  apps: 3109, avg: 0.23, rating: 8.2 },
-  { name: "Kobe",  goals: 546,  apps: 967,  avg: 0.56, rating: 8.3 },
-];
+function formatDateLabel(date: Date | null | undefined) {
+  if (!date) return "Waiting for sync";
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(date));
+}
 
-const STATS_HERO = [
-  { label: "Total Matches",  value: "91,306", sub: "all time" },
-  { label: "Active Players", value: "6,790",  sub: "with 10+ apps" },
-  { label: "Goals Scored",   value: "2.1M",   sub: "tracked" },
-  { label: "xG Calculated",  value: "1.8M",   sub: "by IOStats" },
-];
+function formatMatchTime(date: Date) {
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(date));
+}
 
-export default function HomePage() {
+function PanelLink({
+  eyebrow,
+  title,
+  description,
+  href,
+  cta,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+  href: string;
+  cta: string;
+}) {
   return (
-    <div className="field-stripes min-h-screen">
-      {/* ── Hero ─────────────────────────────────────── */}
-      <section className="relative max-w-7xl mx-auto px-6 pt-16 pb-12">
-        {/* Background field lines */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-5">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] border border-chalk-100 rounded-full" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 border border-chalk-100 rounded-full" />
-          <div className="absolute top-0 left-1/2 -translate-x-px h-full w-px bg-chalk-100" />
-        </div>
+    <Link
+      href={href}
+      className="group home-card-hover rounded-[28px] border border-chalk-100/8 bg-[linear-gradient(180deg,rgba(10,24,22,0.92),rgba(11,20,19,0.88))] p-6 shadow-[0_22px_60px_rgba(0,0,0,0.28)]"
+    >
+      <div className="text-[11px] font-mono uppercase tracking-[0.22em] text-chalk-400">
+        {eyebrow}
+      </div>
+      <h3 className="mt-4 font-display text-2xl font-700 tracking-wide text-chalk-100">
+        {title}
+      </h3>
+      <p className="mt-2 max-w-sm text-sm font-body leading-6 text-chalk-300">
+        {description}
+      </p>
+      <div className="home-accent-link mt-6 text-sm font-mono">
+        {cta} {"->"}
+      </div>
+    </Link>
+  );
+}
 
-        <div className="relative z-10">
-          <div className="fade-up fade-up-1 inline-flex items-center gap-2 text-xs font-mono text-grass-500 border border-grass-500/30 rounded-full px-3 py-1 mb-6">
-            <span className="live-dot w-1.5 h-1.5 rounded-full bg-grass-500" />
-            LIVE DATA FROM EUROPE REGION
-          </div>
+export default async function HomePage() {
+  const [
+    playersCount,
+    matchesCount,
+    teamsCount,
+    tournamentsCount,
+    ratingAggregate,
+    latestSync,
+    featuredPlayers,
+    recentMatches,
+  ] = await Promise.all([
+    prisma.player.count(),
+    prisma.match.count(),
+    prisma.team.count({
+      where: {
+        name: {
+          notIn: HIDDEN_TEAMS,
+        },
+      },
+    }),
+    prisma.tournament.count(),
+    prisma.player.aggregate({
+      _avg: { rating: true },
+      where: {
+        rating: {
+          not: null,
+        },
+      },
+    }),
+    prisma.match.findFirst({
+      orderBy: {
+        createdAt: "desc",
+      },
+      select: {
+        createdAt: true,
+      },
+    }),
+    prisma.player.findMany({
+      where: {
+        rating: {
+          not: null,
+        },
+      },
+      orderBy: [{ rating: "desc" }, { updatedAt: "desc" }],
+      take: 4,
+      select: {
+        steamId: true,
+        username: true,
+        rating: true,
+        position: true,
+      },
+    }),
+    prisma.match.findMany({
+      orderBy: [{ date: "desc" }, { id: "desc" }],
+      take: 4,
+      select: {
+        id: true,
+        date: true,
+        map: true,
+        homeScore: true,
+        awayScore: true,
+        homeTeam: {
+          select: {
+            name: true,
+            logo: true,
+          },
+        },
+        awayTeam: {
+          select: {
+            name: true,
+            logo: true,
+          },
+        },
+      },
+    }),
+  ]);
 
-          <h1 className="fade-up fade-up-2 font-display font-900 text-6xl md:text-8xl tracking-tight text-chalk-100 leading-none mb-4">
-            STATS THAT<br />
-            <span className="text-grass-500">MATTER.</span>
-          </h1>
+  const avgRating = ratingAggregate._avg.rating ?? 0;
+  const dbUpdatedLabel = formatDateLabel(latestSync?.createdAt);
 
-          <p className="fade-up fade-up-3 text-chalk-300 text-lg max-w-xl mb-8 font-body">
-            The most advanced analytics hub for IOSoccer. Shot maps, xG, 
-            performance curves and head-to-head comparisons — all powered 
-            by real match data.
-          </p>
-
-          <div className="fade-up fade-up-4 flex items-center gap-4">
-            <Link
-              href="/players"
-              className="font-display font-700 tracking-widest text-sm px-6 py-3 bg-grass-500 text-pitch-950 rounded hover:bg-grass-400 transition-colors"
-            >
-              EXPLORE PLAYERS
-            </Link>
-            <Link
-              href="/matches"
-              className="font-display font-700 tracking-widest text-sm px-6 py-3 border border-chalk-100/20 text-chalk-200 rounded hover:border-chalk-100/40 transition-colors"
-            >
-              RECENT MATCHES
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Stats bar ────────────────────────────────── */}
-      <section className="border-y border-chalk-100/5 bg-pitch-900/50">
-        <div className="max-w-7xl mx-auto px-6 py-6 grid grid-cols-2 md:grid-cols-4 gap-6">
-          {STATS_HERO.map((s, i) => (
-            <div key={s.label} className={`fade-up fade-up-${i + 1}`}>
-              <div className="font-display font-800 text-3xl text-grass-500 stat-glow">
-                {s.value}
+  return (
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(131,208,203,0.18),transparent_36%),linear-gradient(180deg,#061724_0%,#0d2e40_30%,#07161f_100%)]">
+      <section className="border-b border-chalk-100/5">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-14 pb-14">
+          <div className="flex flex-col gap-8 xl:flex-row xl:items-end xl:justify-between">
+            <div className="max-w-3xl">
+              <div className="stats-accent-pill inline-flex items-center gap-2 rounded-full border bg-pitch-950/50 px-3 py-1 text-[11px] font-mono uppercase tracking-[0.22em]">
+                <span className="live-dot stats-accent-dot inline-block h-2 w-2 rounded-full" />
+                Europe Region Data
               </div>
-              <div className="text-xs font-mono text-chalk-400 uppercase tracking-wider mt-0.5">
-                {s.label}
-              </div>
-              <div className="text-xs text-chalk-400/50 font-body">{s.sub}</div>
+              <h1 className="mt-6 font-display text-6xl font-900 leading-[0.9] tracking-tight text-chalk-100 md:text-8xl">
+                IOSoccer-
+                <span className="stats-accent-text">Stats</span>
+              </h1>
+              <p className="mt-5 max-w-2xl text-lg font-body leading-8 text-chalk-200">
+                Broadcast-grade analytics for the IOSoccer community. Search players and teams,
+                break down recent matches, follow live scores and dive into tournament tracking
+                from one hub.
+              </p>
             </div>
-          ))}
-        </div>
-      </section>
 
-      {/* ── Main content grid ────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-6 py-10 grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-        {/* Recent Matches — 2/3 width */}
-        <div className="lg:col-span-2">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-display font-700 text-lg tracking-wider text-chalk-100">
-              RECENT MATCHES
-            </h2>
-            <Link href="/matches" className="text-xs font-mono text-grass-500 hover:text-grass-400">
-              VIEW ALL →
-            </Link>
+            <div className="grid gap-4 sm:grid-cols-2 xl:min-w-[360px]">
+              <div className="rounded-[24px] border border-chalk-100/8 bg-pitch-950/60 px-5 py-4 backdrop-blur-sm">
+                <div className="text-[11px] font-mono uppercase tracking-[0.22em] text-chalk-400">
+                  Database Updated
+                </div>
+                <div className="mt-3 font-display text-2xl font-700 text-chalk-100">
+                  {dbUpdatedLabel}
+                </div>
+                <div className="mt-1 text-xs font-body text-chalk-400">
+                  Latest imported match data
+                </div>
+              </div>
+              <div className="rounded-[24px] border border-chalk-100/8 bg-pitch-950/60 px-5 py-4 backdrop-blur-sm">
+                <div className="text-[11px] font-mono uppercase tracking-[0.22em] text-chalk-400">
+                  Coverage
+                </div>
+                <div className="stats-accent-text mt-3 inline-block font-display text-2xl font-700">
+                  Players, Teams, Matches
+                </div>
+                <div className="mt-1 text-xs font-body text-chalk-400">
+                  xG, lineups, live scores and standings
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div className="rounded-lg border border-chalk-100/8 overflow-hidden bg-pitch-900/40">
-            {RECENT_MATCHES.map((m, i) => {
-              const homeWin = m.homeGoals > m.awayGoals;
-              const awayWin = m.awayGoals > m.homeGoals;
-              return (
-                <Link
-                  key={m.id}
-                  href={`/matches/${m.id}`}
-                  className={`stat-row flex items-center px-4 py-3 gap-4 group fade-up fade-up-${Math.min(i + 1, 5)}`}
-                >
-                  {/* Time + map */}
-                  <div className="w-24 shrink-0">
-                    <div className="text-xs font-mono text-chalk-400">{m.kickOff}</div>
-                    <div className="text-xs text-chalk-400/40 truncate">{m.map}</div>
+          <div className="mt-10 grid gap-4 xl:grid-cols-[1.65fr_0.95fr]">
+            <HomeSearchPanel playersCount={playersCount} teamsCount={teamsCount} />
+
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
+              <div className="rounded-[28px] border border-chalk-100/8 bg-[linear-gradient(180deg,rgba(12,30,28,0.94),rgba(11,20,19,0.88))] p-6 shadow-[0_22px_60px_rgba(0,0,0,0.28)]">
+                <div className="text-[11px] font-mono uppercase tracking-[0.22em] text-chalk-400">
+                  Database Snapshot
+                </div>
+                <div className="mt-6 grid grid-cols-2 gap-5">
+                  <div>
+                    <div className="font-display text-4xl font-800 text-chalk-100">
+                      {playersCount.toLocaleString("en-GB")}
+                    </div>
+                    <div className="mt-1 text-[11px] font-mono uppercase tracking-[0.18em] text-chalk-400">
+                      Total Players
+                    </div>
                   </div>
-
-                  {/* Home team */}
-                  <div className="flex-1 flex items-center justify-end gap-2">
-                    <span className={`text-sm font-body font-medium truncate ${homeWin ? "text-chalk-100" : "text-chalk-400"}`}>
-                      {m.home}
-                    </span>
-                    <span className="font-mono text-xs text-chalk-300 shrink-0 w-6 text-center">
-                      {m.homeCode}
-                    </span>
+                  <div>
+                    <div className="stats-accent-text inline-block font-display text-4xl font-800">
+                      {avgRating.toFixed(2)}
+                    </div>
+                    <div className="mt-1 text-[11px] font-mono uppercase tracking-[0.18em] text-chalk-400">
+                      Avg Rating
+                    </div>
                   </div>
-
-                  {/* Score */}
-                  <div className="shrink-0 flex items-center gap-1 font-display font-700 text-lg">
-                    <span className={homeWin ? "text-grass-500" : "text-chalk-200"}>
-                      {m.homeGoals}
-                    </span>
-                    <span className="text-chalk-400/30 text-sm">—</span>
-                    <span className={awayWin ? "text-grass-500" : "text-chalk-200"}>
-                      {m.awayGoals}
-                    </span>
+                  <div>
+                    <div className="font-display text-4xl font-800 text-chalk-100">
+                      {matchesCount.toLocaleString("en-GB")}
+                    </div>
+                    <div className="mt-1 text-[11px] font-mono uppercase tracking-[0.18em] text-chalk-400">
+                      Matches Tracked
+                    </div>
                   </div>
-
-                  {/* Away team */}
-                  <div className="flex-1 flex items-center gap-2">
-                    <span className="font-mono text-xs text-chalk-300 shrink-0 w-6 text-center">
-                      {m.awayCode}
-                    </span>
-                    <span className={`text-sm font-body font-medium truncate ${awayWin ? "text-chalk-100" : "text-chalk-400"}`}>
-                      {m.away}
-                    </span>
+                  <div>
+                    <div className="font-display text-4xl font-800 text-chalk-100">
+                      {tournamentsCount.toLocaleString("en-GB")}
+                    </div>
+                    <div className="mt-1 text-[11px] font-mono uppercase tracking-[0.18em] text-chalk-400">
+                      Tournaments
+                    </div>
                   </div>
+                </div>
+              </div>
 
-                  {/* Arrow */}
-                  <span className="text-chalk-400/20 group-hover:text-grass-500 transition-colors text-xs">→</span>
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Top Scorers — 1/3 width */}
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-display font-700 text-lg tracking-wider text-chalk-100">
-              TOP SCORERS
-            </h2>
-            <Link href="/players?sort=goals" className="text-xs font-mono text-grass-500 hover:text-grass-400">
-              VIEW ALL →
-            </Link>
+              <PanelLink
+                eyebrow="Live"
+                title="Follow Matches In Real Time"
+                description="Jump into the live scores board to keep track of active games, scorelines and current server activity."
+                href="/matches/live"
+                cta="Open Live Scores"
+              />
+            </div>
           </div>
 
-          <div className="rounded-lg border border-chalk-100/8 overflow-hidden bg-pitch-900/40">
-            {TOP_SCORERS.map((p, i) => (
+          <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="home-card-hover rounded-[28px] border border-chalk-100/8 bg-[linear-gradient(180deg,rgba(12,30,28,0.94),rgba(11,20,19,0.88))] p-6 shadow-[0_22px_60px_rgba(0,0,0,0.28)]">
+              <div className="text-[11px] font-mono uppercase tracking-[0.22em] text-chalk-400">
+                Leaderboards
+              </div>
+              <div className="mt-4 space-y-3">
+                {featuredPlayers.map((player, index) => (
+                  <Link
+                    key={player.steamId}
+                    href={`/players/${player.steamId}`}
+                    className="home-card-hover flex items-center gap-3 rounded-2xl bg-pitch-950/45 px-3 py-3"
+                  >
+                    <span className="stats-accent-badge flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-display font-700">
+                      {index + 1}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-body text-sm font-medium text-chalk-100">
+                        {player.username}
+                      </div>
+                      <div className="text-[11px] font-mono uppercase tracking-[0.16em] text-chalk-400">
+                        {player.position || "Player"}
+                      </div>
+                    </div>
+                    <span className="home-accent-link text-sm font-mono">
+                      {player.rating?.toFixed(1)}
+                    </span>
+                  </Link>
+                ))}
+              </div>
               <Link
-                key={p.name}
-                href={`/players/${p.name}`}
-                className="stat-row flex items-center px-4 py-3 gap-3 group"
+                href="/players?sort=rating"
+                className="home-accent-link mt-5 inline-block text-sm font-mono"
               >
-                {/* Rank */}
-                <span className="font-display font-700 text-2xl text-chalk-100/10 w-6 shrink-0">
-                  {i + 1}
-                </span>
-
-                {/* Name + rating */}
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-body font-medium text-chalk-100 truncate group-hover:text-grass-400 transition-colors">
-                    {p.name}
-                  </div>
-                  <div className="text-xs text-chalk-400 font-mono">
-                    {p.apps} apps · {p.avg} avg
-                  </div>
-                </div>
-
-                {/* Goals */}
-                <div className="text-right shrink-0">
-                  <div className="font-display font-700 text-xl text-chalk-100">
-                    {p.goals.toLocaleString()}
-                  </div>
-                  <div className="text-xs text-chalk-400 font-mono">goals</div>
-                </div>
+                View Player Rankings {"->"}
               </Link>
-            ))}
-          </div>
-
-          {/* xG callout */}
-          <div className="mt-4 p-4 rounded-lg border border-grass-500/20 bg-grass-500/5">
-            <div className="text-xs font-mono text-grass-500 uppercase tracking-wider mb-1">
-              NEW ON IOSTATS
             </div>
-            <div className="text-sm font-body text-chalk-200">
-              Expected Goals (xG) calculated from real shot coordinates for every match. 
-              See who overperforms their xG.
-            </div>
-            <Link href="/players?sort=xg" className="text-xs font-mono text-grass-500 mt-2 inline-block hover:text-grass-400">
-              EXPLORE XG STATS →
-            </Link>
-          </div>
-        </div>
-      </section>
 
-      {/* ── Feature cards ────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-6 pb-16">
-        <h2 className="font-display font-700 text-lg tracking-wider text-chalk-100 mb-6">
-          WHY IOSTATS
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[
-            {
-              icon: "◎",
-              title: "Shot Maps",
-              desc: "Every shot plotted on the pitch with xG value. Filter by player, team or season.",
-              href: "/matches/229806",
-              color: "text-grass-500",
-            },
-            {
-              icon: "⚡",
-              title: "10× Faster",
-              desc: "Pre-computed aggregations mean sub-100ms response times on every leaderboard.",
-              href: "/players",
-              color: "text-amber-400",
-            },
-            {
-              icon: "↔",
-              title: "Player Compare",
-              desc: "Head-to-head radar charts comparing any two players across 12 metrics.",
-              href: "/players/compare",
-              color: "text-chalk-200",
-            },
-          ].map((f) => (
-            <Link
-              key={f.title}
-              href={f.href}
-              className="group p-5 rounded-lg border border-chalk-100/8 bg-pitch-900/40 hover:border-chalk-100/20 transition-all hover:-translate-y-0.5"
-            >
-              <div className={`font-display text-3xl mb-3 ${f.color}`}>{f.icon}</div>
-              <div className="font-display font-700 text-base tracking-wider text-chalk-100 mb-1">
-                {f.title}
+            <div className="home-card-hover rounded-[28px] border border-chalk-100/8 bg-[linear-gradient(180deg,rgba(12,30,28,0.94),rgba(11,20,19,0.88))] p-6 shadow-[0_22px_60px_rgba(0,0,0,0.28)]">
+              <div className="text-[11px] font-mono uppercase tracking-[0.22em] text-chalk-400">
+                Recent Matches
               </div>
-              <div className="text-sm font-body text-chalk-400">{f.desc}</div>
-            </Link>
-          ))}
+              <div className="mt-4 space-y-3">
+                {recentMatches.map((match) => {
+                  const homeLogo = proxyImg(match.homeTeam.logo);
+                  const awayLogo = proxyImg(match.awayTeam.logo);
+                  return (
+                    <Link
+                      key={match.id}
+                      href={`/matches/${match.id}`}
+                      className="home-card-hover block rounded-2xl bg-pitch-950/45 px-3 py-3"
+                    >
+                      <div className="text-[11px] font-mono uppercase tracking-[0.16em] text-chalk-400">
+                        {formatMatchTime(match.date)}
+                        {match.map ? ` | ${match.map}` : ""}
+                      </div>
+                      <div className="mt-2 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                        <div className="flex min-w-0 items-center justify-end gap-2">
+                          <span className="truncate text-right text-sm font-body text-chalk-100">
+                            {match.homeTeam.name}
+                          </span>
+                          {homeLogo ? (
+                            <img src={homeLogo} alt="" className="h-5 w-5 shrink-0 object-contain" />
+                          ) : (
+                            <div className="h-5 w-5 shrink-0 rounded-full bg-pitch-700" />
+                          )}
+                        </div>
+                        <div className="font-display text-lg font-700 text-chalk-100">
+                          {match.homeScore}-{match.awayScore}
+                        </div>
+                        <div className="flex min-w-0 items-center gap-2">
+                          {awayLogo ? (
+                            <img src={awayLogo} alt="" className="h-5 w-5 shrink-0 object-contain" />
+                          ) : (
+                            <div className="h-5 w-5 shrink-0 rounded-full bg-pitch-700" />
+                          )}
+                          <span className="truncate text-sm font-body text-chalk-100">
+                            {match.awayTeam.name}
+                          </span>
+                        </div>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+              <Link
+                href="/matches"
+                className="home-accent-link mt-5 inline-block text-sm font-mono"
+              >
+                Open Match Archive {"->"}
+              </Link>
+            </div>
+
+            <PanelLink
+              eyebrow="Teams"
+              title={`${teamsCount.toLocaleString("en-GB")} Teams Tracked`}
+              description="Browse club and national team pages with squad views, results, player history and tournament appearances."
+              href="/teams"
+              cta="View Teams"
+            />
+
+            <PanelLink
+              eyebrow="Tournaments"
+              title="League And Cup Coverage"
+              description="Check active and completed tournaments, winners, formats and the competitions linked to tracked matches."
+              href="/tournaments"
+              cta="Browse Tournaments"
+            />
+          </div>
         </div>
       </section>
     </div>

@@ -63,7 +63,7 @@ export default async function TeamsPage({
   const currentTypeLabel = TEAM_TYPES.find((t) => t.value === typeFilter)?.label || "TEAMS";
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
       {/* Header + Filters */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
         <div>
@@ -84,8 +84,8 @@ export default async function TeamsPage({
                 href={filterUrl("type", t.value)}
                 className={`px-3 py-1.5 rounded border transition-colors ${
                   typeFilter === t.value
-                    ? "border-grass-500 text-grass-500 bg-grass-500/10"
-                    : "border-chalk-100/10 text-chalk-400 hover:border-grass-500/40 hover:text-grass-500"
+                    ? "border-[#F4119E] text-[#F4119E] bg-[#F4119E]/10"
+                    : "border-chalk-100/10 text-chalk-400 hover:border-[#F4119E]/40 hover:text-[#F4119E]"
                 }`}
               >
                 {t.label}
@@ -103,7 +103,7 @@ export default async function TeamsPage({
             href={filterUrl("status", s)}
             className={`text-sm font-display font-700 tracking-wider uppercase transition-colors ${
               statusFilter === s
-                ? "text-chalk-100 border-b-2 border-grass-500 pb-1"
+                ? "text-chalk-100 border-b-2 border-[#F4119E] pb-1"
                 : "text-chalk-400 hover:text-chalk-200 pb-1 border-b-2 border-transparent"
             }`}
           >
@@ -130,11 +130,11 @@ export default async function TeamsPage({
               <Link
                 key={t.id}
                 href={`/teams/${t.id}`}
-                className="group relative rounded-xl overflow-hidden border border-chalk-100/8 hover:border-chalk-100/20 transition-all hover:scale-[1.02] hover:shadow-xl"
+                className="group relative rounded-xl overflow-hidden border-2 border-transparent hover:border-[#F4119E]/50 transition-all hover:scale-[1.02] hover:shadow-xl hover:shadow-[#F4119E]/20"
               >
                 {/* Color background */}
                 <div
-                  className="aspect-square flex items-center justify-center p-6 relative"
+                  className="aspect-[4/3] flex items-center justify-center p-4 relative"
                   style={{ backgroundColor: bgColor }}
                 >
                   {/* Subtle gradient overlay for readability */}
@@ -144,11 +144,11 @@ export default async function TeamsPage({
                     <img
                       src={proxyImg(t.logo)!}
                       alt={t.name}
-                      className="w-24 h-24 object-contain relative z-10 drop-shadow-lg group-hover:scale-110 transition-transform"
+                      className="w-20 h-20 object-contain relative z-10 drop-shadow-lg group-hover:scale-110 transition-transform"
                     />
                   ) : (
-                    <div className="w-24 h-24 rounded-lg bg-white/10 backdrop-blur-sm flex items-center justify-center relative z-10">
-                      <span className="font-display font-900 text-3xl text-white/80">
+                    <div className="w-20 h-20 rounded-lg bg-white/10 backdrop-blur-sm flex items-center justify-center relative z-10">
+                      <span className="font-display font-900 text-2xl text-white/80">
                         {t.name.slice(0, 3).toUpperCase()}
                       </span>
                     </div>

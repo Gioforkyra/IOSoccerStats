@@ -5,11 +5,11 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import clsx from "clsx";
 
 const NAV = [
-  { label: "Live", href: "/matches/live", live: true },
-  { label: "Matches", href: "/matches" },
-  { label: "Players", href: "/players" },
-  { label: "Teams", href: "/teams" },
-  { label: "Tournaments", href: "/tournaments" },
+  { label: "Live", href: "/matches/live", live: true, exact: true },
+  { label: "Matches", href: "/matches", exact: false },
+  { label: "Players", href: "/players", exact: false },
+  { label: "Teams", href: "/teams", exact: false },
+  { label: "Tournaments", href: "/tournaments", exact: false },
 ];
 
 type SearchResult = {
@@ -18,6 +18,13 @@ type SearchResult = {
   name: string;
   extra: string | null;
 };
+
+function isActive(path: string, item: typeof NAV[number]): boolean {
+  if (item.exact) return path === item.href;
+  // For "/matches", don't match "/matches/live"
+  if (item.href === "/matches") return path === "/matches" || (path.startsWith("/matches") && !path.startsWith("/matches/live"));
+  return path.startsWith(item.href);
+}
 
 export default function Navbar() {
   const path = usePathname();
@@ -113,11 +120,11 @@ export default function Navbar() {
 
   return (
     <nav className="sticky top-0 z-50 border-b border-chalk-100/5 bg-pitch-950/90 backdrop-blur-md">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center h-14 gap-4 md:gap-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center h-11 gap-4 md:gap-8">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 shrink-0">
-          <span className="font-display font-900 text-xl tracking-wider text-chalk-100">
-            IO<span className="text-grass-500">STATS</span>
+          <span className="font-display font-900 text-lg tracking-wide text-chalk-100 sm:text-xl">
+            IOSoccer-<span className="pink-gradient-text">Stats</span>
           </span>
         </Link>
 
@@ -129,9 +136,9 @@ export default function Navbar() {
               href={item.href}
               className={clsx(
                 "nav-link flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-body font-medium transition-colors",
-                path.startsWith(item.href)
-                  ? "text-chalk-100"
-                  : "text-chalk-400 hover:text-chalk-100"
+                isActive(path, item)
+                  ? "text-chalk-100 border border-[#F4119E]/40 bg-[#F4119E]/5"
+                  : "text-chalk-400 hover:text-chalk-100 border border-transparent"
               )}
             >
               {item.live && (
@@ -145,14 +152,6 @@ export default function Navbar() {
         {/* Right side */}
         <div className="ml-auto flex items-center gap-3">
           {searchBox("hidden sm:block w-44 md:w-56")}
-          <a
-            href="https://store.steampowered.com/app/673560/IOSoccer/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hidden sm:block text-xs font-display font-700 tracking-widest px-3 py-1.5 border border-grass-500/40 text-grass-500 rounded hover:bg-grass-500/10 transition-colors"
-          >
-            PLAY FREE
-          </a>
 
           {/* Mobile hamburger */}
           <button
@@ -178,7 +177,7 @@ export default function Navbar() {
                 onClick={() => setOpen(false)}
                 className={clsx(
                   "flex items-center gap-2 px-3 py-2.5 rounded text-sm font-body font-medium transition-colors",
-                  path.startsWith(item.href)
+                  isActive(path, item)
                     ? "text-chalk-100 bg-pitch-800"
                     : "text-chalk-400 hover:text-chalk-100 hover:bg-pitch-800/50"
                 )}

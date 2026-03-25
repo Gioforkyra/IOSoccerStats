@@ -98,7 +98,7 @@ export default async function TeamResultsPage({
                 <Link
                   key={m.match_id}
                   href={`/matches/${m.match_id}`}
-                  className={`flex items-center px-4 py-3 border-l-4 hover:bg-pitch-800/50 transition-colors ${borderClass}`}
+                  className={`flex items-center px-4 py-2 border-l-4 pink-hover ${borderClass}`}
                 >
                   <span className="text-xs font-mono text-chalk-400 w-24 shrink-0">
                     {new Date(m.date).toLocaleDateString("en-GB", {

@@ -9,9 +9,14 @@
   --pitch-900: #1c1c1c;
   --pitch-800: #232323;
   --grass-500: #00e676;
+  --stats-accent-start: #145277;
+  --stats-accent-end: #83d0cb;
+  --stats-accent-soft: #b8ebe7;
   --amber-500: #ffb300;
   --chalk-100: #f0f4ff;
   --chalk-300: #8a9dc4;
+  --pink-start: #F4119E;
+  --pink-end: #4A313E;
 }
 
 * { box-sizing: border-box; }
@@ -43,21 +48,83 @@ body {
   text-shadow: 0 0 20px rgba(0, 230, 118, 0.4);
 }
 
+.stats-accent-text {
+  background-image: linear-gradient(90deg, var(--stats-accent-start) 0%, var(--stats-accent-end) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.stats-accent-pill {
+  border-color: rgba(131, 208, 203, 0.3);
+  background: linear-gradient(90deg, rgba(20, 82, 119, 0.2) 0%, rgba(131, 208, 203, 0.12) 100%);
+  color: var(--stats-accent-soft);
+}
+
+.stats-accent-dot {
+  background-image: linear-gradient(90deg, var(--stats-accent-start) 0%, var(--stats-accent-end) 100%);
+  box-shadow: 0 0 18px rgba(131, 208, 203, 0.35);
+}
+
+.stats-accent-badge {
+  background-image: linear-gradient(90deg, rgba(20, 82, 119, 0.9) 0%, rgba(131, 208, 203, 0.85) 100%);
+  color: white;
+  box-shadow: 0 10px 24px rgba(20, 82, 119, 0.3);
+}
+
+.home-card-hover {
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.home-card-hover:hover {
+  transform: translateY(-2px);
+  border-color: rgba(131, 208, 203, 0.42);
+  box-shadow: 0 28px 72px rgba(6, 30, 42, 0.34);
+}
+
+.home-accent-link {
+  color: var(--stats-accent-end);
+  transition: color 0.2s ease;
+}
+
+.group:hover .home-accent-link,
+.home-accent-link:hover {
+  color: var(--stats-accent-soft);
+}
+
+.home-accent-outline {
+  transition: border-color 0.2s ease, color 0.2s ease, background-color 0.2s ease;
+}
+
+.home-accent-outline:hover {
+  border-color: rgba(131, 208, 203, 0.38);
+  color: var(--stats-accent-soft);
+  background-color: rgba(131, 208, 203, 0.06);
+}
+
 /* Animated underline for nav links */
 .nav-link {
   position: relative;
 }
 .nav-link::after {
-  content: '';
-  position: absolute;
-  bottom: -2px;
-  left: 0;
-  width: 0;
-  height: 2px;
-  background: var(--grass-500);
-  transition: width 0.2s ease;
+  display: none;
 }
-.nav-link:hover::after { width: 100%; }
+
+/* Pink gradient text for "Stats" logo */
+.pink-gradient-text {
+  background-image: linear-gradient(90deg, var(--pink-start) 0%, var(--pink-end) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Pink gradient hover for player/team rows */
+.pink-hover {
+  transition: background 0.15s ease;
+}
+.pink-hover:hover {
+  background: rgba(244, 17, 158, 0.08);
+}
 
 /* Table row hover */
 .stat-row {
@@ -65,7 +132,7 @@ body {
   border-bottom: 1px solid rgba(138, 157, 196, 0.08);
 }
 .stat-row:hover {
-  background: rgba(0, 230, 118, 0.04);
+  background: rgba(244, 17, 158, 0.06);
 }
 
 /* Scrollbar */
@@ -95,4 +162,25 @@ body {
 }
 .live-dot {
   animation: pulse-dot 1.4s ease-in-out infinite;
+}
+
+/* Skeleton staggered fade-in */
+@keyframes skeletonFade {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.skeleton-fade {
+  opacity: 0;
+  animation: skeletonFade 0.3s ease forwards;
+}
+
+/* Skeleton shimmer effect */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton-shimmer {
+  background: linear-gradient(90deg, transparent 25%, rgba(138,157,196,0.08) 50%, transparent 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
 }

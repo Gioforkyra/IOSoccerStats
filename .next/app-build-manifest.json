@@ -16,6 +16,11 @@
       "static/chunks/main-app.js",
       "static/chunks/app/matches/page.js"
     ],
+    "/matches/loading": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/matches/loading.js"
+    ],
     "/players/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
@@ -36,65 +41,20 @@
       "static/chunks/main-app.js",
       "static/chunks/app/teams/loading.js"
     ],
-    "/teams/[id]/page": [
+    "/tournaments/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/teams/[id]/page.js"
+      "static/chunks/app/tournaments/page.js"
     ],
-    "/teams/[id]/layout": [
+    "/tournaments/loading": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/teams/[id]/layout.js"
+      "static/chunks/app/tournaments/loading.js"
     ],
-    "/teams/[id]/loading": [
+    "/matches/live/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/teams/[id]/loading.js"
-    ],
-    "/teams/[id]/squad/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/teams/[id]/squad/page.js"
-    ],
-    "/players/[steamId]/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/players/[steamId]/page.js"
-    ],
-    "/players/[steamId]/layout": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/players/[steamId]/layout.js"
-    ],
-    "/players/[steamId]/loading": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/players/[steamId]/loading.js"
-    ],
-    "/matches/[id]/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/matches/[id]/page.js"
-    ],
-    "/matches/[id]/loading": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/matches/[id]/loading.js"
-    ],
-    "/players/[steamId]/matches/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/players/[steamId]/matches/page.js"
-    ],
-    "/players/[steamId]/team-history/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/players/[steamId]/team-history/page.js"
-    ],
-    "/players/[steamId]/tournaments/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/players/[steamId]/tournaments/page.js"
+      "static/chunks/app/matches/live/page.js"
     ]
   }
 }

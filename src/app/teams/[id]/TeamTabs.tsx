@@ -30,7 +30,7 @@ export default function TeamTabs({ teamId }: { teamId: number }) {
             href={fullPath}
             className={`px-6 py-3 font-display font-700 text-sm uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${
               isActive
-                ? "border-grass-500 text-chalk-100"
+                ? "border-[#F4119E] text-chalk-100"
                 : "border-transparent text-chalk-400 hover:text-chalk-200 hover:border-chalk-100/20"
             }`}
           >

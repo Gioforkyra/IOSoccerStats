@@ -63,17 +63,17 @@ export default function SquadClient({ squad }: { squad: SquadPlayer[] }) {
     return sortAsc ? Number(av) - Number(bv) : Number(bv) - Number(av);
   });
 
-  const cols: { key: SortKey | null; label: string; align: string }[] = [
-    { key: null, label: "NAME", align: "text-left" },
-    { key: "role", label: "ROLE", align: "text-left" },
-    { key: null, label: "POS", align: "text-left" },
-    { key: "rating", label: "RTG", align: "text-right" },
-    { key: null, label: "DATE JOINED", align: "text-left" },
-    { key: "apps", label: "APPS", align: "text-right" },
-    { key: "goals", label: "GOALS", align: "text-right" },
-    { key: "assists", label: "ASSISTS", align: "text-right" },
-    { key: "yellow_cards", label: "YC", align: "text-right" },
-    { key: "red_cards", label: "RC", align: "text-right" },
+  const cols: { key: SortKey | null; label: string; align: string; title: string }[] = [
+    { key: null, label: "NAME", align: "text-left", title: "Player Name" },
+    { key: "role", label: "ROLE", align: "text-left", title: "Team Role" },
+    { key: null, label: "POS", align: "text-left", title: "Position" },
+    { key: "rating", label: "RTG", align: "text-right", title: "Rating" },
+    { key: null, label: "DATE JOINED", align: "text-left", title: "Date Joined" },
+    { key: "apps", label: "APPS", align: "text-right", title: "Appearances" },
+    { key: "goals", label: "GOALS", align: "text-right", title: "Goals" },
+    { key: "assists", label: "ASSISTS", align: "text-right", title: "Assists" },
+    { key: "yellow_cards", label: "YC", align: "text-right", title: "Yellow Cards" },
+    { key: "red_cards", label: "RC", align: "text-right", title: "Red Cards" },
   ];
 
   return (
@@ -86,6 +86,7 @@ export default function SquadClient({ squad }: { squad: SquadPlayer[] }) {
                 key={ci}
                 className={`px-4 py-3 font-mono text-[11px] text-chalk-400 ${col.align} ${col.key ? "cursor-pointer hover:text-chalk-200 select-none transition-colors" : ""}`}
                 onClick={col.key ? () => handleSort(col.key as SortKey) : undefined}
+                title={col.title}
               >
                 {col.label}
                 {col.key && sortKey === col.key && (

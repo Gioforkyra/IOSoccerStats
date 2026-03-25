@@ -86,8 +86,8 @@ export default function MatchClient({
       <div className="bg-pitch-900/60 border border-chalk-100/8 rounded-xl p-6 md:p-8 mb-6">
         <div className="text-xs font-mono text-chalk-400 text-center mb-5">
           {match.date}
-          {match.map && <> · {match.map}</>}
-          {match.server && <> · {serverFlag && <>{serverFlag} </>}{match.server}</>}
+          {match.map && <> Â· {match.map}</>}
+          {match.server && <> Â· {serverFlag && <>{serverFlag} </>}{match.server}</>}
         </div>
 
         <div className="flex items-center justify-center gap-8 md:gap-14">
@@ -98,9 +98,9 @@ export default function MatchClient({
             </Link>
           </div>
           <div className="font-display font-900 text-5xl md:text-7xl flex items-center gap-4 shrink-0">
-            <span className={match.homeScore > match.awayScore ? "text-grass-500" : "text-chalk-200"}>{match.homeScore}</span>
+            <span className="text-chalk-100">{match.homeScore}</span>
             <span className="text-chalk-400/30 text-2xl md:text-3xl">-</span>
-            <span className={match.awayScore > match.homeScore ? "text-grass-500" : "text-chalk-200"}>{match.awayScore}</span>
+            <span className="text-chalk-100">{match.awayScore}</span>
           </div>
           <div className="flex-1">
             <Link href={`/teams/${match.awayTeam.id}`} className="group inline-flex flex-col items-start gap-3">
@@ -146,15 +146,27 @@ export default function MatchClient({
       </div>
 
       {/* Lineups */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <LineupGraphic players={homePlayers} teamName={match.homeTeam.name} teamLogo={match.homeTeam.logo} teamColor={match.homeTeam.color} />
-        <LineupGraphic players={awayPlayers} teamName={match.awayTeam.name} teamLogo={match.awayTeam.logo} teamColor={match.awayTeam.color} />
+      <div className="mb-8">
+        <div className="mb-3 flex items-end justify-between gap-4">
+          <div>
+            <h2 className="font-display text-base font-700 tracking-wider text-chalk-100">
+              STARTING LINEUPS
+            </h2>
+            <p className="mt-1 text-xs font-body text-chalk-400">
+              Vertical pitch view with starters separated from the bench.
+            </p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+          <LineupGraphic players={homePlayers} teamName={match.homeTeam.name} teamLogo={match.homeTeam.logo} teamColor={match.homeTeam.color} />
+          <LineupGraphic players={awayPlayers} teamName={match.awayTeam.name} teamLogo={match.awayTeam.logo} teamColor={match.awayTeam.color} />
+        </div>
       </div>
 
-      {/* Horizontal shot map — full width */}
+      {/* Horizontal shot map â€” full width */}
       <div className="mb-6">
         <h2 className="font-display font-700 text-base tracking-wider text-chalk-100 mb-3">
-          SHOT MAP <span className="text-xs text-grass-500 font-mono">· xG by IOStats</span>
+          SHOT MAP <span className="text-xs text-grass-500 font-mono">Â· xG by IOStats</span>
         </h2>
         <div className="relative rounded-lg border border-chalk-100/8 overflow-hidden" style={{ aspectRatio: "105 / 50" }}>
           <div className="absolute inset-0 bg-[#0d1f0d]">
@@ -198,7 +210,7 @@ export default function MatchClient({
                 <span className="text-3xl font-display font-bold text-chalk-100/15">{match.awayTeam.name.slice(0, 3).toUpperCase()}</span>
               )}
             </div>
-            {/* Shot markers — horizontal: x maps to left-right, y maps to top-bottom */}
+            {/* Shot markers â€” horizontal: x maps to left-right, y maps to top-bottom */}
             {shots.map((s, i) => {
               // For horizontal: normalized_y becomes x (0=home goal left, 1=away goal right)
               // normalized_x becomes y (sideline)
@@ -251,7 +263,7 @@ export default function MatchClient({
                     </div>
                     {s.is_save && (
                       <div className="text-chalk-400 mt-0.5">
-                        Shot by {s.username} · Saved by {s.team_side === "home" ? (awayGk?.username || "GK") : (homeGk?.username || "GK")}
+                        Shot by {s.username} Â· Saved by {s.team_side === "home" ? (awayGk?.username || "GK") : (homeGk?.username || "GK")}
                       </div>
                     )}
                   </div>
@@ -261,9 +273,9 @@ export default function MatchClient({
           </div>
         </div>
         <div className="flex items-center gap-4 mt-2 text-xs font-mono text-chalk-400">
-          <span className="flex items-center gap-1.5"><span>⚽</span> Goal</span>
-          <span className="flex items-center gap-1.5"><span>🧤</span> Save</span>
-          <span className="flex items-center gap-1.5"><span>❌</span> Miss</span>
+          <span className="flex items-center gap-1.5"><span>âš½</span> Goal</span>
+          <span className="flex items-center gap-1.5"><span>ðŸ§¤</span> Save</span>
+          <span className="flex items-center gap-1.5"><span>âŒ</span> Miss</span>
           <span className="text-chalk-400/40 ml-2">Click for details</span>
         </div>
       </div>
@@ -295,7 +307,7 @@ export default function MatchClient({
             awayShotAcc={aT("shots") > 0 ? (aT("shots_on_target") / aT("shots")) * 100 : 0}
           />
         </div>
-        {/* Game Highlights on right — same height as H2H */}
+        {/* Game Highlights on right â€” same height as H2H */}
         {timeline.length > 0 && (
           <div className="flex flex-col">
             <h2 className="font-display font-700 text-base tracking-wider text-chalk-100 mb-3">GAME HIGHLIGHTS</h2>
@@ -335,7 +347,7 @@ export default function MatchClient({
   );
 }
 
-/* ─── H2H Stats ─── */
+/* â”€â”€â”€ H2H Stats â”€â”€â”€ */
 function H2HStats({
   homeName, homeLogo, homeColor, awayName, awayLogo, awayColor, rows, homeXg, awayXg,
   homePassAcc, awayPassAcc, homeShotAcc, awayShotAcc,
@@ -418,110 +430,262 @@ function AccuracyCircle({ value, label, color }: { value: number; label: string;
   );
 }
 
-/* ─── Lineup Player Card ─── */
-function PlayerCard({ p, shirtColor, isSub }: { p: MatchPlayer; shirtColor: string; isSub?: boolean }) {
+/* â”€â”€â”€ Lineup Player Card â”€â”€â”€ */
+type LineupRows = {
+  attack: MatchPlayer[];
+  midfield: MatchPlayer[];
+  defense: MatchPlayer[];
+  goalkeepers: MatchPlayer[];
+  substitutes: MatchPlayer[];
+};
+
+function getLineupRows(players: MatchPlayer[]): LineupRows {
+  const goalkeepers: MatchPlayer[] = [];
+  const defense: MatchPlayer[] = [];
+  const midfield: MatchPlayer[] = [];
+  const attack: MatchPlayer[] = [];
+  const extra: MatchPlayer[] = [];
+
+  const sorted = [...players].sort((a, b) => b.possession - a.possession);
+
+  for (const player of sorted) {
+    const position = (player.position || '').toUpperCase();
+
+    if (position === 'GK') goalkeepers.push(player);
+    else if (['LB', 'LCB', 'CB', 'RCB', 'RB', 'LWB', 'RWB'].includes(position)) defense.push(player);
+    else if (['LM', 'LCM', 'CM', 'RCM', 'RM', 'CDM', 'CAM', 'DM', 'AM'].includes(position)) midfield.push(player);
+    else if (position) attack.push(player);
+    else extra.push(player);
+  }
+
+  const orderPlayers = (group: MatchPlayer[], order: string[], fallback: string) =>
+    [...group].sort((left, right) => {
+      const leftIndex = order.indexOf((left.position || fallback).toUpperCase());
+      const rightIndex = order.indexOf((right.position || fallback).toUpperCase());
+      const safeLeft = leftIndex === -1 ? order.length : leftIndex;
+      const safeRight = rightIndex === -1 ? order.length : rightIndex;
+      return safeLeft - safeRight;
+    });
+
+  const orderedAttack = orderPlayers(attack, ['LW', 'LF', 'ST', 'CF', 'RF', 'RW', 'CAM'], 'CF');
+  const orderedMidfield = orderPlayers(midfield, ['LM', 'LCM', 'CM', 'CDM', 'CAM', 'RCM', 'RM'], 'CM');
+  const orderedDefense = orderPlayers(defense, ['LWB', 'LB', 'LCB', 'CB', 'RCB', 'RB', 'RWB'], 'CB');
+
+  const attackRow = orderedAttack.slice(0, 3);
+  const midfieldRow = orderedMidfield.slice(0, Math.max(1, Math.min(3, orderedMidfield.length)));
+  const defenseRow = orderedDefense.slice(0, 3);
+  const goalkeeperRow = goalkeepers.slice(0, 1);
+
+  const substitutes = [
+    ...orderedAttack.slice(attackRow.length),
+    ...orderedMidfield.slice(midfieldRow.length),
+    ...orderedDefense.slice(defenseRow.length),
+    ...goalkeepers.slice(goalkeeperRow.length),
+    ...extra,
+  ];
+
+  if (goalkeeperRow.length === 0 && substitutes.length > 0) goalkeeperRow.push(substitutes.shift()!);
+  if (defenseRow.length === 0 && substitutes.length > 0) defenseRow.push(substitutes.shift()!);
+  if (midfieldRow.length === 0 && substitutes.length > 0) midfieldRow.push(substitutes.shift()!);
+  if (attackRow.length === 0 && substitutes.length > 0) attackRow.push(substitutes.shift()!);
+
+  return {
+    attack: attackRow,
+    midfield: midfieldRow,
+    defense: defenseRow,
+    goalkeepers: goalkeeperRow,
+    substitutes,
+  };
+}
+
+function StatChip({
+  label,
+  tone,
+}: {
+  label: string;
+  tone: 'goal' | 'assist' | 'card' | 'danger';
+}) {
+  const toneClass =
+    tone === 'goal'
+      ? 'bg-grass-500/95 text-pitch-950'
+      : tone === 'assist'
+        ? 'bg-sky-400/95 text-slate-950'
+        : tone === 'danger'
+          ? 'bg-red-500/95 text-white'
+          : 'bg-amber-400/95 text-slate-950';
+
   return (
-    <div className="flex flex-col items-center gap-1 w-16 md:w-20">
-      <div className="relative">
-        <div className={`w-10 h-10 md:w-12 md:h-12 rounded-lg flex items-center justify-center text-[10px] font-mono font-bold text-white shadow-md border border-white/10 ${isSub ? "opacity-70" : ""}`}
-          style={{ backgroundColor: shirtColor }}>
-          {p.position || "?"}
-        </div>
-        {/* Goals top-right */}
-        {p.goals > 0 && (
-          <span className="absolute -top-2.5 -right-3 flex items-center gap-px text-[11px] leading-none drop-shadow-md">
-            <span className="text-sm">⚽</span><span className="text-white font-bold">{p.goals}</span>
-          </span>
-        )}
-        {/* Assists top-left */}
-        {p.assists > 0 && (
-          <span className="absolute -top-2.5 -left-3 flex items-center gap-px text-[11px] leading-none drop-shadow-md">
-            <span className="text-sm">👟</span><span className="text-white font-bold">{p.assists}</span>
-          </span>
-        )}
-        {p.yellow_cards > 0 && <span className="absolute -bottom-1 -right-1 text-xs leading-none">🟨</span>}
-        {p.red_cards > 0 && <span className="absolute -bottom-1 -left-1 text-xs leading-none">🟥</span>}
-      </div>
-      <Link href={`/players/${p.player_steam_id}`}
-        className={`text-[10px] md:text-xs font-mono text-center truncate w-full hover:text-grass-400 transition-colors drop-shadow-md ${isSub ? "text-white/60" : "text-white"}`}>
-        {p.username}
-      </Link>
+    <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-mono font-bold shadow-sm ${toneClass}`}>
+      {label}
+    </span>
+  );
+}
+
+function ShirtIcon({
+  color,
+  label,
+  faded,
+}: {
+  color: string;
+  label: string;
+  faded?: boolean;
+}) {
+  return (
+    <div className={`relative h-[60px] w-[72px] ${faded ? 'opacity-70' : ''}`}>
+      <svg viewBox="0 0 88 70" className="h-full w-full drop-shadow-[0_10px_18px_rgba(0,0,0,0.24)]">
+        <path
+          d="M25 8 37 2h14l12 6 13 17-10 8-9-6v38H31V27l-9 6-10-8Z"
+          fill={color}
+          stroke="rgba(255,255,255,0.3)"
+          strokeWidth="2"
+          strokeLinejoin="round"
+        />
+      </svg>
+      <span className="pointer-events-none absolute inset-x-0 top-[22px] text-center font-display text-sm font-700 uppercase tracking-wide text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.45)]">
+        {label}
+      </span>
     </div>
   );
 }
 
-/* ─── Lineup Graphic ─── */
+function PlayerCard({ p, shirtColor, isSub }: { p: MatchPlayer; shirtColor: string; isSub?: boolean }) {
+  return (
+    <Link
+      href={`/players/${p.player_steam_id}`}
+      className="group relative flex w-[92px] flex-col items-center"
+    >
+      <div className="relative">
+        <ShirtIcon color={shirtColor} label={p.position || '?'} faded={isSub} />
+        <div className="absolute -left-2 top-0 flex flex-col gap-1">
+          {p.goals > 0 && <StatChip label={`G${p.goals}`} tone="goal" />}
+          {p.red_cards > 0 && <StatChip label={`RC${p.red_cards}`} tone="danger" />}
+        </div>
+        <div className="absolute -right-2 top-0 flex flex-col gap-1">
+          {p.assists > 0 && <StatChip label={`A${p.assists}`} tone="assist" />}
+          {p.yellow_cards > 0 && <StatChip label={`YC${p.yellow_cards}`} tone="card" />}
+        </div>
+      </div>
+      <span className="mt-2 max-w-full rounded-full bg-slate-950/88 px-2.5 py-1 text-center text-[10px] font-mono font-bold leading-tight text-white shadow-[0_8px_18px_rgba(0,0,0,0.24)] transition-colors group-hover:bg-slate-900">
+        {p.username}
+      </span>
+    </Link>
+  );
+}
+
+function FormationRow({
+  players,
+  top,
+  shirtColor,
+}: {
+  players: MatchPlayer[];
+  top: string;
+  shirtColor: string;
+}) {
+  if (players.length === 0) return null;
+
+  return (
+    <div
+      className="absolute left-0 right-0 flex -translate-y-1/2 justify-evenly gap-2 px-4"
+      style={{ top }}
+    >
+      {players.map((player) => (
+        <PlayerCard key={player.player_steam_id} p={player} shirtColor={shirtColor} />
+      ))}
+    </div>
+  );
+}
+
 function LineupGraphic({
   players, teamName, teamLogo, teamColor,
 }: {
   players: MatchPlayer[]; teamName: string; teamLogo: string | null; teamColor: string | null;
 }) {
-  const gk: MatchPlayer[] = [];
-  const def: MatchPlayer[] = [];
-  const mid: MatchPlayer[] = [];
-  const att: MatchPlayer[] = [];
-
-  // Sort by possession desc so starters (more playing time) come first
-  const sorted = [...players].sort((a, b) => b.possession - a.possession);
-
-  for (const p of sorted) {
-    const pos = (p.position || "CM").toUpperCase();
-    if (pos === "GK") gk.push(p);
-    else if (["LB", "CB", "RB"].includes(pos)) def.push(p);
-    else if (["CM", "CDM", "CAM", "LM", "RM"].includes(pos)) mid.push(p);
-    else att.push(p);
-  }
-
-  const posOrderDef = ["LB", "CB", "RB"];
-  const posOrderAtt = ["LW", "CF", "RW", "ST", "CAM"];
-
-  // Split starters vs subs per group (3 att, 1 mid, 3 def, 1 gk)
-  const attStarters = att.slice(0, 3).sort((a, b) => posOrderAtt.indexOf((a.position || "CF").toUpperCase()) - posOrderAtt.indexOf((b.position || "CF").toUpperCase()));
-  const midStarters = mid.slice(0, 1);
-  const defStarters = def.slice(0, 3).sort((a, b) => posOrderDef.indexOf((a.position || "CB").toUpperCase()) - posOrderDef.indexOf((b.position || "CB").toUpperCase()));
-  const gkStarters = gk.slice(0, 1);
-
-  const subs = [...att.slice(3), ...mid.slice(1), ...def.slice(3), ...gk.slice(1)];
-
-  const formation = [attStarters, midStarters, defStarters, gkStarters];
-  const shirtColor = teamColor || "#8b0000";
+  const lineup = getLineupRows(players);
+  const shirtColor = teamColor || '#111827';
 
   return (
-    <div className="bg-pitch-900/40 border border-chalk-100/8 rounded-lg overflow-hidden">
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-chalk-100/8">
-        {teamLogo && <img src={teamLogo} alt="" className="w-6 h-6 object-contain" />}
-        <span className="font-display font-700 text-chalk-100 uppercase tracking-wider">{teamName}</span>
-      </div>
-      <div className="relative bg-[#1a5e1a] p-4" style={{ height: "400px" }}>
-        <div className="absolute inset-4 border border-white/20 rounded" />
-        <div className="absolute left-4 right-4 top-1/2 -translate-y-px h-px bg-white/15" />
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 border border-white/15 rounded-full" />
-        <div className="relative flex flex-col justify-between h-full py-6">
-          {formation.map((row, rowIdx) => (
-            <div key={rowIdx} className="flex justify-center items-center gap-6 md:gap-10">
-              {row.map((p) => (
-                <PlayerCard key={p.player_steam_id} p={p} shirtColor={shirtColor} />
-              ))}
-            </div>
-          ))}
-        </div>
-      </div>
-      {/* Substitutes */}
-      {subs.length > 0 && (
-        <div className="px-4 py-3 border-t border-chalk-100/8 bg-pitch-900/60">
-          <div className="text-[10px] font-mono text-chalk-400 uppercase tracking-wider mb-2">Subs</div>
-          <div className="flex flex-wrap gap-4">
-            {subs.map((p) => (
-              <PlayerCard key={p.player_steam_id} p={p} shirtColor={shirtColor} isSub />
-            ))}
+    <div className="overflow-hidden rounded-[28px] border border-white/10 bg-[#f3f5f7] shadow-[0_28px_70px_rgba(0,0,0,0.24)]">
+      <div className="flex items-center gap-3 border-b border-slate-200 bg-white px-5 py-4">
+        {teamLogo ? (
+          <img src={teamLogo} alt="" className="h-10 w-10 object-contain" />
+        ) : (
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 font-display text-sm font-700 uppercase text-slate-700">
+            {teamName.slice(0, 2)}
+          </div>
+        )}
+        <div className="min-w-0">
+          <div className="text-[11px] font-mono uppercase tracking-[0.2em] text-slate-500">
+            Starting Lineup
+          </div>
+          <div className="truncate font-display text-2xl font-700 uppercase tracking-wide text-slate-900">
+            {teamName}
           </div>
         </div>
-      )}
+        <div className="ml-auto text-right">
+          <div className="text-[11px] font-mono uppercase tracking-[0.16em] text-slate-500">
+            Bench
+          </div>
+          <div className="font-display text-xl font-700 text-slate-900">
+            {lineup.substitutes.length}
+          </div>
+        </div>
+      </div>
+
+      <div className="p-3 sm:p-4">
+        <div
+          className="relative h-[620px] overflow-hidden rounded-[24px] border-4 border-white/90 bg-[#4b8b3f]"
+          style={{
+            backgroundImage:
+              'repeating-linear-gradient(180deg, rgba(255,255,255,0.08) 0px, rgba(255,255,255,0.08) 56px, rgba(255,255,255,0.03) 56px, rgba(255,255,255,0.03) 112px)',
+          }}
+        >
+          <div className="absolute inset-[10px] rounded-[18px] border-[3px] border-white/90" />
+          <div className="absolute left-[10px] right-[10px] top-1/2 h-[3px] -translate-y-1/2 bg-white/90" />
+          <div className="absolute left-1/2 top-1/2 h-28 w-28 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-white/90" />
+          <div className="absolute left-1/2 top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/90" />
+          <div className="absolute left-1/2 top-[10px] h-[96px] w-[150px] -translate-x-1/2 rounded-b-[18px] border-[3px] border-t-0 border-white/90" />
+          <div className="absolute left-1/2 top-[10px] h-[44px] w-[70px] -translate-x-1/2 rounded-b-[10px] border-[3px] border-t-0 border-white/90" />
+          <div className="absolute left-1/2 top-[98px] h-12 w-24 -translate-x-1/2 rounded-full border-[3px] border-white/90 border-t-0 opacity-90" />
+          <div className="absolute left-1/2 bottom-[10px] h-[96px] w-[150px] -translate-x-1/2 rounded-t-[18px] border-[3px] border-b-0 border-white/90" />
+          <div className="absolute left-1/2 bottom-[10px] h-[44px] w-[70px] -translate-x-1/2 rounded-t-[10px] border-[3px] border-b-0 border-white/90" />
+          <div className="absolute left-1/2 bottom-[98px] h-12 w-24 -translate-x-1/2 rounded-full border-[3px] border-white/90 border-b-0 opacity-90" />
+          <div className="absolute left-0 top-0 h-5 w-5 rounded-br-[18px] border-b-[3px] border-r-[3px] border-white/90" />
+          <div className="absolute right-0 top-0 h-5 w-5 rounded-bl-[18px] border-b-[3px] border-l-[3px] border-white/90" />
+          <div className="absolute bottom-0 left-0 h-5 w-5 rounded-tr-[18px] border-r-[3px] border-t-[3px] border-white/90" />
+          <div className="absolute bottom-0 right-0 h-5 w-5 rounded-tl-[18px] border-l-[3px] border-t-[3px] border-white/90" />
+
+          <FormationRow players={lineup.attack} top="18%" shirtColor={shirtColor} />
+          <FormationRow players={lineup.midfield} top="40%" shirtColor={shirtColor} />
+          <FormationRow players={lineup.defense} top="63%" shirtColor={shirtColor} />
+          <FormationRow players={lineup.goalkeepers} top="86%" shirtColor={shirtColor} />
+        </div>
+
+        {lineup.substitutes.length > 0 && (
+          <div className="mt-3 rounded-[22px] border border-slate-200 bg-white px-4 py-3">
+            <div className="text-[11px] font-mono uppercase tracking-[0.18em] text-slate-500">
+              Substitutes
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2.5">
+              {lineup.substitutes.map((player) => (
+                <Link
+                  key={player.player_steam_id}
+                  href={`/players/${player.player_steam_id}`}
+                  className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-body text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-100"
+                >
+                  <span className="font-medium">{player.username}</span>
+                  <span className="ml-2 font-mono text-[10px] uppercase text-slate-500">
+                    {player.position || 'SUB'}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
-/* ─── Sortable Player Stats Table with row hover ─── */
 function SortablePlayerTable({
   team, shots,
 }: {

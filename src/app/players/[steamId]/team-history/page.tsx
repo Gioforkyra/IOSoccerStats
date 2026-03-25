@@ -124,14 +124,15 @@ export default async function PlayerTeamHistoryPage({
             return (
               <div
                 key={`${t.team_id}-${i}`}
-                className="bg-pitch-900/40 border border-chalk-100/8 rounded-lg p-5 relative overflow-hidden"
+                className="border border-chalk-100/8 rounded-lg p-5 relative overflow-hidden"
+                style={{
+                  backgroundColor: t.team_color ? `${t.team_color}25` : "rgba(28,28,28,0.4)",
+                }}
               >
-                {/* Team color accent */}
-                {t.team_color && (
-                  <div className="absolute left-0 top-0 bottom-0 w-1" style={{ backgroundColor: t.team_color }} />
-                )}
+                {/* Subtle gradient overlay for readability */}
+                <div className="absolute inset-0 bg-gradient-to-r from-pitch-950/60 to-transparent pointer-events-none" />
 
-                <div className="flex items-start gap-4">
+                <div className="relative z-10 flex items-start gap-4">
                   {/* Logo */}
                   <Link href={`/teams/${t.team_id}`} className="shrink-0">
                     {t.team_logo ? (

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { proxyImg } from "@/lib/img";
+import SyncMatches from "@/components/SyncMatches";
 
 const PAGE_SIZE = 20;
 
@@ -79,7 +80,8 @@ export default async function MatchesPage({
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+      <SyncMatches />
       <div className="flex items-end justify-between mb-6">
         <div>
           <h1 className="font-display font-800 text-4xl tracking-tight text-chalk-100">
@@ -109,7 +111,7 @@ export default async function MatchesPage({
                 <Link
                   key={m.id}
                   href={`/matches/${m.id}`}
-                  className={`flex items-center gap-3 px-4 py-3 hover:bg-pitch-700/30 transition-colors group ${
+                  className={`flex items-center gap-3 px-4 py-2 pink-hover group ${
                     i % 2 === 0 ? "bg-pitch-600/15" : "bg-transparent"
                   }`}
                 >
@@ -132,11 +134,11 @@ export default async function MatchesPage({
 
                   {/* Score */}
                   <div className="font-display font-800 text-base flex items-center gap-1.5 w-16 justify-center shrink-0">
-                    <span className={m.home_score > m.away_score ? "text-grass-400" : "text-chalk-200"}>
+                    <span className="text-chalk-100">
                       {m.home_score}
                     </span>
                     <span className="text-chalk-400/30 text-xs">-</span>
-                    <span className={m.away_score > m.home_score ? "text-grass-400" : "text-chalk-200"}>
+                    <span className="text-chalk-100">
                       {m.away_score}
                     </span>
                   </div>
@@ -163,7 +165,7 @@ export default async function MatchesPage({
                   </span>
 
                   {/* Arrow */}
-                  <span className="text-chalk-400/20 group-hover:text-grass-500 transition-colors shrink-0">
+                  <span className="text-chalk-400/20 group-hover:text-[#F4119E] transition-colors shrink-0">
                     {"\u2192"}
                   </span>
                 </Link>

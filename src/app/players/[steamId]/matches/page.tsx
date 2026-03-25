@@ -94,20 +94,20 @@ export default async function PlayerMatchesPage({
   const pageL = matches.length - pageW - pageD;
 
   const COLS = [
-    { key: "goals", label: "G" },
-    { key: "assists", label: "A" },
-    { key: "shots", label: "SH" },
-    { key: "shots_on_target", label: "SOT" },
-    { key: "passes", label: "PAS" },
-    { key: "passes_completed", label: "CMP" },
-    { key: "interceptions", label: "INT" },
-    { key: "possession", label: "POS%" },
-    { key: "saves", label: "SAV" },
-    { key: "goals_conceded", label: "CON" },
-    { key: "offsides", label: "OFF" },
-    { key: "yellow_cards", label: "YC" },
-    { key: "red_cards", label: "RC" },
-    { key: "distance_run", label: "DIST" },
+    { key: "goals", label: "G", title: "Goals" },
+    { key: "assists", label: "A", title: "Assists" },
+    { key: "shots", label: "SH", title: "Shots" },
+    { key: "shots_on_target", label: "SOT", title: "Shots on Target" },
+    { key: "passes", label: "PAS", title: "Passes" },
+    { key: "passes_completed", label: "CMP", title: "Passes Completed" },
+    { key: "interceptions", label: "INT", title: "Interceptions" },
+    { key: "possession", label: "POS%", title: "Possession %" },
+    { key: "saves", label: "SAV", title: "Saves" },
+    { key: "goals_conceded", label: "CON", title: "Goals Conceded" },
+    { key: "offsides", label: "OFF", title: "Offsides" },
+    { key: "yellow_cards", label: "YC", title: "Yellow Cards" },
+    { key: "red_cards", label: "RC", title: "Red Cards" },
+    { key: "distance_run", label: "DIST", title: "Distance Run" },
   ] as const;
 
   return (
@@ -127,13 +127,13 @@ export default async function PlayerMatchesPage({
       <div className="rounded-lg border border-chalk-100/8 overflow-x-auto bg-pitch-900/40">
         <table className="w-full text-sm whitespace-nowrap">
           <thead>
-            <tr className="border-b border-chalk-100/8">
-              <th className="text-left px-3 py-3 font-mono text-[10px] text-chalk-400 sticky left-0 bg-pitch-900 z-10">DATE</th>
-              <th className="text-center px-2 py-3 font-mono text-[10px] text-chalk-400">POS</th>
-              <th className="text-left px-3 py-3 font-mono text-[10px] text-chalk-400">TEAM</th>
-              <th className="text-center px-2 py-3 font-mono text-[10px] text-chalk-400">RES</th>
+            <tr className="border-b border-chalk-100/8 bg-pitch-900">
+              <th className="text-left px-3 py-3 font-mono text-[10px] text-chalk-400 sticky left-0 bg-pitch-900 z-10" title="Date">DATE</th>
+              <th className="text-center px-2 py-3 font-mono text-[10px] text-chalk-400" title="Position">POS</th>
+              <th className="text-left px-3 py-3 font-mono text-[10px] text-chalk-400" title="Team">TEAM</th>
+              <th className="text-center px-2 py-3 font-mono text-[10px] text-chalk-400" title="Result">RES</th>
               {COLS.map((c) => (
-                <th key={c.key} className="text-center px-2 py-3 font-mono text-[10px] text-chalk-400">
+                <th key={c.key} className="text-center px-2 py-3 font-mono text-[10px] text-chalk-400 cursor-help" title={c.title}>
                   {c.label}
                 </th>
               ))}
@@ -147,15 +147,21 @@ export default async function PlayerMatchesPage({
               const rowBg = won
                 ? "bg-green-500/15 border-l-2 border-l-green-500"
                 : draw
-                  ? "bg-amber-500/10 border-l-2 border-l-amber-400"
+                  ? "bg-chalk-400/8 border-l-2 border-l-chalk-400"
                   : "bg-red-500/15 border-l-2 border-l-red-500";
 
               const passAcc = m.passes > 0 ? ((m.passes_completed / m.passes) * 100).toFixed(0) : "0";
               const dist = (m.distance_run / 1000).toFixed(2);
 
+              const stickyBg = won
+                ? "bg-[rgba(34,197,94,0.15)]"
+                : draw
+                  ? "bg-[rgba(138,157,196,0.08)]"
+                  : "bg-[rgba(239,68,68,0.15)]";
+
               return (
                 <tr key={m.match_id} className={`${rowBg} transition-colors hover:brightness-125`}>
-                  <td className="px-3 py-2.5 font-mono text-[11px] text-chalk-400 sticky left-0 bg-inherit z-10">
+                  <td className={`px-3 py-2.5 font-mono text-[11px] text-chalk-400 sticky left-0 z-10 ${stickyBg}`}>
                     {new Date(m.date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
                   </td>
                   <td className="px-2 py-2.5 text-center">
