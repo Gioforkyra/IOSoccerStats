@@ -82,21 +82,21 @@ export default async function TeamLayout({
           backgroundColor: teamColor ? `${teamColor}35` : "rgb(var(--pitch-900))",
         }}
       >
-        <div className="relative flex items-center gap-6 p-6 md:p-8">
+        <div className="relative flex items-center gap-4 p-4 md:p-5">
           {team.logo ? (
             <img
               src={proxyImg(team.logo)!}
               alt={team.name}
-              className="w-24 h-24 md:w-32 md:h-32 object-contain shrink-0"
+              className="w-20 h-20 md:w-24 md:h-24 object-contain shrink-0"
             />
           ) : (
-            <div className="w-24 h-24 md:w-32 md:h-32 flex items-center justify-center text-3xl font-display font-900 text-chalk-300 shrink-0 rounded-lg border-2 border-chalk-100/10 bg-pitch-700">
+            <div className="w-20 h-20 md:w-24 md:h-24 flex items-center justify-center text-2xl font-display font-900 text-chalk-300 shrink-0 rounded-lg border-2 border-chalk-100/10 bg-pitch-700">
               {team.slug?.slice(0, 3).toUpperCase() || "?"}
             </div>
           )}
 
           <div className="flex-1 min-w-0">
-            <h1 className="font-display font-900 text-3xl md:text-4xl tracking-tight text-chalk-100 uppercase">
+            <h1 className="font-display font-900 text-3xl md:text-3xl tracking-tight text-chalk-100 uppercase">
               {team.name}
             </h1>
             <div className="flex items-center gap-3 mt-2 text-sm font-mono text-chalk-400">

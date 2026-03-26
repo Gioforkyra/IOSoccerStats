@@ -120,7 +120,7 @@ export default async function PlayerLayout({
           backgroundColor: teamColor ? `${teamColor}35` : "rgb(var(--pitch-900))",
         }}
       >
-        <div className="relative flex flex-col md:flex-row items-start md:items-center gap-6 p-6 md:p-8">
+        <div className="relative flex flex-col md:flex-row items-start md:items-center gap-4 p-4 md:p-5">
           <a
             href={`https://steamcommunity.com/profiles/${player.steamId}`}
             target="_blank"
@@ -131,21 +131,21 @@ export default async function PlayerLayout({
               <img
                 src={avatarUrl}
                 alt={player.username}
-                className="w-24 h-24 md:w-28 md:h-28 rounded-lg border-2 border-chalk-100/10 object-cover group-hover/avatar:border-grass-500/50 transition-colors"
+                className="w-20 h-20 md:w-24 md:h-24 rounded-lg border-2 border-chalk-100/10 object-cover group-hover/avatar:border-grass-500/50 transition-colors"
               />
             ) : (
-              <div className="w-24 h-24 md:w-28 md:h-28 rounded-lg border-2 border-chalk-100/10 bg-pitch-700 flex items-center justify-center text-4xl font-display font-900 text-chalk-300 group-hover/avatar:border-grass-500/50 transition-colors">
+              <div className="w-20 h-20 md:w-24 md:h-24 rounded-lg border-2 border-chalk-100/10 bg-pitch-700 flex items-center justify-center text-3xl font-display font-900 text-chalk-300 group-hover/avatar:border-grass-500/50 transition-colors">
                 {player.username[0]?.toUpperCase() || "?"}
               </div>
             )}
           </a>
 
           <div className="flex-1 min-w-0">
-            <h1 className="font-display font-900 text-3xl md:text-4xl tracking-tight text-chalk-100 uppercase">
+            <h1 className="font-display font-900 text-3xl md:text-3xl tracking-tight text-chalk-100 uppercase">
               {player.username}
             </h1>
 
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-3">
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-1.5 mt-2">
               {player.position && (
                 <div>
                   <div className="text-[10px] font-mono text-chalk-400 uppercase">Position</div>
@@ -158,7 +158,7 @@ export default async function PlayerLayout({
                 {currentTeam ? (
                   <Link
                     href={`/teams/${currentTeam.team_id}`}
-                    className="flex items-center gap-2 text-lg font-display font-700 text-chalk-100 hover:text-grass-400 transition-colors"
+                    className="flex items-center gap-2 text-lg font-display font-700 text-chalk-100 hover:text-[#F4119E] transition-colors"
                   >
                     {currentTeam.team_logo && (
                       <img src={proxyImg(currentTeam.team_logo)!} alt="" className="w-8 h-8 object-contain" />
@@ -172,7 +172,7 @@ export default async function PlayerLayout({
             </div>
 
             {form.length > 0 && (
-              <div className="mt-3 flex items-center gap-1.5">
+              <div className="mt-2 flex items-center gap-1.5">
                 <span className="text-[10px] font-mono text-chalk-400 uppercase mr-1">Form</span>
                 {form.map((r, i) => (
                   <span
@@ -198,7 +198,7 @@ export default async function PlayerLayout({
               <img
                 src={proxyImg(currentTeam.team_logo)!}
                 alt={currentTeam.team_name}
-                className="w-28 h-28 lg:w-36 lg:h-36 object-contain opacity-40 hover:opacity-60 transition-opacity"
+                className="w-20 h-20 lg:w-24 lg:h-24 object-contain opacity-40 hover:opacity-60 transition-opacity"
               />
             </Link>
           )}

@@ -208,26 +208,48 @@ export default async function PlayerMatchesPage({
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between mt-3 text-xs font-mono">
-          <span className="text-chalk-400">Page {page} of {totalPages}</span>
-          <div className="flex gap-1">
+        <div className="flex items-center justify-between mt-4">
+          <span className="text-xs font-mono text-chalk-400">
+            Page {page} of {totalPages}
+          </span>
+          <div className="flex items-center gap-1">
             {page > 1 && (
-              <Link href={`/players/${steamIdParam}/matches?page=${page - 1}`} className="px-3 py-1.5 rounded bg-pitch-800 text-chalk-300 hover:bg-pitch-700 transition-colors">
-                Prev
+              <Link
+                href={`/players/${steamIdParam}/matches?page=1`}
+                className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center"
+                title="First page"
+              >
+                &laquo;
               </Link>
             )}
-            {Array.from({ length: Math.min(7, totalPages) }, (_, i) => {
+            {page > 1 && (
+              <Link
+                href={`/players/${steamIdParam}/matches?page=${Math.max(1, page - 10)}`}
+                className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center"
+                title="Back 10 pages"
+              >
+                &lt;
+              </Link>
+            )}
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
               let p: number;
-              if (totalPages <= 7) p = i + 1;
-              else if (page <= 4) p = i + 1;
-              else if (page >= totalPages - 3) p = totalPages - 6 + i;
-              else p = page - 3 + i;
+              if (totalPages <= 5) {
+                p = i + 1;
+              } else if (page <= 3) {
+                p = i + 1;
+              } else if (page >= totalPages - 2) {
+                p = totalPages - 4 + i;
+              } else {
+                p = page - 2 + i;
+              }
               return (
                 <Link
                   key={p}
                   href={`/players/${steamIdParam}/matches?page=${p}`}
-                  className={`px-3 py-1.5 rounded transition-colors ${
-                    p === page ? "bg-grass-600 text-chalk-100" : "bg-pitch-800 text-chalk-300 hover:bg-pitch-700"
+                  className={`w-8 h-8 rounded text-xs font-mono transition-colors flex items-center justify-center ${
+                    p === page
+                      ? "bg-[#F4119E] text-white font-700"
+                      : "text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30"
                   }`}
                 >
                   {p}
@@ -235,8 +257,21 @@ export default async function PlayerMatchesPage({
               );
             })}
             {page < totalPages && (
-              <Link href={`/players/${steamIdParam}/matches?page=${page + 1}`} className="px-3 py-1.5 rounded bg-pitch-800 text-chalk-300 hover:bg-pitch-700 transition-colors">
-                Next
+              <Link
+                href={`/players/${steamIdParam}/matches?page=${Math.min(totalPages, page + 10)}`}
+                className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center"
+                title="Forward 10 pages"
+              >
+                &gt;
+              </Link>
+            )}
+            {page < totalPages && (
+              <Link
+                href={`/players/${steamIdParam}/matches?page=${totalPages}`}
+                className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center"
+                title="Last page"
+              >
+                &raquo;
               </Link>
             )}
           </div>

@@ -143,7 +143,7 @@ export default async function TeamStatsPage({
                   </span>
                   <Link
                     href={`/players/${entry.steam_id}`}
-                    className="flex-1 font-body text-sm text-chalk-200 hover:text-grass-400 transition-colors truncate"
+                    className="flex-1 font-body text-sm text-chalk-200 hover:text-[#F4119E] transition-colors truncate"
                   >
                     {entry.username}
                   </Link>

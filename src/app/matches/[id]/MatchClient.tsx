@@ -101,7 +101,7 @@ export default function MatchClient({
     <div className="max-w-5xl mx-auto px-4 py-8">
       {/* Breadcrumb */}
       <div className="text-xs font-mono text-chalk-400 mb-6">
-        <Link href="/matches" className="hover:text-grass-500 transition-colors">Matches</Link>
+        <Link href="/matches" className="hover:text-[#F4119E] transition-colors">Matches</Link>
         <span className="mx-2">/</span>
         <span className="text-chalk-200">Match #{match.id}</span>
       </div>
@@ -116,7 +116,7 @@ export default function MatchClient({
         <div className="flex items-center justify-center gap-4 md:gap-6">
           <Link href={`/teams/${match.homeTeam.id}`} className="group flex items-center gap-3 md:gap-4 flex-1 justify-end">
             {match.homeTeam.logo && <img src={match.homeTeam.logo} alt="" className="w-20 h-20 md:w-28 md:h-28 object-contain shrink-0" />}
-            <span className="font-display font-800 text-lg md:text-2xl text-chalk-100 group-hover:text-grass-400 transition-colors text-right">{match.homeTeam.name}</span>
+            <span className="font-display font-800 text-lg md:text-2xl text-chalk-100 group-hover:text-[#F4119E] transition-colors text-right">{match.homeTeam.name}</span>
           </Link>
           <div className="font-display font-900 text-3xl md:text-5xl flex items-center gap-3 shrink-0">
             <span className="text-chalk-100">{match.homeScore}</span>
@@ -124,7 +124,7 @@ export default function MatchClient({
             <span className="text-chalk-100">{match.awayScore}</span>
           </div>
           <Link href={`/teams/${match.awayTeam.id}`} className="group flex items-center gap-3 md:gap-4 flex-1">
-            <span className="font-display font-800 text-lg md:text-2xl text-chalk-100 group-hover:text-grass-400 transition-colors">{match.awayTeam.name}</span>
+            <span className="font-display font-800 text-lg md:text-2xl text-chalk-100 group-hover:text-[#F4119E] transition-colors">{match.awayTeam.name}</span>
             {match.awayTeam.logo && <img src={match.awayTeam.logo} alt="" className="w-20 h-20 md:w-28 md:h-28 object-contain shrink-0" />}
           </Link>
         </div>
@@ -876,7 +876,7 @@ function SortablePlayerTable({
                   <td className="px-3 py-2">
                     <Link
                       href={`/players/${encodeURIComponent(p.profile_steam_id || p.player_steam_id)}`}
-                      className="font-body font-medium text-chalk-100 hover:text-grass-400 transition-colors"
+                      className="font-body font-medium text-chalk-100 hover:text-[#F4119E] transition-colors"
                       onClick={(e) => e.stopPropagation()}
                     >
                       {p.username}
