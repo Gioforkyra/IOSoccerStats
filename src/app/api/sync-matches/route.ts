@@ -28,30 +28,65 @@ async function fetchMatch(id: number): Promise<any | null> {
   }
 }
 
-/** Fetch recent match IDs via POST /api/match (the official list endpoint) */
-async function fetchRecentMatchIds(): Promise<number[]> {
+/** Fetch a page of match IDs from the API list endpoint */
+async function fetchMatchPage(
+  page: number,
+  extraBody: Record<string, any> = {},
+): Promise<{ ids: number[]; totalItems: number }> {
   try {
     const res = await fetch(`${API_BASE}/match`, {
       method: "POST",
       headers: { ...HEADERS, "Content-Type": "application/json" },
       body: JSON.stringify({
-        page: 1,
+        page,
         pageSize: 100,
         sortBy: "KickOff",
         sortOrder: "DESC",
         filters: { includePast: true },
+        ...extraBody,
       }),
       signal: AbortSignal.timeout(15000),
     });
-    if (!res.ok) return [];
+    if (!res.ok) return { ids: [], totalItems: 0 };
     const data = await res.json();
     const items = data?.items || [];
-    return items
-      .map((m: any) => m.id)
-      .filter((id: any) => typeof id === "number");
+    return {
+      ids: items.map((m: any) => m.id).filter((id: any) => typeof id === "number"),
+      totalItems: data?.totalItems || 0,
+    };
   } catch {
-    return [];
+    return { ids: [], totalItems: 0 };
   }
+}
+
+/** Fetch recent match IDs via POST /api/match — multiple pages, both types */
+async function fetchRecentMatchIds(): Promise<number[]> {
+  const allIds = new Set<number>();
+
+  // Try fetching without matchType filter first (3 pages = 300 matches)
+  for (let page = 1; page <= 3; page++) {
+    const { ids } = await fetchMatchPage(page);
+    if (ids.length === 0) break;
+    for (const id of ids) allIds.add(id);
+  }
+
+  // Also try with explicit matchType=2 for competitive matches
+  // (the default might only return friendly)
+  for (const extraBody of [
+    { matchType: 2 },
+    { filters: { includePast: true, matchType: 2 } },
+  ]) {
+    const { ids } = await fetchMatchPage(1, extraBody);
+    if (ids.length > 0) {
+      for (const id of ids) allIds.add(id);
+      // This format works, fetch page 2 too
+      const p2 = await fetchMatchPage(2, extraBody);
+      for (const id of p2.ids) allIds.add(id);
+      break;
+    }
+  }
+
+  return [...allIds];
 }
 
 function parseMatch(raw: any) {
@@ -177,7 +212,13 @@ async function insertMatch(raw: any): Promise<boolean> {
     await prisma.$executeRaw`
       INSERT INTO matches (id, date, home_team_id, away_team_id, home_score, away_score, match_type, status, tournament_id, map, server, potm, field_min_x, field_min_y, field_max_x, field_max_y)
       VALUES (${m.id}, ${m.date}, ${m.homeTeamId}, ${m.awayTeamId}, ${m.homeScore}, ${m.awayScore}, ${m.matchType}, ${m.status}, ${m.tournamentId}, ${m.map}, ${m.server}, ${m.potm}, ${m.fieldMinX}, ${m.fieldMinY}, ${m.fieldMaxX}, ${m.fieldMaxY})
-      ON CONFLICT (id) DO UPDATE SET tournament_id = COALESCE(EXCLUDED.tournament_id, matches.tournament_id)
+      ON CONFLICT (id) DO UPDATE SET
+        tournament_id = COALESCE(EXCLUDED.tournament_id, matches.tournament_id),
+        match_type = EXCLUDED.match_type,
+        potm = COALESCE(EXCLUDED.potm, matches.potm),
+        server = COALESCE(EXCLUDED.server, matches.server),
+        home_score = EXCLUDED.home_score,
+        away_score = EXCLUDED.away_score
     `;
 
     // Insert players and player stats
@@ -266,24 +307,27 @@ export async function GET() {
     // Strategy 1: Use POST /api/match to get the latest match IDs
     const recentIds = await fetchRecentMatchIds();
     if (recentIds.length > 0) {
-      // Find which recent matches already have player stats
+      // Find which matches already exist with player stats in our DB
       const minId = Math.min(...recentIds);
-      const matchesWithStats = await prisma.$queryRaw<{ match_id: number }[]>`
-        SELECT DISTINCT match_id FROM match_player_stats
-        WHERE match_id >= ${minId}
+      const existingMatches = await prisma.$queryRaw<{ id: number }[]>`
+        SELECT m.id FROM matches m
+        WHERE m.id >= ${minId}
+          AND EXISTS (SELECT 1 FROM match_player_stats mps WHERE mps.match_id = m.id)
       `;
-      const hasStatsSet = new Set(matchesWithStats.map((r) => r.match_id));
+      const existsSet = new Set(existingMatches.map((r) => r.id));
 
-      // Process matches that are new OR exist but have no player stats
-      const toProcess = recentIds.filter(
-        (id) => id > lastId || !hasStatsSet.has(id),
-      );
+      // Process matches that don't exist in DB or have no player stats
+      const toProcess = recentIds.filter((id) => !existsSet.has(id));
 
-      for (const id of toProcess) {
-        const raw = await fetchMatch(id);
-        if (raw) {
-          const ok = await insertMatch(raw);
-          if (ok) inserted++;
+      // Fetch in parallel batches
+      for (let i = 0; i < toProcess.length; i += BATCH_SIZE) {
+        const batch = toProcess.slice(i, i + BATCH_SIZE);
+        const results = await Promise.all(batch.map(fetchMatch));
+        for (const raw of results) {
+          if (raw) {
+            const ok = await insertMatch(raw);
+            if (ok) inserted++;
+          }
         }
       }
     }
@@ -318,6 +362,7 @@ export async function GET() {
       lastId,
       checked: currentId - lastId - 1,
       inserted,
+      recentIdsCount: recentIds.length,
     });
   } catch (err) {
     console.error("[sync-matches] error:", err);

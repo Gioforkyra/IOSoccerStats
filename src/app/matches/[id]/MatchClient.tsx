@@ -854,7 +854,7 @@ function SortablePlayerTable({
                   case "penalties": return <span className="text-chalk-300">{p.penalties}</span>;
                   case "yellow_cards": return <span className={p.yellow_cards > 0 ? "text-yellow-400" : "text-chalk-400"}>{p.yellow_cards}</span>;
                   case "red_cards": return <span className={p.red_cards > 0 ? "text-red-400" : "text-chalk-400"}>{p.red_cards}</span>;
-                  case "xg": return <span className={pxg > 0 ? "text-pink-400" : "text-chalk-400"}>{pxg > 0 ? pxg.toFixed(2) : "-"}</span>;
+                  case "xg": return <span className={pxg > 0 ? "text-chalk-300" : "text-chalk-400"}>{pxg > 0 ? pxg.toFixed(2) : "-"}</span>;
                   default: return null;
                 }
               };

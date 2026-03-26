@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { proxyImg } from "@/lib/img";
 
+export const dynamic = "force-dynamic";
+
 type RecentMatch = {
   match_id: number;
   date: Date;
@@ -16,6 +18,7 @@ type RecentMatch = {
   away_logo: string | null;
   match_type: string;
   potm: string | null;
+  potm_steam_id: string | null;
   server: string | null;
 };
 
@@ -58,13 +61,9 @@ export default async function TeamResultsPage({
   const offset = (currentPage - 1) * PAGE_SIZE;
 
   const [countResult] = await prisma.$queryRaw<[MatchCount]>`
-    SELECT COUNT(DISTINCT m.id) AS total
+    SELECT COUNT(*) AS total
     FROM matches m
     WHERE (m.home_team_id = ${teamId} OR m.away_team_id = ${teamId})
-      AND EXISTS (
-        SELECT 1 FROM match_player_stats mps
-        WHERE mps.match_id = m.id
-      )
   `;
   const totalMatches = Number(countResult.total);
   const totalPages = Math.ceil(totalMatches / PAGE_SIZE);
@@ -83,23 +82,20 @@ export default async function TeamResultsPage({
       ta.logo AS away_logo,
       m.match_type,
       m.potm,
+      (SELECT p.steam_id FROM players p WHERE p.username = m.potm LIMIT 1) AS potm_steam_id,
       m.server
     FROM matches m
     JOIN teams th ON th.id = m.home_team_id
     JOIN teams ta ON ta.id = m.away_team_id
     WHERE (m.home_team_id = ${teamId} OR m.away_team_id = ${teamId})
-      AND EXISTS (
-        SELECT 1 FROM match_player_stats mps
-        WHERE mps.match_id = m.id
-      )
-    ORDER BY m.date DESC
+    ORDER BY m.date DESC, m.id DESC
     LIMIT ${PAGE_SIZE} OFFSET ${offset}
   `;
 
   return (
     <div>
       <div className="rounded-lg border border-chalk-100/8 bg-pitch-900/40 overflow-hidden">
-        <div className="grid grid-cols-[190px_1fr_95px_210px_90px] px-4 py-3 border-b border-chalk-100/12 text-[11px] font-mono text-chalk-400 uppercase tracking-wide">
+        <div className="grid grid-cols-[190px_1fr_95px_210px_90px] gap-2 px-4 py-3 border-b border-chalk-100/12 text-[11px] font-mono text-chalk-400 uppercase tracking-wide">
           <div>Date</div>
           <div>Match</div>
           <div>Type</div>
@@ -139,12 +135,13 @@ export default async function TeamResultsPage({
                   : "bg-[#ef4444]/20 text-[#ef4444]";
 
               return (
-                <Link
+                <div
                   key={m.match_id}
-                  href={`/matches/${m.match_id}`}
-                  className={`grid grid-cols-[190px_1fr_95px_210px_90px] items-center gap-2 px-4 py-2.5 transition-colors hover:brightness-110 ${rowTone} ${rowBorder}`}
+                  className={`relative grid grid-cols-[190px_1fr_95px_210px_90px] items-center gap-2 px-4 py-2.5 hover:brightness-125 transition ${rowTone} ${rowBorder}`}
                 >
-                  <div className="flex items-center gap-2">
+                  <Link href={`/matches/${m.match_id}`} className="absolute inset-0 z-0" />
+
+                  <div className="relative z-10 flex items-center gap-2 pointer-events-none">
                     <span className="text-xs font-mono text-chalk-400">
                       {new Date(m.date).toLocaleDateString("en-GB", {
                         day: "2-digit",
@@ -157,40 +154,46 @@ export default async function TeamResultsPage({
                     </span>
                   </div>
 
-                  <div className="font-body text-sm text-chalk-200 flex items-center gap-1.5">
-                    {m.home_logo && (
-                      <img
-                        src={proxyImg(m.home_logo)!}
-                        alt=""
-                        className="w-5 h-5 object-contain inline-block shrink-0"
-                      />
-                    )}
-                    <span className={isHome ? "font-semibold text-chalk-100" : ""}>{m.home_team}</span>
-                    <span className="font-mono text-sm text-chalk-100 font-semibold ml-2 mr-2 whitespace-nowrap">
+                  <div className="relative z-10 font-body text-sm text-chalk-200 flex items-center gap-1.5">
+                    <Link href={`/teams/${m.home_team_id}`} className="flex items-center gap-1.5 hover:text-[#F4119E] transition-colors">
+                      {m.home_logo && (
+                        <img src={proxyImg(m.home_logo)!} alt="" className="w-5 h-5 object-contain inline-block shrink-0" />
+                      )}
+                      <span>{m.home_team}</span>
+                    </Link>
+                    <span className="font-mono text-sm text-chalk-100 ml-2 mr-2 whitespace-nowrap pointer-events-none">
                       {m.home_score} - {m.away_score}
                     </span>
-                    {m.away_logo && (
-                      <img
-                        src={proxyImg(m.away_logo)!}
-                        alt=""
-                        className="w-5 h-5 object-contain inline-block shrink-0"
-                      />
-                    )}
-                    <span className={!isHome ? "font-semibold text-chalk-100" : ""}>{m.away_team}</span>
+                    <Link href={`/teams/${m.away_team_id}`} className="flex items-center gap-1.5 hover:text-[#F4119E] transition-colors">
+                      {m.away_logo && (
+                        <img src={proxyImg(m.away_logo)!} alt="" className="w-5 h-5 object-contain inline-block shrink-0" />
+                      )}
+                      <span>{m.away_team}</span>
+                    </Link>
                   </div>
 
-                  <div className="text-xs font-mono text-chalk-300 uppercase">
-                    {m.match_type === "competitive" ? "comp" : "friendly"}
+                  <div className="relative z-10 text-xs font-mono uppercase pointer-events-none">
+                    <span className={m.match_type === "competitive" ? "text-yellow-400" : "text-chalk-300"}>
+                      {m.match_type === "competitive" ? "comp" : "friendly"}
+                    </span>
                   </div>
 
-                  <div className="text-xs font-body text-[#56a3ff] truncate">
-                    {m.potm || "-"}
+                  <div className="relative z-10 text-xs font-body truncate pointer-events-none">
+                    {m.potm ? (
+                      m.potm_steam_id ? (
+                        <Link href={`/players/${m.potm_steam_id}`} className="text-[#56a3ff] hover:text-[#F4119E] transition-colors pointer-events-auto">
+                          {m.potm}
+                        </Link>
+                      ) : (
+                        <span className="text-[#56a3ff]">{m.potm}</span>
+                      )
+                    ) : "-"}
                   </div>
 
-                  <div className="text-sm font-mono text-chalk-200">
+                  <div className="relative z-10 text-sm font-mono text-chalk-200 pointer-events-none">
                     {getServerFlag(m.server)}
                   </div>
-                </Link>
+                </div>
               );
             })
           )}

@@ -1,4 +1,7 @@
-"""Fetch IOSoccer internal player IDs from the player API and update players table."""
+"""Fetch IOSoccer player data from the hub API and update players table.
+
+Updates: iosoccer_id, rating, country, position.
+"""
 import httpx
 import asyncio
 import asyncpg
@@ -10,14 +13,25 @@ HEADERS = {
     "Origin": "https://www.iosoccer.com",
     "Referer": "https://www.iosoccer.com/",
 }
-DB_URL = "postgresql://postgres:diodiobibo201@localhost:5432/iosoccer_stats"
+import os
+from dotenv import load_dotenv
+load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env.local"))
+DB_URL = os.getenv("DIRECT_URL") or os.getenv("DATABASE_URL", "postgresql://postgres:diodiobibo201@localhost:5432/iosoccer_stats")
 PAGE_SIZE = 100
+
+# IOSoccer position IDs to abbreviations
+POSITION_MAP = {
+    1: "GK", 2: "LB", 3: "CB", 4: "RB", 5: "LWB", 6: "RWB",
+    7: "DMF", 8: "CMF", 9: "AMF", 10: "LMF", 11: "RMF",
+    12: "LWF", 13: "RWF", 14: "SS", 15: "CF",
+}
 
 
 async def main():
     pool = await asyncpg.create_pool(DB_URL, min_size=2, max_size=5)
 
     async with httpx.AsyncClient(headers=HEADERS, timeout=30) as client:
+
         page = 1
         total_updated = 0
 
@@ -41,18 +55,22 @@ async def main():
                     for p in items:
                         iosoccer_id = p.get("id")
                         steam_id = p.get("steamID")
-                        name = p.get("name", "")
                         rating = p.get("rating")
-                        country_id = p.get("countryId")
+                        position_id = p.get("preferredPositionId")
 
                         if not steam_id or not iosoccer_id:
                             continue
 
+                        position = POSITION_MAP.get(position_id)
+
                         try:
                             await conn.execute("""
-                                UPDATE players SET iosoccer_id = $2
-                                WHERE steam_id = $1 AND (iosoccer_id IS NULL OR iosoccer_id != $2)
-                            """, steam_id, iosoccer_id)
+                                UPDATE players
+                                SET iosoccer_id = $2,
+                                    rating = COALESCE($3, rating),
+                                    position = COALESCE($4, position)
+                                WHERE steam_id = $1
+                            """, steam_id, iosoccer_id, rating, position)
                             total_updated += 1
                         except Exception:
                             pass
@@ -75,8 +93,10 @@ async def main():
     async with pool.acquire() as conn:
         total = await conn.fetchval("SELECT COUNT(*) FROM players")
         with_id = await conn.fetchval("SELECT COUNT(*) FROM players WHERE iosoccer_id IS NOT NULL")
+        with_rating = await conn.fetchval("SELECT COUNT(*) FROM players WHERE rating IS NOT NULL")
         print(f"\nDone! {total_updated} players processed.")
         print(f"Players with IOSoccer ID: {with_id}/{total}")
+        print(f"Players with rating: {with_rating}/{total}")
 
     await pool.close()
 

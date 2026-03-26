@@ -38,6 +38,7 @@ type PlayerRow = {
   avatar: string | null;
   rating: number | null;
   country: string | null;
+  iosoccer_id: number | null;
   apps: bigint;
   as_sub: bigint;
   wins: bigint;
@@ -214,13 +215,13 @@ export default async function PlayersPage({
   const columns = buildColumns(view);
   const cMap = colMap(view);
 
-  const sortKey = params.sort && cMap[params.sort] ? params.sort : "apps";
-  const dir = params.dir === "asc" ? "ASC" : "DESC";
+  const sortKey = params.sort && (cMap[params.sort] || params.sort === "hubId") ? params.sort : "hubId";
+  const dir = params.dir === "desc" ? "DESC" : sortKey === "hubId" && !params.dir ? "ASC" : params.dir === "asc" ? "ASC" : "DESC";
   const page = Math.max(1, parseInt(params.page || "1", 10));
   const nameQuery = params.q?.trim() || "";
   const offset = (page - 1) * PAGE_SIZE;
 
-  const orderCol = cMap[sortKey]?.sortSql ?? Prisma.sql`agg.apps`;
+  const orderCol = sortKey === "hubId" ? Prisma.sql`p.iosoccer_id` : (cMap[sortKey]?.sortSql ?? Prisma.sql`agg.apps`);
 
   // Build WHERE clause
   const whereFragment = nameQuery
@@ -229,7 +230,7 @@ export default async function PlayersPage({
 
   const players = await prisma.$queryRaw<PlayerRow[]>`
     SELECT
-      p.steam_id, p.username, p.position, p.avatar, p.rating, p.country,
+      p.steam_id, p.username, p.position, p.avatar, p.rating, p.country, p.iosoccer_id,
       agg.apps, agg.as_sub, agg.wins, agg.draws, agg.losses,
       agg.total_goals, agg.total_assists,
       agg.total_shots, agg.total_shots_on_target,
@@ -300,7 +301,7 @@ export default async function PlayersPage({
           <p className="text-chalk-400 text-sm font-body mt-1">
             {totalPlayers.toLocaleString()} players · sorted by{" "}
             <span className="font-mono text-chalk-300">
-              {cMap[sortKey]?.title ?? sortKey}
+              {sortKey === "hubId" ? "Hub ID" : (cMap[sortKey]?.title ?? sortKey)}
             </span>
           </p>
         </div>
@@ -373,11 +374,11 @@ export default async function PlayersPage({
           </thead>
           <tbody>
             {players.map((p, i) => (
-              <tr key={p.steam_id} className={`stat-row group ${i % 2 === 0 ? "bg-pitch-600/15" : "bg-transparent"}`}>
+              <tr key={p.steam_id} className={`stat-row group ${i % 2 === 0 ? "bg-[#1c1c1c]" : "bg-[#181818]"}`}>
                 <td className="px-3 py-1.5 font-display font-700 text-chalk-100/20 text-base">
                   {offset + i + 1}
                 </td>
-                <td className="px-3 py-1.5 sticky left-0 bg-pitch-900/95 z-10">
+                <td className={`px-3 py-1.5 sticky left-0 z-10 ${i % 2 === 0 ? "bg-[#1c1c1c]" : "bg-[#181818]"}`}>
                   <Link
                     href={`/players/${encodeURIComponent(p.steam_id)}`}
                     className="flex items-center gap-2 hover:text-[#F4119E] transition-colors"

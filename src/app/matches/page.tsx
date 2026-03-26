@@ -3,6 +3,8 @@ import Link from "next/link";
 import { proxyImg } from "@/lib/img";
 import SyncMatches from "@/components/SyncMatches";
 
+export const dynamic = "force-dynamic";
+
 const PAGE_SIZE = 10;
 
 type MatchRow = {
@@ -16,6 +18,7 @@ type MatchRow = {
   map: string | null;
   server: string | null;
   potm: string | null;
+  potm_steam_id: string | null;
   home_name: string;
   away_name: string;
   home_logo: string | null;
@@ -95,6 +98,7 @@ export default async function MatchesPage({
       m.map,
       m.server,
       m.potm,
+      (SELECT p.steam_id FROM players p WHERE p.username = m.potm LIMIT 1) AS potm_steam_id,
       ht.name AS home_name,
       at.name AS away_name,
       ht.logo AS home_logo,
@@ -158,7 +162,7 @@ export default async function MatchesPage({
       </div>
 
       <div className="rounded-lg border border-chalk-100/8 bg-pitch-900/40 overflow-hidden">
-        <div className="grid grid-cols-[190px_1fr_90px_190px_90px] px-4 py-3 border-b border-chalk-100/12 text-[11px] font-mono text-chalk-400 uppercase tracking-wide">
+        <div className="grid grid-cols-[190px_1fr_90px_190px_90px] gap-2 px-4 py-3 border-b border-chalk-100/12 text-[11px] font-mono text-chalk-400 uppercase tracking-wide">
           <div>Date</div>
           <div>Match</div>
           <div>Type</div>
@@ -169,59 +173,73 @@ export default async function MatchesPage({
           {matches.map((m, i) => {
             const homeLogo = m.home_logo ? proxyImg(m.home_logo) : null;
             const awayLogo = m.away_logo ? proxyImg(m.away_logo) : null;
+            const matchDate = new Date(m.date);
 
             return (
-              <Link
+              <div
                 key={m.id}
-                href={`/matches/${m.id}`}
-                className={`grid grid-cols-[190px_1fr_90px_190px_90px] items-center gap-2 px-4 py-2.5 transition-colors pink-hover ${
+                className={`relative grid grid-cols-[190px_1fr_90px_190px_90px] items-center gap-2 px-4 py-2.5 hover:brightness-125 transition ${
                   i % 2 === 0 ? "bg-pitch-600/15" : "bg-transparent"
                 }`}
               >
-                <div className="flex items-center gap-2">
+                <Link href={`/matches/${m.id}`} className="absolute inset-0 z-0" aria-label="View match details" />
+
+                <div className="relative z-10 flex items-center gap-2 pointer-events-none">
                   <span className="text-xs font-mono text-chalk-400">
-                    {new Date(m.date).toLocaleDateString("en-GB", {
+                    {matchDate.toLocaleDateString("en-GB", {
                       day: "2-digit",
                       month: "short",
                       year: "numeric",
                     })}
                   </span>
+                  <span className="text-[10px] font-mono text-chalk-500">
+                    {matchDate.toLocaleTimeString("en-GB", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
                 </div>
 
-                <div className="font-body text-sm text-chalk-200 flex items-center gap-1.5 min-w-0">
-                  {homeLogo && (
-                    <img
-                      src={homeLogo}
-                      alt=""
-                      className="w-5 h-5 object-contain inline-block shrink-0"
-                    />
-                  )}
-                  <span className="truncate font-semibold text-chalk-100">{m.home_name}</span>
-                  <span className="font-mono text-sm text-chalk-100 font-semibold mx-2 whitespace-nowrap min-w-[54px] text-center">
+                <div className="relative z-10 font-body text-sm text-chalk-200 flex items-center gap-1.5 min-w-0">
+                  <Link href={`/teams/${m.home_team_id}`} className="relative z-10 flex items-center gap-1.5 hover:text-[#F4119E] transition-colors truncate">
+                    {homeLogo && (
+                      <img src={homeLogo} alt="" className="w-5 h-5 object-contain inline-block shrink-0" />
+                    )}
+                    <span className="truncate">{m.home_name}</span>
+                  </Link>
+                  <span className="font-mono text-sm text-chalk-100 mx-2 whitespace-nowrap min-w-[54px] text-center pointer-events-none">
                     {m.home_score} - {m.away_score}
                   </span>
-                  {awayLogo && (
-                    <img
-                      src={awayLogo}
-                      alt=""
-                      className="w-5 h-5 object-contain inline-block shrink-0"
-                    />
-                  )}
-                  <span className="truncate">{m.away_name}</span>
+                  <Link href={`/teams/${m.away_team_id}`} className="relative z-10 flex items-center gap-1.5 hover:text-[#F4119E] transition-colors truncate">
+                    {awayLogo && (
+                      <img src={awayLogo} alt="" className="w-5 h-5 object-contain inline-block shrink-0" />
+                    )}
+                    <span className="truncate">{m.away_name}</span>
+                  </Link>
                 </div>
 
-                <div className="text-xs font-mono text-chalk-300 uppercase">
-                  {m.match_type === "competitive" ? "comp" : "friendly"}
+                <div className="relative z-10 text-xs font-mono uppercase pointer-events-none">
+                  <span className={m.match_type === "competitive" ? "text-yellow-400" : "text-chalk-300"}>
+                    {m.match_type === "competitive" ? "comp" : "friendly"}
+                  </span>
                 </div>
 
-                <div className="text-xs font-body text-[#56a3ff] truncate">
-                  {m.potm || "-"}
+                <div className="relative z-10 text-xs font-body truncate pointer-events-none">
+                  {m.potm ? (
+                    m.potm_steam_id ? (
+                      <Link href={`/players/${m.potm_steam_id}`} className="text-[#56a3ff] hover:text-[#F4119E] transition-colors pointer-events-auto">
+                        {m.potm}
+                      </Link>
+                    ) : (
+                      <span className="text-[#56a3ff]">{m.potm}</span>
+                    )
+                  ) : "-"}
                 </div>
 
-                <div className="text-sm font-mono text-chalk-200">
+                <div className="relative z-10 text-sm font-mono text-chalk-200 pointer-events-none">
                   {getServerFlag(m.server)}
                 </div>
-              </Link>
+              </div>
             );
           })}
         </div>

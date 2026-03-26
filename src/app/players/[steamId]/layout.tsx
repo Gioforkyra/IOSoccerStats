@@ -37,7 +37,7 @@ export default async function PlayerLayout({
 
   const steamIds = await getRelatedSteamIds(steamId);
 
-  // Current team from transfer data (official roster)
+  // Current team from transfer data — only active club teams
   const currentTeams = await prisma.$queryRaw<CurrentTeam[]>`
     SELECT
       t.id AS team_id,
@@ -48,6 +48,7 @@ export default async function PlayerLayout({
     JOIN teams t ON t.id = tr.to_team_id
     WHERE tr.player_steam_id = ANY(${steamIds})
       AND tr.type = 'join'
+      AND t.inactive = false
       AND t.name NOT IN ('IOSoccer All', 'IOSoccer Overlap', 'IOSoccer Challenge', 'IOSoccer Premier')
       AND NOT EXISTS (
         SELECT 1 FROM transfers tr2
@@ -59,29 +60,7 @@ export default async function PlayerLayout({
     ORDER BY tr.date DESC
     LIMIT 1
   `;
-  // Fall back to match-based detection if no transfer data
-  const currentTeamFromTransfers = currentTeams[0] || null;
-  let currentTeam = currentTeamFromTransfers;
-  if (!currentTeam) {
-    const fallback = await prisma.$queryRaw<CurrentTeam[]>`
-      SELECT
-        t.id AS team_id,
-        t.name AS team_name,
-        t.logo AS team_logo,
-        t.color AS team_color
-      FROM match_player_stats mps
-      JOIN matches m ON m.id = mps.match_id
-      JOIN teams t ON t.id = CASE
-        WHEN mps.team_side = 'home' THEN m.home_team_id
-        WHEN mps.team_side = 'away' THEN m.away_team_id
-      END
-      WHERE mps.player_steam_id = ANY(${steamIds})
-        AND t.name NOT IN ('IOSoccer All', 'IOSoccer Overlap', 'IOSoccer Challenge', 'IOSoccer Premier')
-      ORDER BY m.date DESC
-      LIMIT 1
-    `;
-    currentTeam = fallback[0] || null;
-  }
+  const currentTeam = currentTeams[0] || null;
 
   // Form (last 5)
   const formResults = await prisma.$queryRaw<FormResult[]>`
@@ -141,15 +120,36 @@ export default async function PlayerLayout({
           </a>
 
           <div className="flex-1 min-w-0">
-            <h1 className="font-display font-900 text-3xl md:text-3xl tracking-tight text-chalk-100 uppercase">
-              {player.username}
-            </h1>
+            <div className="flex items-center gap-3">
+              <h1 className="font-display font-900 text-3xl md:text-3xl tracking-tight text-chalk-100 uppercase">
+                {player.username}
+              </h1>
+              {player.iosoccerId && (
+                <a
+                  href={`https://www.iosoccer.com/player-profile/${player.iosoccerId}/statistics`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-chalk-100/10 text-[11px] font-mono text-chalk-400 hover:text-[#F4119E] hover:border-[#F4119E]/30 transition-colors"
+                  title="View on IOSoccer Hub"
+                >
+                  HUB #{player.iosoccerId}
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                </a>
+              )}
+            </div>
 
             <div className="flex flex-wrap items-center gap-x-6 gap-y-1.5 mt-2">
               {player.position && (
                 <div>
                   <div className="text-[10px] font-mono text-chalk-400 uppercase">Position</div>
                   <div className="text-lg font-display font-700 text-chalk-100">{player.position}</div>
+                </div>
+              )}
+
+              {player.rating != null && (
+                <div>
+                  <div className="text-[10px] font-mono text-chalk-400 uppercase">Rating</div>
+                  <div className="text-lg font-display font-700 text-chalk-100">{player.rating.toFixed(1)}</div>
                 </div>
               )}
 
