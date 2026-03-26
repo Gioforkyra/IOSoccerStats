@@ -134,10 +134,11 @@ body {
 }
 
 /* Scrollbar */
-::-webkit-scrollbar { width: 6px; }
+* { scrollbar-width: thin; scrollbar-color: rgba(244, 17, 158, 0.65) var(--pitch-900); }
+::-webkit-scrollbar { width: 3px; }
 ::-webkit-scrollbar-track { background: var(--pitch-900); }
-::-webkit-scrollbar-thumb { background: rgba(138,157,196,0.2); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(0,230,118,0.3); }
+::-webkit-scrollbar-thumb { background: rgba(244, 17, 158, 0.65); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(244, 17, 158, 0.9); }
 
 /* Fade in animation */
 @keyframes fadeUp {
