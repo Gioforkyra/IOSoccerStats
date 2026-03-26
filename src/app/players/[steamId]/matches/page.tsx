@@ -168,6 +168,9 @@ export default async function PlayerMatchesPage({
                 <tr key={m.match_id} className={`${rowTone} ${rowBorder} transition-colors hover:brightness-125`}>
                   <td className={`px-3 py-2.5 font-mono text-[11px] text-chalk-400 sticky left-0 z-10 ${rowTone}`}>
                     {new Date(m.date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                    <span className="text-[11px] text-chalk-100 font-700 ml-5">
+                      {new Date(m.date).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                    </span>
                   </td>
                   <td className="px-2 py-2.5 text-center">
                     <span className="text-[10px] font-mono text-chalk-400">{m.position || "-"}</span>

@@ -82,7 +82,7 @@ export default async function TeamResultsPage({
       ta.logo AS away_logo,
       m.match_type,
       m.potm,
-      (SELECT p.steam_id FROM players p WHERE p.username = m.potm LIMIT 1) AS potm_steam_id,
+      (SELECT p.steam_id FROM players p WHERE LOWER(p.username) = LOWER(m.potm) LIMIT 1) AS potm_steam_id,
       m.server
     FROM matches m
     JOIN teams th ON th.id = m.home_team_id
@@ -114,8 +114,6 @@ export default async function TeamResultsPage({
                 ? m.home_score > m.away_score
                 : m.away_score > m.home_score;
               const draw = m.home_score === m.away_score;
-              const result = draw ? "D" : won ? "W" : "L";
-
               const rowTone = draw
                 ? "bg-[#2B3443]"
                 : won
@@ -127,12 +125,6 @@ export default async function TeamResultsPage({
                 : won
                   ? "border-l-2 border-l-green-500"
                   : "border-l-2 border-l-red-500";
-
-              const badgeClass = draw
-                ? "bg-[#5a6e94]/20 text-[#5a6e94]"
-                : won
-                  ? "bg-[#22c55e]/20 text-[#22c55e]"
-                  : "bg-[#ef4444]/20 text-[#ef4444]";
 
               return (
                 <div
@@ -149,8 +141,8 @@ export default async function TeamResultsPage({
                         year: "numeric",
                       })}
                     </span>
-                    <span className={`w-6 h-6 rounded text-[11px] font-mono font-700 flex items-center justify-center ${badgeClass}`}>
-                      {result}
+                    <span className="text-[10px] font-mono text-chalk-500">
+                      {new Date(m.date).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
                     </span>
                   </div>
 

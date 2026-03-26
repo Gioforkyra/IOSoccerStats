@@ -98,7 +98,7 @@ export default async function MatchesPage({
       m.map,
       m.server,
       m.potm,
-      (SELECT p.steam_id FROM players p WHERE p.username = m.potm LIMIT 1) AS potm_steam_id,
+      (SELECT p.steam_id FROM players p WHERE LOWER(p.username) = LOWER(m.potm) LIMIT 1) AS potm_steam_id,
       ht.name AS home_name,
       at.name AS away_name,
       ht.logo AS home_logo,
@@ -200,17 +200,17 @@ export default async function MatchesPage({
                   </span>
                 </div>
 
-                <div className="relative z-10 font-body text-sm text-chalk-200 flex items-center gap-1.5 min-w-0">
-                  <Link href={`/teams/${m.home_team_id}`} className="relative z-10 flex items-center gap-1.5 hover:text-[#F4119E] transition-colors truncate">
+                <div className="relative z-10 font-body text-sm text-chalk-200 flex items-center gap-1.5 min-w-0 pointer-events-none">
+                  <Link href={`/teams/${m.home_team_id}`} className="relative z-10 flex items-center gap-1.5 hover:text-[#F4119E] transition-colors truncate pointer-events-auto">
                     {homeLogo && (
                       <img src={homeLogo} alt="" className="w-5 h-5 object-contain inline-block shrink-0" />
                     )}
                     <span className="truncate">{m.home_name}</span>
                   </Link>
-                  <span className="font-mono text-sm text-chalk-100 mx-2 whitespace-nowrap min-w-[54px] text-center pointer-events-none">
+                  <span className="font-mono text-sm text-chalk-100 mx-2 whitespace-nowrap min-w-[54px] text-center">
                     {m.home_score} - {m.away_score}
                   </span>
-                  <Link href={`/teams/${m.away_team_id}`} className="relative z-10 flex items-center gap-1.5 hover:text-[#F4119E] transition-colors truncate">
+                  <Link href={`/teams/${m.away_team_id}`} className="relative z-10 flex items-center gap-1.5 hover:text-[#F4119E] transition-colors truncate pointer-events-auto">
                     {awayLogo && (
                       <img src={awayLogo} alt="" className="w-5 h-5 object-contain inline-block shrink-0" />
                     )}
@@ -224,10 +224,10 @@ export default async function MatchesPage({
                   </span>
                 </div>
 
-                <div className="relative z-10 text-xs font-body truncate pointer-events-none">
+                <div className="relative z-20 text-xs font-body truncate">
                   {m.potm ? (
                     m.potm_steam_id ? (
-                      <Link href={`/players/${m.potm_steam_id}`} className="text-[#56a3ff] hover:text-[#F4119E] transition-colors pointer-events-auto">
+                      <Link href={`/players/${m.potm_steam_id}`} className="text-[#56a3ff] hover:text-[#F4119E] transition-colors">
                         {m.potm}
                       </Link>
                     ) : (
