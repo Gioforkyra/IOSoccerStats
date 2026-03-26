@@ -27,8 +27,7 @@ async def main():
         while True:
             resp = await client.post(
                 f"{API_BASE}/player",
-                json={},
-                params={"page": page, "pageSize": 100},
+                json={"page": page, "pageSize": 100},
             )
             if resp.status_code != 200:
                 print(f"  Page {page}: HTTP {resp.status_code}, stopping")

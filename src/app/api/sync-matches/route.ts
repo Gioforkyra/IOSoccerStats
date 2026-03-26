@@ -131,6 +131,15 @@ const S = {
   KeeperSavesCaught: 24,
 } as const;
 
+/** Convert Steam3 ID [U:1:X] to Steam64, or return as-is if already Steam64 */
+function normalizeSteamId(raw: string): string {
+  const m = raw.match(/^\[U:1:(\d+)\]$/);
+  if (m) {
+    return String(BigInt(m[1]) + BigInt("76561197960265728"));
+  }
+  return raw;
+}
+
 function _normalizeCoord(
   val: number,
   fieldMin: number,
@@ -174,9 +183,11 @@ async function insertMatch(raw: any): Promise<boolean> {
     // Insert players and player stats
     const players: any[] = md.players || [];
     for (const p of players) {
-      const steamId = p.info?.steamId;
+      const rawSteamId = p.info?.steamId;
       const name = p.info?.name;
-      if (!steamId || !name) continue;
+      if (!rawSteamId || !name) continue;
+
+      const steamId = normalizeSteamId(rawSteamId);
 
       // Aggregate stats across all periods
       const periods: any[] = p.matchPeriodData || [];
@@ -184,14 +195,16 @@ async function insertMatch(raw: any): Promise<boolean> {
 
       let teamSide = "home";
       let position: string | null = null;
-      let isSubstitute = false;
       const totals = new Array(28).fill(0);
+
+      // A player is a substitute if their first period starts after the match kickoff
+      const firstPeriod = periods[0]?.info || {};
+      const isSubstitute = (firstPeriod.startSecond || 0) > 0;
 
       for (const period of periods) {
         const info = period.info || {};
         teamSide = info.team === "away" ? "away" : "home";
         if (!position) position = info.position || null;
-        if (info.startSecond > 0) isSubstitute = true;
 
         const stats: number[] = period.statistics || [];
         for (let i = 0; i < stats.length; i++) {
@@ -215,18 +228,20 @@ async function insertMatch(raw: any): Promise<boolean> {
           match_id, player_steam_id, team_side, position,
           goals, assists, second_assists, shots, shots_on_target,
           passes, passes_completed, key_passes, chances_created,
-          interceptions, saves, offsides, fouls, fouls_suffered,
+          interceptions, saves, saves_caught, offsides, fouls, fouls_suffered,
           yellow_cards, red_cards, own_goals, goals_conceded,
           corners, throw_ins, free_kicks, goal_kicks, penalties,
-          distance_run, possession, minutes_played, is_substitute, is_potm
+          distance_run, possession, minutes_played, is_substitute, is_potm,
+          sliding_tackles, sliding_tackles_completed
         ) VALUES (
           ${m.id}, ${steamId}, ${teamSide}, ${position},
           ${totals[S.Goals]}, ${totals[S.Assists]}, ${0}, ${totals[S.Shots]}, ${totals[S.ShotsOnGoal]},
           ${totals[S.Passes]}, ${totals[S.PassesCompleted]}, ${0}, ${0},
-          ${totals[S.Interceptions]}, ${totals[S.KeeperSaves]}, ${totals[S.Offsides]}, ${totals[S.Fouls]}, ${totals[S.FoulsSuffered]},
+          ${totals[S.Interceptions]}, ${totals[S.KeeperSaves]}, ${totals[S.KeeperSavesCaught]}, ${totals[S.Offsides]}, ${totals[S.Fouls]}, ${totals[S.FoulsSuffered]},
           ${totals[S.YellowCards]}, ${totals[S.RedCards]}, ${totals[S.OwnGoals]}, ${totals[S.GoalsConceded]},
           ${totals[S.Corners]}, ${totals[S.ThrowIns]}, ${totals[S.FreeKicks]}, ${totals[S.GoalKicks]}, ${totals[S.Penalties]},
-          ${totals[S.DistanceCovered]}, ${totals[S.Possession]}, ${minutesPlayed}, ${isSubstitute}, ${name === m.potm}
+          ${totals[S.DistanceCovered]}, ${totals[S.Possession]}, ${minutesPlayed}, ${isSubstitute}, ${name === m.potm},
+          ${totals[S.SlidingTackles]}, ${totals[S.SlidingTacklesCompleted]}
         )
         ON CONFLICT (match_id, player_steam_id) DO NOTHING
       `;

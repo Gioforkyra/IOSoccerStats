@@ -5,7 +5,8 @@
       "Bash(python main.py --from 1 --workers 20)",
       "Bash(tasklist)",
       "Bash(wmic process:*)",
-      "Bash(taskkill //F //IM python3.11.exe)"
+      "Bash(taskkill //F //IM python3.11.exe)",
+      "Bash(PGPASSWORD=diodiobibo201 psql -U postgres -d iosoccer_stats -c \":*)"
     ]
   }
 }

@@ -20,6 +20,7 @@ model Player {
   updatedAt       DateTime               @updatedAt @map("updated_at")
   matchStats      MatchPlayerStats[]
   transfers       Transfer[]
+  shots           Shot[]
 
   @@index([username])
   @@map("players")
@@ -65,6 +66,7 @@ model Match {
   fieldMaxY    Float?             @map("field_max_y")
   createdAt    DateTime           @default(now()) @map("created_at")
   playerStats  MatchPlayerStats[]
+  shots        Shot[]
   awayTeam     Team               @relation("AwayTeam", fields: [awayTeamId], references: [id])
   homeTeam     Team               @relation("HomeTeam", fields: [homeTeamId], references: [id])
   tournament   Tournament?        @relation(fields: [tournamentId], references: [id])
@@ -109,6 +111,9 @@ model MatchPlayerStats {
   penalties       Int     @default(0)
   secondAssists   Int     @default(0) @map("second_assists")
   throwIns        Int     @default(0) @map("throw_ins")
+  savesCaught     Int     @default(0) @map("saves_caught")
+  slidingTackles  Int     @default(0) @map("sliding_tackles")
+  slidingTacklesCompleted Int @default(0) @map("sliding_tackles_completed")
   match           Match   @relation(fields: [matchId], references: [id])
   player          Player  @relation(fields: [playerSteamId], references: [steamId])
 
@@ -177,4 +182,25 @@ model ScraperState {
   lastRun  DateTime? @map("last_run")
 
   @@map("scraper_state")
+}
+
+model Shot {
+  id            Int     @id @default(autoincrement())
+  matchId       Int     @map("match_id")
+  playerSteamId String  @map("player_steam_id")
+  rawX          Float   @map("raw_x")
+  rawY          Float   @map("raw_y")
+  normalizedX   Float   @map("normalized_x")
+  normalizedY   Float   @map("normalized_y")
+  isGoal        Boolean @map("is_goal")
+  isSave        Boolean @default(false) @map("is_save")
+  xg            Float   @default(0)
+  minute        Int?
+  match         Match   @relation(fields: [matchId], references: [id])
+  player        Player  @relation(fields: [playerSteamId], references: [steamId])
+
+  @@index([matchId])
+  @@index([playerSteamId])
+  @@index([isGoal])
+  @@map("shots")
 }

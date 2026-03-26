@@ -4,16 +4,32 @@ import { Prisma } from "@/generated/prisma/client";
 
 const PAGE_SIZE = 10;
 
-const SORT_OPTIONS: Record<string, { label: string; orderBy: Prisma.Sql }> = {
-  rating:   { label: "Rating",  orderBy: Prisma.sql`p.rating` },
-  goals:    { label: "Goals",    orderBy: Prisma.sql`agg.total_goals` },
-  assists:  { label: "Assists",  orderBy: Prisma.sql`agg.total_assists` },
-  apps:     { label: "Apps",     orderBy: Prisma.sql`agg.apps` },
-  xg:       { label: "xG",      orderBy: Prisma.sql`agg.total_xg` },
-  shotAcc:  { label: "Shot%",   orderBy: Prisma.sql`agg.shot_accuracy` },
-  passAcc:  { label: "Pass%",   orderBy: Prisma.sql`agg.pass_accuracy` },
-  saves:    { label: "Saves",   orderBy: Prisma.sql`agg.total_saves` },
+/* ------------------------------------------------------------------ */
+/*  Stat views – mirroring the official IOSoccer site                 */
+/* ------------------------------------------------------------------ */
+
+type StatView = "general" | "gk" | "defending" | "attacking";
+
+const STAT_VIEWS: { key: StatView; label: string }[] = [
+  { key: "general", label: "General Stats" },
+  { key: "gk", label: "Goalkeeping Stats" },
+  { key: "defending", label: "Defending Stats" },
+  { key: "attacking", label: "Attacking Stats" },
+];
+
+type ColDef = {
+  key: string;
+  label: string;
+  title: string;
+  sortSql: Prisma.Sql;
+  format: (row: PlayerRow) => string;
+  highlight?: boolean;     // pink / accent colour
+  avg?: boolean;           // shown as "per app" average
 };
+
+/* ------------------------------------------------------------------ */
+/*  Row type – every aggregated field we might need                   */
+/* ------------------------------------------------------------------ */
 
 type PlayerRow = {
   steam_id: string;
@@ -21,47 +37,212 @@ type PlayerRow = {
   position: string | null;
   avatar: string | null;
   rating: number | null;
+  country: string | null;
   apps: bigint;
+  as_sub: bigint;
+  wins: bigint;
+  draws: bigint;
+  losses: bigint;
   total_goals: bigint;
   total_assists: bigint;
+  total_shots: bigint;
+  total_shots_on_target: bigint;
+  total_passes: bigint;
+  total_passes_completed: bigint;
   total_saves: bigint;
-  total_xg: number;
+  total_saves_caught: bigint;
+  total_goals_conceded: bigint;
+  total_interceptions: bigint;
+  total_tackles: bigint;
+  total_tackles_completed: bigint;
+  total_fouls: bigint;
+  total_fouls_suffered: bigint;
+  total_yellow_cards: bigint;
+  total_red_cards: bigint;
+  total_distance: bigint;
+  total_possession: bigint;
+  avg_possession_pct: number;
   shot_accuracy: number;
   pass_accuracy: number;
 };
 
+/* helpers */
+const n = (v: bigint) => Number(v);
+const pct = (a: number, b: number) => (b > 0 ? ((a / b) * 100).toFixed(2) + "%" : "0%");
+const avg = (total: bigint, apps: bigint) => {
+  const a = n(apps);
+  return a > 0 ? (n(total) / a).toFixed(2) : "0";
+};
+const winPct = (r: PlayerRow) => {
+  const a = n(r.apps);
+  return a > 0 ? ((n(r.wins) / a) * 100).toFixed(0) + "%" : "0%";
+};
+const distKm = (r: PlayerRow) => {
+  const a = n(r.apps);
+  if (a === 0) return "0";
+  const km = n(r.total_distance) / 1000 / a;
+  return km.toFixed(2) + "km";
+};
+const saveRate = (r: PlayerRow) => {
+  const faced = n(r.total_saves) + n(r.total_goals_conceded);
+  return faced > 0 ? ((n(r.total_saves) / faced) * 100).toFixed(2) + "%" : "0%";
+};
+
+/* ------------------------------------------------------------------ */
+/*  Column definitions per view                                       */
+/* ------------------------------------------------------------------ */
+
+function buildColumns(view: StatView): ColDef[] {
+  // Shared base columns (always shown first after player)
+  const rating: ColDef = {
+    key: "rating", label: "RTG", title: "Rating",
+    sortSql: Prisma.sql`p.rating`,
+    format: (r) => r.rating ? r.rating.toFixed(1) : "-",
+  };
+  const apps: ColDef = {
+    key: "apps", label: "APPS", title: "Appearances",
+    sortSql: Prisma.sql`agg.apps`,
+    format: (r) => n(r.apps).toLocaleString(),
+  };
+  const asSub: ColDef = {
+    key: "asSub", label: "SUB", title: "As Substitute",
+    sortSql: Prisma.sql`agg.as_sub`,
+    format: (r) => n(r.as_sub).toLocaleString(),
+  };
+  const winRate: ColDef = {
+    key: "winPct", label: "WIN%", title: "Win Rate",
+    sortSql: Prisma.sql`(agg.wins::float / NULLIF(agg.apps,0))`,
+    format: winPct,
+  };
+  const wins: ColDef = {
+    key: "wins", label: "W", title: "Wins",
+    sortSql: Prisma.sql`agg.wins`,
+    format: (r) => n(r.wins).toLocaleString(),
+  };
+  const losses: ColDef = {
+    key: "losses", label: "L", title: "Losses",
+    sortSql: Prisma.sql`agg.losses`,
+    format: (r) => n(r.losses).toLocaleString(),
+  };
+  const draws: ColDef = {
+    key: "draws", label: "D", title: "Draws",
+    sortSql: Prisma.sql`agg.draws`,
+    format: (r) => n(r.draws).toLocaleString(),
+  };
+
+  switch (view) {
+    case "general":
+      return [
+        rating, apps, asSub, winRate, wins, losses, draws,
+        { key: "goals", label: "GOALS", title: "Goals", sortSql: Prisma.sql`agg.total_goals`, format: (r) => n(r.total_goals).toLocaleString() },
+        { key: "goalsAvg", label: "GOALS", title: "Goals / App (avg)", sortSql: Prisma.sql`(agg.total_goals::float / NULLIF(agg.apps,0))`, format: (r) => avg(r.total_goals, r.apps), avg: true },
+        { key: "shotAcc", label: "SHOT ACC", title: "Shot Accuracy", sortSql: Prisma.sql`agg.shot_accuracy`, format: (r) => r.shot_accuracy.toFixed(2) + "%" },
+        { key: "assists", label: "AST", title: "Assists", sortSql: Prisma.sql`agg.total_assists`, format: (r) => n(r.total_assists).toLocaleString() },
+        { key: "assistsAvg", label: "AST", title: "Assists / App (avg)", sortSql: Prisma.sql`(agg.total_assists::float / NULLIF(agg.apps,0))`, format: (r) => avg(r.total_assists, r.apps), avg: true },
+        { key: "passes", label: "PASSES", title: "Passes (avg)", sortSql: Prisma.sql`(agg.total_passes::float / NULLIF(agg.apps,0))`, format: (r) => avg(r.total_passes, r.apps), avg: true },
+        { key: "passAcc", label: "PASS%", title: "Pass Completion", sortSql: Prisma.sql`agg.pass_accuracy`, format: (r) => r.pass_accuracy.toFixed(2) + "%" },
+        { key: "poss", label: "POSS", title: "Possession", sortSql: Prisma.sql`agg.avg_possession_pct`, format: (r) => r.avg_possession_pct.toFixed(2) + "%", avg: true },
+        { key: "yellows", label: "YEL", title: "Yellow Cards", sortSql: Prisma.sql`agg.total_yellow_cards`, format: (r) => n(r.total_yellow_cards).toLocaleString() },
+        { key: "reds", label: "RED", title: "Red Cards", sortSql: Prisma.sql`agg.total_red_cards`, format: (r) => n(r.total_red_cards).toLocaleString() },
+        { key: "dist", label: "DIST", title: "Distance / App (avg)", sortSql: Prisma.sql`(agg.total_distance::float / NULLIF(agg.apps,0))`, format: distKm, avg: true },
+      ];
+
+    case "gk":
+      return [
+        rating, apps, asSub, winRate, wins, losses, draws,
+        { key: "passes", label: "PASSES", title: "Passes (avg)", sortSql: Prisma.sql`(agg.total_passes::float / NULLIF(agg.apps,0))`, format: (r) => avg(r.total_passes, r.apps), avg: true },
+        { key: "passAcc", label: "PASS%", title: "Pass Completion", sortSql: Prisma.sql`agg.pass_accuracy`, format: (r) => r.pass_accuracy.toFixed(2) + "%" },
+        { key: "poss", label: "POSS", title: "Possession", sortSql: Prisma.sql`agg.avg_possession_pct`, format: (r) => r.avg_possession_pct.toFixed(2) + "%", avg: true },
+        { key: "yellows", label: "YEL", title: "Yellow Cards", sortSql: Prisma.sql`agg.total_yellow_cards`, format: (r) => n(r.total_yellow_cards).toLocaleString() },
+        { key: "reds", label: "RED", title: "Red Cards", sortSql: Prisma.sql`agg.total_red_cards`, format: (r) => n(r.total_red_cards).toLocaleString() },
+        { key: "saves", label: "SAVES", title: "Saves (avg)", sortSql: Prisma.sql`(agg.total_saves::float / NULLIF(agg.apps,0))`, format: (r) => avg(r.total_saves, r.apps), avg: true, highlight: true },
+        { key: "saveRate", label: "SV%", title: "Save Rate", sortSql: Prisma.sql`(agg.total_saves::float / NULLIF(agg.total_saves + agg.total_goals_conceded,0))`, format: saveRate, highlight: true },
+        { key: "savesCaught", label: "CAUGHT", title: "Saves Caught (avg)", sortSql: Prisma.sql`(agg.total_saves_caught::float / NULLIF(agg.apps,0))`, format: (r) => avg(r.total_saves_caught, r.apps), avg: true },
+        { key: "goalsConceded", label: "GC", title: "Goals Conceded (avg)", sortSql: Prisma.sql`(agg.total_goals_conceded::float / NULLIF(agg.apps,0))`, format: (r) => avg(r.total_goals_conceded, r.apps), avg: true },
+      ];
+
+    case "defending":
+      return [
+        rating, apps, asSub, winRate, wins, losses, draws,
+        { key: "interceptions", label: "INT", title: "Interceptions", sortSql: Prisma.sql`agg.total_interceptions`, format: (r) => n(r.total_interceptions).toLocaleString() },
+        { key: "intAvg", label: "INT", title: "Interceptions / App (avg)", sortSql: Prisma.sql`(agg.total_interceptions::float / NULLIF(agg.apps,0))`, format: (r) => avg(r.total_interceptions, r.apps), avg: true },
+        { key: "tackles", label: "TKL", title: "Tackles", sortSql: Prisma.sql`agg.total_tackles`, format: (r) => n(r.total_tackles).toLocaleString() },
+        { key: "tacklesComp", label: "TKL%", title: "Tackles Completed", sortSql: Prisma.sql`agg.total_tackles_completed`, format: (r) => n(r.total_tackles_completed).toLocaleString() },
+        { key: "fouls", label: "FLS", title: "Fouls", sortSql: Prisma.sql`agg.total_fouls`, format: (r) => n(r.total_fouls).toLocaleString() },
+        { key: "foulsSuffered", label: "FLS+", title: "Fouls Suffered", sortSql: Prisma.sql`agg.total_fouls_suffered`, format: (r) => n(r.total_fouls_suffered).toLocaleString() },
+        { key: "yellows", label: "YEL", title: "Yellow Cards", sortSql: Prisma.sql`agg.total_yellow_cards`, format: (r) => n(r.total_yellow_cards).toLocaleString() },
+        { key: "reds", label: "RED", title: "Red Cards", sortSql: Prisma.sql`agg.total_red_cards`, format: (r) => n(r.total_red_cards).toLocaleString() },
+        { key: "goalsConceded", label: "GC", title: "Goals Conceded", sortSql: Prisma.sql`agg.total_goals_conceded`, format: (r) => n(r.total_goals_conceded).toLocaleString() },
+        { key: "gcAvg", label: "GC", title: "Goals Conceded / App (avg)", sortSql: Prisma.sql`(agg.total_goals_conceded::float / NULLIF(agg.apps,0))`, format: (r) => avg(r.total_goals_conceded, r.apps), avg: true },
+      ];
+
+    case "attacking":
+      return [
+        rating, apps, asSub, winRate, wins, losses, draws,
+        { key: "goals", label: "GOALS", title: "Goals", sortSql: Prisma.sql`agg.total_goals`, format: (r) => n(r.total_goals).toLocaleString() },
+        { key: "goalsAvg", label: "GOALS", title: "Goals / App (avg)", sortSql: Prisma.sql`(agg.total_goals::float / NULLIF(agg.apps,0))`, format: (r) => avg(r.total_goals, r.apps), avg: true },
+        { key: "assists", label: "AST", title: "Assists", sortSql: Prisma.sql`agg.total_assists`, format: (r) => n(r.total_assists).toLocaleString() },
+        { key: "assistsAvg", label: "AST", title: "Assists / App (avg)", sortSql: Prisma.sql`(agg.total_assists::float / NULLIF(agg.apps,0))`, format: (r) => avg(r.total_assists, r.apps), avg: true },
+        { key: "shots", label: "SHT", title: "Shots", sortSql: Prisma.sql`agg.total_shots`, format: (r) => n(r.total_shots).toLocaleString() },
+        { key: "shotsOT", label: "SOT", title: "Shots on Target", sortSql: Prisma.sql`agg.total_shots_on_target`, format: (r) => n(r.total_shots_on_target).toLocaleString() },
+        { key: "shotAcc", label: "SHOT%", title: "Shot Accuracy", sortSql: Prisma.sql`agg.shot_accuracy`, format: (r) => r.shot_accuracy.toFixed(2) + "%" },
+        { key: "passes", label: "PASS", title: "Passes", sortSql: Prisma.sql`agg.total_passes`, format: (r) => n(r.total_passes).toLocaleString() },
+        { key: "passAcc", label: "PASS%", title: "Pass Completion", sortSql: Prisma.sql`agg.pass_accuracy`, format: (r) => r.pass_accuracy.toFixed(2) + "%" },
+      ];
+  }
+}
+
+/* Build a lookup from column key → ColDef for any view */
+function colMap(view: StatView): Record<string, ColDef> {
+  const cols = buildColumns(view);
+  const map: Record<string, ColDef> = {};
+  for (const c of cols) map[c.key] = c;
+  return map;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Page component                                                    */
+/* ------------------------------------------------------------------ */
+
 export default async function PlayersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ sort?: string; dir?: string; page?: string; pos?: string }>;
+  searchParams: Promise<{ sort?: string; dir?: string; page?: string; pos?: string; view?: string; q?: string }>;
 }) {
   const params = await searchParams;
-  const sortKey = params.sort && SORT_OPTIONS[params.sort] ? params.sort : "apps";
+  const view = (params.view && ["general", "gk", "defending", "attacking"].includes(params.view) ? params.view : "general") as StatView;
+  const columns = buildColumns(view);
+  const cMap = colMap(view);
+
+  const sortKey = params.sort && cMap[params.sort] ? params.sort : "apps";
   const dir = params.dir === "asc" ? "ASC" : "DESC";
   const page = Math.max(1, parseInt(params.page || "1", 10));
-  const posFilter = params.pos || "";
+  const nameQuery = params.q?.trim() || "";
   const offset = (page - 1) * PAGE_SIZE;
 
-  const orderCol = SORT_OPTIONS[sortKey].orderBy;
+  const orderCol = cMap[sortKey]?.sortSql ?? Prisma.sql`agg.apps`;
 
-  // Use materialized view for fast queries (ms instead of 17s)
+  // Build WHERE clause
+  const whereFragment = nameQuery
+    ? Prisma.sql`WHERE p.username ILIKE ${"%" + nameQuery + "%"}`
+    : Prisma.empty;
+
   const players = await prisma.$queryRaw<PlayerRow[]>`
     SELECT
-      p.steam_id,
-      p.username,
-      p.position,
-      p.avatar,
-      p.rating,
-      agg.apps,
-      agg.total_goals,
-      agg.total_assists,
-      agg.total_saves,
-      agg.total_xg,
-      agg.shot_accuracy,
-      agg.pass_accuracy
+      p.steam_id, p.username, p.position, p.avatar, p.rating, p.country,
+      agg.apps, agg.as_sub, agg.wins, agg.draws, agg.losses,
+      agg.total_goals, agg.total_assists,
+      agg.total_shots, agg.total_shots_on_target,
+      agg.total_passes, agg.total_passes_completed,
+      agg.total_saves, agg.total_saves_caught, agg.total_goals_conceded,
+      agg.total_interceptions, agg.total_tackles, agg.total_tackles_completed,
+      agg.total_fouls, agg.total_fouls_suffered,
+      agg.total_yellow_cards, agg.total_red_cards,
+      agg.total_distance, agg.total_possession, agg.avg_possession_pct,
+      agg.shot_accuracy, agg.pass_accuracy
     FROM players p
     JOIN mv_player_leaderboard agg ON agg.player_steam_id = p.steam_id
-    ${posFilter ? Prisma.sql`WHERE p.position = ${posFilter}` : Prisma.empty}
+    ${whereFragment}
     ORDER BY ${orderCol} ${Prisma.raw(dir)} NULLS LAST
     LIMIT ${PAGE_SIZE} OFFSET ${offset}
   `;
@@ -69,192 +250,171 @@ export default async function PlayersPage({
   const countResult = await prisma.$queryRaw<{ total: bigint }[]>`
     SELECT COUNT(*) AS total
     FROM mv_player_leaderboard agg
-    ${posFilter ? Prisma.sql`JOIN players p ON p.steam_id = agg.player_steam_id WHERE p.position = ${posFilter}` : Prisma.empty}
+    JOIN players p ON p.steam_id = agg.player_steam_id
+    ${whereFragment}
   `;
   const totalPlayers = Number(countResult[0]?.total || 0);
   const totalPages = Math.max(1, Math.ceil(totalPlayers / PAGE_SIZE));
 
+  /* ---- URL builders ---- */
+
+  function baseParams() {
+    const sp = new URLSearchParams();
+    sp.set("view", view);
+    sp.set("sort", sortKey);
+    sp.set("dir", dir.toLowerCase());
+    if (nameQuery) sp.set("q", nameQuery);
+    return sp;
+  }
+
   function sortUrl(key: string) {
     const newDir = key === sortKey && dir === "DESC" ? "asc" : "desc";
-    const p = new URLSearchParams();
-    p.set("sort", key);
-    p.set("dir", newDir);
-    if (posFilter) p.set("pos", posFilter);
-    return `/players?${p.toString()}`;
+    const sp = baseParams();
+    sp.set("sort", key);
+    sp.set("dir", newDir);
+    sp.delete("page");
+    return `/players?${sp.toString()}`;
   }
 
   function pageUrl(p: number) {
-    const sp = new URLSearchParams();
-    sp.set("sort", sortKey);
-    sp.set("dir", dir.toLowerCase());
-    if (posFilter) sp.set("pos", posFilter);
+    const sp = baseParams();
     sp.set("page", String(p));
     return `/players?${sp.toString()}`;
   }
 
-  function posUrl(pos: string) {
+  function viewUrl(v: string) {
     const sp = new URLSearchParams();
-    sp.set("sort", sortKey);
-    sp.set("dir", dir.toLowerCase());
-    if (pos) sp.set("pos", pos);
+    sp.set("view", v);
+    if (nameQuery) sp.set("q", nameQuery);
     return `/players?${sp.toString()}`;
   }
 
-  const COLUMNS = [
-    { key: "rating",  label: "RTG",   title: "Rating" },
-    { key: "apps",    label: "APPS",  title: "Appearances" },
-    { key: "goals",   label: "GOALS", title: "Goals" },
-    { key: "assists", label: "AST",   title: "Assists" },
-    { key: "xg",      label: "xG",    title: "Expected Goals" },
-    { key: "shotAcc", label: "SHOT%", title: "Shot Accuracy" },
-    { key: "passAcc", label: "PASS%", title: "Pass Accuracy" },
-    { key: "saves",   label: "SAVES", title: "Saves" },
-  ];
-
-  const positions = ["GK", "DEF", "MID", "ATT"];
-  const ascSortColor = sortKey === "xg" ? "text-pink-400" : "text-grass-500";
-
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-      <div className="flex items-end justify-between mb-6">
+    <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-8">
+      {/* Header */}
+      <div className="flex items-end justify-between mb-6 flex-wrap gap-4">
         <div>
           <h1 className="font-display font-800 text-4xl tracking-tight text-chalk-100">
             PLAYER STATS
           </h1>
           <p className="text-chalk-400 text-sm font-body mt-1">
             {totalPlayers.toLocaleString()} players · sorted by{" "}
-            <span className={`font-mono ${dir === "DESC" ? "text-red-400" : ascSortColor}`}>{SORT_OPTIONS[sortKey].label}</span>
+            <span className="font-mono text-chalk-300">
+              {cMap[sortKey]?.title ?? sortKey}
+            </span>
           </p>
         </div>
+
+        {/* Search */}
+        <form action="/players" method="GET" className="flex items-center gap-2">
+          <input type="hidden" name="view" value={view} />
+          <input
+            type="text"
+            name="q"
+            placeholder="Filter By Player Name"
+            defaultValue={nameQuery}
+            className="bg-pitch-800 border border-chalk-100/10 rounded px-3 py-1.5 text-sm text-chalk-100 placeholder:text-chalk-400/50 font-body focus:outline-none focus:border-[#F4119E]/50 w-52"
+          />
+          <button
+            type="submit"
+            className="px-3 py-1.5 text-xs font-mono rounded border border-chalk-100/10 text-chalk-300 hover:border-[#F4119E]/40 hover:text-[#F4119E] transition-colors"
+          >
+            FILTER
+          </button>
+        </form>
       </div>
 
-      <div className="flex items-center gap-3 mb-4 text-xs font-mono flex-wrap">
-        <Link
-          href={posUrl("")}
-          className={`px-3 py-1 rounded border transition-colors ${
-            !posFilter
-              ? "border-[#F4119E] text-[#F4119E] bg-[#F4119E]/10"
-              : "border-chalk-100/10 text-chalk-400 hover:border-[#F4119E]/40 hover:text-[#F4119E]"
-          }`}
-        >
-          ALL
-        </Link>
-        {positions.map((p) => (
+      {/* Stat view tabs */}
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
+        {STAT_VIEWS.map((sv) => (
           <Link
-            key={p}
-            href={posUrl(p === "ATT" ? "Forward" : p === "DEF" ? "Defender" : p === "MID" ? "Midfielder" : "Goalkeeper")}
-            className={`px-3 py-1 rounded border transition-colors ${
-              posFilter === (p === "ATT" ? "Forward" : p === "DEF" ? "Defender" : p === "MID" ? "Midfielder" : "Goalkeeper")
-                ? "border-[#F4119E] text-[#F4119E] bg-[#F4119E]/10"
-                : "border-chalk-100/10 text-chalk-400 hover:border-[#F4119E]/40 hover:text-[#F4119E]"
+            key={sv.key}
+            href={viewUrl(sv.key)}
+            className={`px-3 py-1.5 rounded text-xs font-mono transition-colors ${
+              view === sv.key
+                ? "bg-[#F4119E]/15 text-[#F4119E] border border-[#F4119E]/40"
+                : "border border-chalk-100/10 text-chalk-400 hover:border-[#F4119E]/30 hover:text-chalk-200"
             }`}
           >
-            {p}
+            {sv.label.toUpperCase()}
           </Link>
         ))}
       </div>
 
+      {/* Table */}
       <div className="rounded-lg border border-chalk-100/8 overflow-x-auto bg-pitch-900/40">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm whitespace-nowrap">
           <thead>
             <tr className="border-b border-chalk-100/8">
-              <th className="text-left px-4 py-3 font-mono text-xs text-chalk-400 w-8">#</th>
-              <th className="text-left px-4 py-3 font-mono text-xs text-chalk-400">PLAYER</th>
-              {COLUMNS.map((col) => (
-                <th key={col.key} className="px-4 py-3 font-mono text-xs text-chalk-400 text-right">
+              <th className="text-left px-3 py-3 font-mono text-xs text-chalk-400 w-8">#</th>
+              <th className="text-left px-3 py-3 font-mono text-xs text-chalk-400 sticky left-0 bg-pitch-900/95 z-10 min-w-[160px]">
+                PLAYER
+              </th>
+              {columns.map((col) => (
+                <th key={col.key} className="px-3 py-3 font-mono text-[11px] text-chalk-400 text-right">
                   <Link
                     href={sortUrl(col.key)}
                     className="flex items-center justify-end gap-1 hover:text-chalk-100 transition-colors cursor-help"
                     title={col.title}
                   >
-                    {col.label}
+                    <span className="flex flex-col items-end leading-tight">
+                      <span>{col.label}</span>
+                      {col.avg && <span className="text-[9px] text-chalk-500">AVERAGE</span>}
+                    </span>
                     {sortKey === col.key && (
-                      <span className={dir === "DESC" ? "text-red-400" : "text-grass-500"}>
+                      <span className="text-chalk-300">
                         {dir === "DESC" ? "\u2193" : "\u2191"}
                       </span>
                     )}
                   </Link>
                 </th>
               ))}
-              <th className="px-4 py-3 w-8" />
             </tr>
           </thead>
           <tbody>
-            {players.map((p, i) => {
-              const apps = Number(p.apps);
-              const goals = Number(p.total_goals);
-              const assists = Number(p.total_assists);
-              const xg = p.total_xg;
-              const shotAcc = p.shot_accuracy;
-              const passAcc = p.pass_accuracy;
-              const saves = Number(p.total_saves);
-
-              return (
-                <tr key={p.steam_id} className={`stat-row group ${i % 2 === 0 ? "bg-pitch-600/15" : "bg-transparent"}`}>
-                  <td className="px-4 py-1.5 font-display font-700 text-chalk-100/20 text-base">
-                    {offset + i + 1}
-                  </td>
-                  <td className="px-4 py-1.5">
-                    <Link
-                      href={`/players/${p.steam_id}`}
-                      className="flex items-center gap-2.5 hover:text-[#F4119E] transition-colors"
-                    >
-                      {p.avatar ? (
-                        <img
-                          src={p.avatar}
-                          alt=""
-                          className="w-7 h-7 rounded object-cover shrink-0"
-                        />
-                      ) : (
-                        <div className="w-7 h-7 rounded bg-pitch-700 flex items-center justify-center text-xs font-display font-700 text-chalk-300 shrink-0">
-                          {p.username[0]?.toUpperCase() || "?"}
-                        </div>
-                      )}
-                      <span className="font-body font-medium text-chalk-100 group-hover:text-[#F4119E] transition-colors">
-                        {p.username}
-                      </span>
-                      {p.position && (
-                        <span className="text-[10px] font-mono text-chalk-400 bg-pitch-800 px-1.5 py-0.5 rounded">
-                          {p.position}
-                        </span>
-                      )}
-                    </Link>
-                  </td>
-                  <td className={`px-4 py-1.5 text-right font-mono font-medium ${
-                    p.rating && p.rating >= 8 ? "text-grass-500" : p.rating && p.rating >= 6 ? "text-amber-400" : "text-chalk-300"
-                  }`}>
-                    {p.rating ? p.rating.toFixed(1) : "-"}
-                  </td>
-                  <td className="px-4 py-1.5 text-right font-mono text-chalk-300">
-                    {apps.toLocaleString()}
-                  </td>
-                  <td className="px-4 py-1.5 text-right font-mono font-medium text-chalk-200">
-                    {goals.toLocaleString()}
-                  </td>
-                  <td className="px-4 py-1.5 text-right font-mono text-chalk-300">
-                    {assists.toLocaleString()}
-                  </td>
-                  <td className="px-4 py-1.5 text-right font-mono text-pink-400">
-                    {xg.toFixed(1)}
-                  </td>
-                  <td className="px-4 py-1.5 text-right font-mono text-chalk-300">
-                    {shotAcc.toFixed(1)}%
-                  </td>
-                  <td className="px-4 py-1.5 text-right font-mono text-chalk-300">
-                    {passAcc.toFixed(1)}%
-                  </td>
-                  <td className="px-4 py-1.5 text-right font-mono text-chalk-300">
-                    {saves.toLocaleString()}
-                  </td>
-                  <td className="px-4 py-1.5 text-right text-chalk-400/20 group-hover:text-[#F4119E] transition-colors">
-                    {"\u2192"}
-                  </td>
-                </tr>
-              );
-            })}
+            {players.map((p, i) => (
+              <tr key={p.steam_id} className={`stat-row group ${i % 2 === 0 ? "bg-pitch-600/15" : "bg-transparent"}`}>
+                <td className="px-3 py-1.5 font-display font-700 text-chalk-100/20 text-base">
+                  {offset + i + 1}
+                </td>
+                <td className="px-3 py-1.5 sticky left-0 bg-pitch-900/95 z-10">
+                  <Link
+                    href={`/players/${encodeURIComponent(p.steam_id)}`}
+                    className="flex items-center gap-2 hover:text-[#F4119E] transition-colors"
+                  >
+                    {p.avatar ? (
+                      <img src={p.avatar} alt="" className="w-6 h-6 rounded object-cover shrink-0" />
+                    ) : (
+                      <div className="w-6 h-6 rounded bg-pitch-700 flex items-center justify-center text-[10px] font-display font-700 text-chalk-300 shrink-0">
+                        {p.username[0]?.toUpperCase() || "?"}
+                      </div>
+                    )}
+                    <span className="font-body font-medium text-chalk-100 group-hover:text-[#F4119E] transition-colors truncate max-w-[120px]">
+                      {p.username}
+                    </span>
+                    {p.country && (
+                      <img
+                        src={`https://flagcdn.com/16x12/${p.country.toLowerCase()}.png`}
+                        alt={p.country}
+                        className="w-4 h-3 object-cover shrink-0"
+                        title={p.country}
+                      />
+                    )}
+                  </Link>
+                </td>
+                {columns.map((col) => {
+                  const val = col.format(p);
+                  return (
+                    <td key={col.key} className="px-3 py-1.5 text-right font-mono text-[12px] text-chalk-300">
+                      {val}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
             {players.length === 0 && (
               <tr>
-                <td colSpan={11} className="px-4 py-12 text-center text-chalk-400 font-body">
+                <td colSpan={columns.length + 2} className="px-4 py-12 text-center text-chalk-400 font-body">
                   No players found.
                 </td>
               </tr>
