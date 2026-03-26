@@ -126,19 +126,18 @@ export default async function PlayerTeamHistoryPage({
               : "Present";
 
             return (
-              <div
+              <Link
                 key={`${t.team_id}-${i}`}
-                className="border border-chalk-100/8 rounded-lg p-5 relative overflow-hidden"
+                href={`/teams/${t.team_id}`}
+                className="block border border-chalk-100/30 rounded-lg p-4 relative overflow-hidden transition-colors hover:border-[#F4119E]"
                 style={{
                   backgroundColor: t.team_color ? `${t.team_color}25` : "rgba(28,28,28,0.4)",
                 }}
               >
-                {/* Subtle gradient overlay for readability */}
                 <div className="absolute inset-0 bg-gradient-to-r from-pitch-950/60 to-transparent pointer-events-none" />
 
                 <div className="relative z-10 flex items-start gap-4">
-                  {/* Logo */}
-                  <Link href={`/teams/${t.team_id}`} className="shrink-0">
+                  <div className="shrink-0">
                     {t.team_logo ? (
                       <img src={proxyImg(t.team_logo)!} alt="" className="w-12 h-12 object-contain" />
                     ) : (
@@ -146,52 +145,28 @@ export default async function PlayerTeamHistoryPage({
                         {t.team_name.slice(0, 3).toUpperCase()}
                       </div>
                     )}
-                  </Link>
+                  </div>
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-2">
-                      <Link href={`/teams/${t.team_id}`} className="font-display font-700 text-lg text-chalk-100 hover:text-grass-400 transition-colors">
-                        {t.team_name}
-                      </Link>
-                      <span className="text-xs font-mono text-chalk-400">{from} — {to}</span>
+                      <span className="font-display font-700 text-lg text-chalk-100">{t.team_name}</span>
+                      <span className="text-xs font-mono text-chalk-400">{from} - {to}</span>
                       {isCurrent && (
                         <span className="text-[10px] font-mono bg-grass-500/20 text-grass-400 px-2 py-0.5 rounded">CURRENT</span>
                       )}
                     </div>
 
-                    <div className="grid grid-cols-2 md:grid-cols-6 gap-x-6 gap-y-2 text-sm">
-                      <div>
-                        <span className="text-[10px] font-mono text-chalk-400 uppercase">Apps</span>
-                        <div className="font-mono text-chalk-100 font-medium">{apps}</div>
-                      </div>
-                      <div>
-                        <span className="text-[10px] font-mono text-chalk-400 uppercase">Goals</span>
-                        <div className="font-mono text-chalk-100">{goals}</div>
-                      </div>
-                      <div>
-                        <span className="text-[10px] font-mono text-chalk-400 uppercase">Assists</span>
-                        <div className="font-mono text-chalk-100">{assists}</div>
-                      </div>
-                      <div>
-                        <span className="text-[10px] font-mono text-chalk-400 uppercase">Record</span>
-                        <div className="font-mono">
-                          <span className="text-grass-500">{wins}W</span>{" "}
-                          <span className="text-chalk-400">{draws}D</span>{" "}
-                          <span className="text-red-400">{losses}L</span>
-                        </div>
-                      </div>
-                      <div>
-                        <span className="text-[10px] font-mono text-chalk-400 uppercase">Win %</span>
-                        <div className="font-mono text-chalk-100">{winPct}%</div>
-                      </div>
-                      <div>
-                        <span className="text-[10px] font-mono text-chalk-400 uppercase">G/App</span>
-                        <div className="font-mono text-chalk-100">{apps > 0 ? (goals / apps).toFixed(2) : "0"}</div>
-                      </div>
+                    <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs font-mono">
+                      <span className="text-chalk-300">APPS <span className="text-chalk-100 font-medium">{apps}</span></span>
+                      <span className="text-chalk-300">GOALS <span className="text-chalk-100">{goals}</span></span>
+                      <span className="text-chalk-300">ASSISTS <span className="text-chalk-100">{assists}</span></span>
+                      <span className="text-chalk-300">RECORD <span className="text-grass-500">{wins}W</span> <span className="text-chalk-400">{draws}D</span> <span className="text-red-400">{losses}L</span></span>
+                      <span className="text-chalk-300">WIN % <span className="text-chalk-100">{winPct}%</span></span>
+                      <span className="text-chalk-300">G/APP <span className="text-chalk-100">{apps > 0 ? (goals / apps).toFixed(2) : "0"}</span></span>
                     </div>
                   </div>
                 </div>
-              </div>
+              </Link>
             );
           })}
         </div>

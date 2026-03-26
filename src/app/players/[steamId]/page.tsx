@@ -107,7 +107,7 @@ export default async function PlayerStatsPage({
       <div className="grid md:grid-cols-2 gap-6">
         {/* Winrate */}
         <div className="bg-pitch-900/40 border border-chalk-100/8 rounded-lg p-5">
-          <h3 className="font-display font-700 text-sm tracking-wider text-cyan-400 uppercase mb-4">Winrate</h3>
+          <h3 className="font-display font-700 text-sm tracking-wider text-[#F4119E] uppercase mb-4">Winrate</h3>
           <div className="space-y-3">
             {[
               { label: "Wins", value: wins, color: "text-grass-500" },
@@ -148,7 +148,7 @@ export default async function PlayerStatsPage({
 
         {/* Attacking */}
         <div className="bg-pitch-900/40 border border-chalk-100/8 rounded-lg p-5">
-          <h3 className="font-display font-700 text-sm tracking-wider text-grass-500 uppercase mb-4">Attacking</h3>
+          <h3 className="font-display font-700 text-sm tracking-wider text-[#F4119E] uppercase mb-4">Attacking</h3>
           <div className="space-y-3">
             {[
               { label: "Goals", value: goals.toLocaleString() },
@@ -167,7 +167,7 @@ export default async function PlayerStatsPage({
 
         {/* Passing */}
         <div className="bg-pitch-900/40 border border-chalk-100/8 rounded-lg p-5">
-          <h3 className="font-display font-700 text-sm tracking-wider text-violet-400 uppercase mb-4">Passing</h3>
+          <h3 className="font-display font-700 text-sm tracking-wider text-[#F4119E] uppercase mb-4">Passing</h3>
           <div className="space-y-3">
             {[
               { label: "Total Passes", value: passes.toLocaleString() },
@@ -185,7 +185,7 @@ export default async function PlayerStatsPage({
 
         {/* Defense & Discipline */}
         <div className="bg-pitch-900/40 border border-chalk-100/8 rounded-lg p-5">
-          <h3 className="font-display font-700 text-sm tracking-wider text-amber-400 uppercase mb-4">Defense & Discipline</h3>
+          <h3 className="font-display font-700 text-sm tracking-wider text-[#F4119E] uppercase mb-4">Defense & Discipline</h3>
           <div className="space-y-3">
             {[
               { label: "Saves", value: saves.toLocaleString() },

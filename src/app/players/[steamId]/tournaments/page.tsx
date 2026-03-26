@@ -36,12 +36,8 @@ export default async function PlayerTournamentsPage({
 
   const steamIds = await getRelatedSteamIds(steamId);
 
-  // Find tournaments where the player's team participated
-  // Uses transfer history to find which teams the player was on,
-  // then checks tournament_standings to find tournaments those teams were in
   const tournaments = await prisma.$queryRaw<TournamentRow[]>`
     WITH player_teams AS (
-      -- All teams this player joined (with date ranges)
       SELECT
         tr.to_team_id AS team_id,
         tr.date AS join_date,
@@ -87,7 +83,7 @@ export default async function PlayerTournamentsPage({
 
   const teamTypes: Record<number, string> = { 1: "Club", 2: "National", 3: "Mix", 4: "Draft" };
   const formatLabels: Record<string, string> = {
-    league: "League", knockout: "Knockout", group_knockout: "Group + Knockout", custom: "Custom"
+    league: "League", knockout: "Knockout", group_knockout: "Group + Knockout", custom: "Custom",
   };
 
   return (
@@ -102,7 +98,7 @@ export default async function PlayerTournamentsPage({
         </div>
       ) : (
         <div className="space-y-3">
-          {tournaments.map((t, i) => {
+          {tournaments.map((t) => {
             const isActive = t.status === "active";
             const startStr = t.start_date
               ? new Date(t.start_date).toLocaleDateString("en-GB", { month: "short", year: "numeric" })
@@ -115,25 +111,24 @@ export default async function PlayerTournamentsPage({
             return (
               <div
                 key={`${t.tournament_id}-${t.team_id}`}
-                className="border border-chalk-100/8 rounded-lg p-5 relative overflow-hidden"
+                className="border border-chalk-100/30 rounded-lg p-4 relative overflow-hidden transition-colors hover:border-[#F4119E]"
                 style={{ backgroundColor: t.team_color ? `${t.team_color}20` : "rgba(28,28,28,0.4)" }}
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-pitch-950/60 to-transparent pointer-events-none" />
 
-                <div className="relative z-10 flex items-center gap-4">
-                  {/* Team logo */}
+                <div className="relative z-10 flex items-center gap-3">
                   <Link href={`/teams/${t.team_id}`} className="shrink-0">
                     {t.team_logo ? (
-                      <img src={proxyImg(t.team_logo)!} alt="" className="w-12 h-12 object-contain" />
+                      <img src={proxyImg(t.team_logo)!} alt="" className="w-10 h-10 object-contain" />
                     ) : (
-                      <div className="w-12 h-12 rounded bg-pitch-700 flex items-center justify-center text-sm font-display font-700 text-chalk-300">
+                      <div className="w-10 h-10 rounded bg-pitch-700 flex items-center justify-center text-xs font-display font-700 text-chalk-300">
                         {t.team_name.slice(0, 3).toUpperCase()}
                       </div>
                     )}
                   </Link>
 
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 mb-1 flex-wrap">
+                    <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                       <h4 className="font-display font-700 text-base text-chalk-100">
                         {t.tournament_name}
                       </h4>
@@ -148,30 +143,27 @@ export default async function PlayerTournamentsPage({
                       )}
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-mono text-chalk-400 mb-2">
-                      <span>{startStr} — {endStr}</span>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-mono text-chalk-400">
+                      <span>{startStr} - {endStr}</span>
                       {t.tournament_format && <span>{formatLabels[t.tournament_format] || t.tournament_format}</span>}
                       {t.team_type_id && <span>{teamTypes[t.team_type_id] || "Unknown"}</span>}
                       {t.match_format && <span>{t.match_format}v{t.match_format}</span>}
-                    </div>
-
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="text-[10px] font-mono text-chalk-400 uppercase">With:</span>
-                      <Link href={`/teams/${t.team_id}`} className="font-body text-chalk-200 hover:text-[#F4119E] transition-colors">
-                        {t.team_name}
-                      </Link>
+                      <span>
+                        with:{" "}
+                        <Link href={`/teams/${t.team_id}`} className="text-chalk-200 hover:text-[#F4119E] transition-colors">
+                          {t.team_name}
+                        </Link>
+                      </span>
                     </div>
                   </div>
 
-                  {/* Winner on the right */}
                   {t.winning_team_name && (
                     <Link
                       href={`/teams/${t.winning_team_id}`}
-                      className="shrink-0 flex flex-col items-center gap-1.5 hover:opacity-80 transition-opacity"
+                      className="shrink-0 flex flex-col items-center gap-1 hover:opacity-80 transition-opacity"
                     >
                       <span className="text-[10px] font-mono text-amber-400 uppercase tracking-wider">Winner</span>
-                      {t.winning_team_logo && <img src={proxyImg(t.winning_team_logo)!} alt="" className="w-10 h-10 object-contain" />}
-                      <span className="font-display font-700 text-sm text-chalk-100">{t.winning_team_name}</span>
+                      {t.winning_team_logo && <img src={proxyImg(t.winning_team_logo)!} alt="" className="w-8 h-8 object-contain" />}
                     </Link>
                   )}
                 </div>
