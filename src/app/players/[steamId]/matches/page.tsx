@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { proxyImg } from "@/lib/img";
 import { getRelatedSteamIds } from "@/lib/player-aliases";
 
-const MATCHES_PER_PAGE = 20;
+const MATCHES_PER_PAGE = 10;
 
 type MatchRow = {
   match_id: number;

@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { Prisma } from "@/generated/prisma/client";
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 10;
 
 const SORT_OPTIONS: Record<string, { label: string; orderBy: Prisma.Sql }> = {
   rating:   { label: "Rating",  orderBy: Prisma.sql`p.rating` },

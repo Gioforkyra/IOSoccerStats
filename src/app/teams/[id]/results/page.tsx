@@ -14,13 +14,33 @@ type RecentMatch = {
   away_score: number;
   home_logo: string | null;
   away_logo: string | null;
+  match_type: string;
+  potm: string | null;
+  server: string | null;
 };
 
 type MatchCount = {
   total: bigint;
 };
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 10;
+
+const SERVER_FLAGS: Record<string, string> = {
+  fr: "\u{1F1EB}\u{1F1F7}", de: "\u{1F1E9}\u{1F1EA}", uk: "\u{1F1EC}\u{1F1E7}", gb: "\u{1F1EC}\u{1F1E7}",
+  us: "\u{1F1FA}\u{1F1F8}", br: "\u{1F1E7}\u{1F1F7}", es: "\u{1F1EA}\u{1F1F8}", it: "\u{1F1EE}\u{1F1F9}",
+  nl: "\u{1F1F3}\u{1F1F1}", pl: "\u{1F1F5}\u{1F1F1}", ru: "\u{1F1F7}\u{1F1FA}", ar: "\u{1F1E6}\u{1F1F7}",
+  au: "\u{1F1E6}\u{1F1FA}", se: "\u{1F1F8}\u{1F1EA}", no: "\u{1F1F3}\u{1F1F4}", fi: "\u{1F1EB}\u{1F1EE}",
+  pt: "\u{1F1F5}\u{1F1F9}", eu: "\u{1F1EA}\u{1F1FA}",
+};
+
+function getServerFlag(server: string | null): string {
+  if (!server) return "-";
+  const lower = server.toLowerCase();
+  for (const [code, flag] of Object.entries(SERVER_FLAGS)) {
+    if (lower.includes(`[${code}]`) || lower.includes(`[${code}/`) || lower.includes(`/${code}]`)) return flag;
+  }
+  return "-";
+}
 
 export default async function TeamResultsPage({
   params,
@@ -40,7 +60,11 @@ export default async function TeamResultsPage({
   const [countResult] = await prisma.$queryRaw<[MatchCount]>`
     SELECT COUNT(DISTINCT m.id) AS total
     FROM matches m
-    WHERE m.home_team_id = ${teamId} OR m.away_team_id = ${teamId}
+    WHERE (m.home_team_id = ${teamId} OR m.away_team_id = ${teamId})
+      AND EXISTS (
+        SELECT 1 FROM match_player_stats mps
+        WHERE mps.match_id = m.id
+      )
   `;
   const totalMatches = Number(countResult.total);
   const totalPages = Math.ceil(totalMatches / PAGE_SIZE);
@@ -56,11 +80,18 @@ export default async function TeamResultsPage({
       m.home_score,
       m.away_score,
       th.logo AS home_logo,
-      ta.logo AS away_logo
+      ta.logo AS away_logo,
+      m.match_type,
+      m.potm,
+      m.server
     FROM matches m
     JOIN teams th ON th.id = m.home_team_id
     JOIN teams ta ON ta.id = m.away_team_id
-    WHERE m.home_team_id = ${teamId} OR m.away_team_id = ${teamId}
+    WHERE (m.home_team_id = ${teamId} OR m.away_team_id = ${teamId})
+      AND EXISTS (
+        SELECT 1 FROM match_player_stats mps
+        WHERE mps.match_id = m.id
+      )
     ORDER BY m.date DESC
     LIMIT ${PAGE_SIZE} OFFSET ${offset}
   `;
@@ -68,7 +99,14 @@ export default async function TeamResultsPage({
   return (
     <div>
       <div className="rounded-lg border border-chalk-100/8 bg-pitch-900/40 overflow-hidden">
-        <div className="divide-y divide-chalk-100/8">
+        <div className="grid grid-cols-[190px_1fr_95px_210px_90px] px-4 py-3 border-b border-chalk-100/12 text-[11px] font-mono text-chalk-400 uppercase tracking-wide">
+          <div>Date</div>
+          <div>Match</div>
+          <div>Type</div>
+          <div>POTM</div>
+          <div>Location</div>
+        </div>
+        <div className="divide-y divide-chalk-100/20">
           {matches.length === 0 ? (
             <div className="px-4 py-8 text-center text-sm font-mono text-chalk-400">
               No matches found.
@@ -82,11 +120,17 @@ export default async function TeamResultsPage({
               const draw = m.home_score === m.away_score;
               const result = draw ? "D" : won ? "W" : "L";
 
-              const rowBg = draw
-                ? "border-l-[#5a6e94] bg-[#5a6e94]/10"
+              const rowTone = draw
+                ? "bg-[#2B3443]"
                 : won
-                  ? "border-l-[#22c55e] bg-[#22c55e]/10"
-                  : "border-l-[#ef4444] bg-[#ef4444]/10";
+                  ? "bg-[#1F5A42]"
+                  : "bg-[#5A2730]";
+
+              const rowBorder = draw
+                ? "border-l-2 border-l-chalk-400"
+                : won
+                  ? "border-l-2 border-l-green-500"
+                  : "border-l-2 border-l-red-500";
 
               const badgeClass = draw
                 ? "bg-[#5a6e94]/20 text-[#5a6e94]"
@@ -98,17 +142,22 @@ export default async function TeamResultsPage({
                 <Link
                   key={m.match_id}
                   href={`/matches/${m.match_id}`}
-                  className={`flex items-center px-4 py-2 border-l-4 pink-hover ${rowBg}`}
+                  className={`grid grid-cols-[190px_1fr_95px_210px_90px] items-center gap-2 px-4 py-2.5 transition-colors hover:brightness-110 ${rowTone} ${rowBorder}`}
                 >
-                  <span className="text-xs font-mono text-chalk-400 w-24 shrink-0">
-                    {new Date(m.date).toLocaleDateString("en-GB", {
-                      day: "2-digit",
-                      month: "short",
-                      year: "numeric",
-                    })}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-mono text-chalk-400">
+                      {new Date(m.date).toLocaleDateString("en-GB", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </span>
+                    <span className={`w-6 h-6 rounded text-[11px] font-mono font-700 flex items-center justify-center ${badgeClass}`}>
+                      {result}
+                    </span>
+                  </div>
 
-                  <span className="flex-1 font-body text-sm text-chalk-200 truncate flex items-center gap-1.5">
+                  <div className="font-body text-sm text-chalk-200 flex items-center gap-1.5">
                     {m.home_logo && (
                       <img
                         src={proxyImg(m.home_logo)!}
@@ -116,10 +165,10 @@ export default async function TeamResultsPage({
                         className="w-5 h-5 object-contain inline-block shrink-0"
                       />
                     )}
-                    <span className={isHome ? "font-semibold text-chalk-100" : ""}>
-                      {m.home_team}
+                    <span className={isHome ? "font-semibold text-chalk-100" : ""}>{m.home_team}</span>
+                    <span className="font-mono text-sm text-chalk-100 font-semibold ml-2 mr-2 whitespace-nowrap">
+                      {m.home_score} - {m.away_score}
                     </span>
-                    <span className="text-chalk-400 mx-1">vs</span>
                     {m.away_logo && (
                       <img
                         src={proxyImg(m.away_logo)!}
@@ -127,20 +176,20 @@ export default async function TeamResultsPage({
                         className="w-5 h-5 object-contain inline-block shrink-0"
                       />
                     )}
-                    <span className={!isHome ? "font-semibold text-chalk-100" : ""}>
-                      {m.away_team}
-                    </span>
-                  </span>
+                    <span className={!isHome ? "font-semibold text-chalk-100" : ""}>{m.away_team}</span>
+                  </div>
 
-                  <span className="font-mono text-sm text-chalk-100 font-medium mx-3">
-                    {m.home_score} - {m.away_score}
-                  </span>
+                  <div className="text-xs font-mono text-chalk-300 uppercase">
+                    {m.match_type === "competitive" ? "comp" : "friendly"}
+                  </div>
 
-                  <span
-                    className={`w-7 h-7 rounded text-xs font-mono font-700 flex items-center justify-center ${badgeClass}`}
-                  >
-                    {result}
-                  </span>
+                  <div className="text-xs font-body text-[#56a3ff] truncate">
+                    {m.potm || "-"}
+                  </div>
+
+                  <div className="text-sm font-mono text-chalk-200">
+                    {getServerFlag(m.server)}
+                  </div>
                 </Link>
               );
             })
@@ -148,7 +197,6 @@ export default async function TeamResultsPage({
         </div>
       </div>
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between mt-4">
           <span className="text-xs font-mono text-chalk-400">
