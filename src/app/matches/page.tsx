@@ -3,7 +3,7 @@ import Link from "next/link";
 import { proxyImg } from "@/lib/img";
 import SyncMatches from "@/components/SyncMatches";
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 10;
 
 type MatchRow = {
   id: number;
@@ -15,20 +15,73 @@ type MatchRow = {
   match_type: string;
   map: string | null;
   server: string | null;
+  potm: string | null;
   home_name: string;
   away_name: string;
   home_logo: string | null;
   away_logo: string | null;
 };
 
+const SERVER_FLAGS: Record<string, string> = {
+  fr: "\u{1F1EB}\u{1F1F7}", de: "\u{1F1E9}\u{1F1EA}", uk: "\u{1F1EC}\u{1F1E7}", gb: "\u{1F1EC}\u{1F1E7}",
+  us: "\u{1F1FA}\u{1F1F8}", br: "\u{1F1E7}\u{1F1F7}", es: "\u{1F1EA}\u{1F1F8}", it: "\u{1F1EE}\u{1F1F9}",
+  nl: "\u{1F1F3}\u{1F1F1}", pl: "\u{1F1F5}\u{1F1F1}", ru: "\u{1F1F7}\u{1F1FA}", ar: "\u{1F1E6}\u{1F1F7}",
+  au: "\u{1F1E6}\u{1F1FA}", se: "\u{1F1F8}\u{1F1EA}", no: "\u{1F1F3}\u{1F1F4}", fi: "\u{1F1EB}\u{1F1EE}",
+  pt: "\u{1F1F5}\u{1F1F9}", eu: "\u{1F1EA}\u{1F1FA}",
+};
+
+function getServerFlag(server: string | null): string {
+  if (!server) return "-";
+  const lower = server.toLowerCase();
+
+  // City / region-first parsing (most reliable with IOSoccer naming)
+  if (lower.includes("| paris |") || lower.includes(" paris ")) return "\u{1F1EB}\u{1F1F7}"; // FR
+  if (lower.includes("| amsterdam |") || lower.includes("| ams |") || lower.includes(" amsterdam ")) return "\u{1F1F3}\u{1F1F1}"; // NL
+  if (lower.includes("| de |") || lower.includes(" germany ") || lower.includes(" deutschland ") || lower.includes(" frankfurt ")) return "\u{1F1E9}\u{1F1EA}"; // DE
+
+  if (lower.includes("sudamerica") || lower.includes("south america")) return "\u{1F30E}";
+  if (lower.includes("europe")) return "\u{1F1EA}\u{1F1FA}";
+  if (lower.includes("france")) return "\u{1F1EB}\u{1F1F7}";
+  if (lower.includes("germany")) return "\u{1F1E9}\u{1F1EA}";
+  if (lower.includes("italy")) return "\u{1F1EE}\u{1F1F9}";
+  if (lower.includes("spain")) return "\u{1F1EA}\u{1F1F8}";
+  if (lower.includes("usa") || lower.includes("united states")) return "\u{1F1FA}\u{1F1F8}";
+  if (lower.includes("brazil")) return "\u{1F1E7}\u{1F1F7}";
+  if (lower.includes("argentina")) return "\u{1F1E6}\u{1F1F7}";
+  if (lower.includes("mexico")) return "\u{1F1F2}\u{1F1FD}";
+
+  for (const [code, flag] of Object.entries(SERVER_FLAGS)) {
+    if (lower.includes(`[${code}]`) || lower.includes(`[${code}/`) || lower.includes(`/${code}]`)) return flag;
+  }
+  return "-";
+}
+
 export default async function MatchesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; region?: string }>;
 }) {
   const params = await searchParams;
   const page = Math.max(1, parseInt(params.page || "1", 10));
+  const region = ["all", "eu", "am"].includes((params.region || "all").toLowerCase())
+    ? (params.region || "all").toLowerCase()
+    : "all";
   const offset = (page - 1) * PAGE_SIZE;
+
+  const regionPatterns =
+    region === "eu"
+      ? [
+          "%[fr]%", "%[de]%", "%[uk]%", "%[gb]%", "%[es]%", "%[it]%", "%[nl]%", "%[pl]%",
+          "%[ru]%", "%[se]%", "%[no]%", "%[fi]%", "%[pt]%", "%[eu]%", "%[eu/%", "%/eu]%", "%/nl]%",
+          "%france%", "%germany%", "%italy%", "%spain%", "%europe%",
+          "%amsterdam%", "%ams%", "%paris%", "%london%", "%netherlands%", "%dutch%",
+        ]
+      : region === "am"
+        ? [
+            "%[us]%", "%[br]%", "%[ar]%", "%[mx]%", "%[cl]%", "%[co]%", "%[pe]%", "%[sa]%",
+            "%usa%", "%brazil%", "%argentina%", "%mexico%", "%sudamerica%", "%south america%",
+          ]
+        : null;
 
   const matches = await prisma.$queryRaw<MatchRow[]>`
     SELECT
@@ -41,6 +94,7 @@ export default async function MatchesPage({
       m.match_type,
       m.map,
       m.server,
+      m.potm,
       ht.name AS home_name,
       at.name AS away_name,
       ht.logo AS home_logo,
@@ -48,35 +102,25 @@ export default async function MatchesPage({
     FROM matches m
     JOIN teams ht ON ht.id = m.home_team_id
     JOIN teams at ON at.id = m.away_team_id
+    WHERE (${region} = 'all' OR LOWER(COALESCE(m.server, '')) LIKE ANY(${regionPatterns || ["%"]}))
     ORDER BY m.date DESC, m.id DESC
     LIMIT ${PAGE_SIZE} OFFSET ${offset}
   `;
 
   const countResult = await prisma.$queryRaw<{ total: bigint }[]>`
-    SELECT COUNT(*) AS total FROM matches
+    SELECT COUNT(*) AS total
+    FROM matches m
+    WHERE (${region} = 'all' OR LOWER(COALESCE(m.server, '')) LIKE ANY(${regionPatterns || ["%"]}))
   `;
   const totalMatches = Number(countResult[0]?.total || 0);
   const totalPages = Math.max(1, Math.ceil(totalMatches / PAGE_SIZE));
 
-  function pageUrl(p: number) {
-    return p === 1 ? "/matches" : `/matches?page=${p}`;
-  }
-
-  // Group matches by date
-  const grouped: { date: string; matches: MatchRow[] }[] = [];
-  for (const m of matches) {
-    const dateStr = new Date(m.date).toLocaleDateString("en-GB", {
-      weekday: "short",
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-    const last = grouped[grouped.length - 1];
-    if (last && last.date === dateStr) {
-      last.matches.push(m);
-    } else {
-      grouped.push({ date: dateStr, matches: [m] });
-    }
+  function pageUrl(p: number, r = region) {
+    const q = new URLSearchParams();
+    if (p > 1) q.set("page", String(p));
+    if (r !== "all") q.set("region", r);
+    const qs = q.toString();
+    return qs ? `/matches?${qs}` : "/matches";
   }
 
   return (
@@ -93,87 +137,95 @@ export default async function MatchesPage({
         </div>
       </div>
 
-      {grouped.map((group) => (
-        <div key={group.date} className="mb-6">
-          <h2 className="text-xs font-mono text-chalk-400 mb-2 uppercase tracking-wider">
-            {group.date}
-          </h2>
-          <div className="rounded-lg border border-chalk-100/8 overflow-hidden bg-pitch-900/40 divide-y divide-chalk-100/5">
-            {group.matches.map((m, i) => {
-              const homeLogo = m.home_logo ? proxyImg(m.home_logo) : null;
-              const awayLogo = m.away_logo ? proxyImg(m.away_logo) : null;
-              const time = new Date(m.date).toLocaleTimeString("en-GB", {
-                hour: "2-digit",
-                minute: "2-digit",
-              });
+      <div className="flex items-center gap-2 mb-4">
+        {[
+          { key: "all", label: "ALL" },
+          { key: "eu", label: "EU" },
+          { key: "am", label: "AMERICA" },
+        ].map((r) => (
+          <Link
+            key={r.key}
+            href={pageUrl(1, r.key)}
+            className={`h-8 px-3 rounded text-xs font-mono border transition-colors flex items-center ${
+              region === r.key
+                ? "bg-[#F4119E] text-white border-[#F4119E]"
+                : "text-chalk-400 border-chalk-100/10 hover:text-chalk-100 hover:border-chalk-100/30"
+            }`}
+          >
+            {r.label}
+          </Link>
+        ))}
+      </div>
 
-              return (
-                <Link
-                  key={m.id}
-                  href={`/matches/${m.id}`}
-                  className={`flex items-center gap-3 px-4 py-2 pink-hover group ${
-                    i % 2 === 0 ? "bg-pitch-600/15" : "bg-transparent"
-                  }`}
-                >
-                  {/* Time */}
-                  <span className="text-xs font-mono text-chalk-400 w-12 shrink-0">
-                    {time}
-                  </span>
-
-                  {/* Home team */}
-                  <div className="flex items-center gap-2 flex-1 justify-end min-w-0">
-                    <span className="font-body text-sm text-chalk-100 truncate text-right">
-                      {m.home_name}
-                    </span>
-                    {homeLogo ? (
-                      <img src={homeLogo} alt="" className="w-5 h-5 object-contain shrink-0" />
-                    ) : (
-                      <div className="w-5 h-5 rounded bg-pitch-700 shrink-0" />
-                    )}
-                  </div>
-
-                  {/* Score */}
-                  <div className="font-display font-800 text-base flex items-center gap-1.5 w-16 justify-center shrink-0">
-                    <span className="text-chalk-100">
-                      {m.home_score}
-                    </span>
-                    <span className="text-chalk-400/30 text-xs">-</span>
-                    <span className="text-chalk-100">
-                      {m.away_score}
-                    </span>
-                  </div>
-
-                  {/* Away team */}
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    {awayLogo ? (
-                      <img src={awayLogo} alt="" className="w-5 h-5 object-contain shrink-0" />
-                    ) : (
-                      <div className="w-5 h-5 rounded bg-pitch-700 shrink-0" />
-                    )}
-                    <span className="font-body text-sm text-chalk-100 truncate">
-                      {m.away_name}
-                    </span>
-                  </div>
-
-                  {/* Match type badge */}
-                  <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded shrink-0 ${
-                    m.match_type === "competitive"
-                      ? "text-amber-400 bg-amber-400/10"
-                      : "text-chalk-400 bg-pitch-800"
-                  }`}>
-                    {m.match_type === "competitive" ? "COMP" : "FR"}
-                  </span>
-
-                  {/* Arrow */}
-                  <span className="text-chalk-400/20 group-hover:text-[#F4119E] transition-colors shrink-0">
-                    {"\u2192"}
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
+      <div className="rounded-lg border border-chalk-100/8 bg-pitch-900/40 overflow-hidden">
+        <div className="grid grid-cols-[190px_1fr_90px_190px_90px] px-4 py-3 border-b border-chalk-100/12 text-[11px] font-mono text-chalk-400 uppercase tracking-wide">
+          <div>Date</div>
+          <div>Match</div>
+          <div>Type</div>
+          <div>POTM</div>
+          <div>Location</div>
         </div>
-      ))}
+        <div className="divide-y divide-chalk-100/20">
+          {matches.map((m, i) => {
+            const homeLogo = m.home_logo ? proxyImg(m.home_logo) : null;
+            const awayLogo = m.away_logo ? proxyImg(m.away_logo) : null;
+
+            return (
+              <Link
+                key={m.id}
+                href={`/matches/${m.id}`}
+                className={`grid grid-cols-[190px_1fr_90px_190px_90px] items-center gap-2 px-4 py-2.5 transition-colors pink-hover ${
+                  i % 2 === 0 ? "bg-pitch-600/15" : "bg-transparent"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-mono text-chalk-400">
+                    {new Date(m.date).toLocaleDateString("en-GB", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </span>
+                </div>
+
+                <div className="font-body text-sm text-chalk-200 flex items-center gap-1.5 min-w-0">
+                  {homeLogo && (
+                    <img
+                      src={homeLogo}
+                      alt=""
+                      className="w-5 h-5 object-contain inline-block shrink-0"
+                    />
+                  )}
+                  <span className="truncate font-semibold text-chalk-100">{m.home_name}</span>
+                  <span className="font-mono text-sm text-chalk-100 font-semibold mx-2 whitespace-nowrap min-w-[54px] text-center">
+                    {m.home_score} - {m.away_score}
+                  </span>
+                  {awayLogo && (
+                    <img
+                      src={awayLogo}
+                      alt=""
+                      className="w-5 h-5 object-contain inline-block shrink-0"
+                    />
+                  )}
+                  <span className="truncate">{m.away_name}</span>
+                </div>
+
+                <div className="text-xs font-mono text-chalk-300 uppercase">
+                  {m.match_type === "competitive" ? "comp" : "friendly"}
+                </div>
+
+                <div className="text-xs font-body text-[#56a3ff] truncate">
+                  {m.potm || "-"}
+                </div>
+
+                <div className="text-sm font-mono text-chalk-200">
+                  {getServerFlag(m.server)}
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
 
       {matches.length === 0 && (
         <div className="text-center py-16 text-chalk-400 font-body">
