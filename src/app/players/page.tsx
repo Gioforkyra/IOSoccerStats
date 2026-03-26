@@ -112,9 +112,10 @@ export default async function PlayersPage({
   ];
 
   const positions = ["GK", "DEF", "MID", "ATT"];
+  const ascSortColor = sortKey === "xg" ? "text-pink-400" : "text-grass-500";
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
       <div className="flex items-end justify-between mb-6">
         <div>
           <h1 className="font-display font-800 text-4xl tracking-tight text-chalk-100">
@@ -122,7 +123,7 @@ export default async function PlayersPage({
           </h1>
           <p className="text-chalk-400 text-sm font-body mt-1">
             {totalPlayers.toLocaleString()} players · sorted by{" "}
-            <span className={`font-mono ${dir === "DESC" ? "text-red-400" : "text-grass-500"}`}>{SORT_OPTIONS[sortKey].label}</span>
+            <span className={`font-mono ${dir === "DESC" ? "text-red-400" : ascSortColor}`}>{SORT_OPTIONS[sortKey].label}</span>
           </p>
         </div>
       </div>
@@ -233,7 +234,7 @@ export default async function PlayersPage({
                   <td className="px-4 py-1.5 text-right font-mono text-chalk-300">
                     {assists.toLocaleString()}
                   </td>
-                  <td className="px-4 py-1.5 text-right font-mono text-chalk-300">
+                  <td className="px-4 py-1.5 text-right font-mono text-pink-400">
                     {xg.toFixed(1)}
                   </td>
                   <td className="px-4 py-1.5 text-right font-mono text-chalk-300">

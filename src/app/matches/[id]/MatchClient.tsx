@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { useState, useMemo, useEffect, useRef } from "react";
+import type { Ref } from "react";
 import type { MatchPlayer, MatchShot } from "./page";
 
 type TeamInfo = { id: number; name: string; logo: string | null; color: string | null };
@@ -44,6 +46,8 @@ export default function MatchClient({
   shots: MatchShot[];
 }) {
   const [selectedShot, setSelectedShot] = useState<number | null>(null);
+  const h2hCardRef = useRef<HTMLDivElement | null>(null);
+  const [h2hCardHeight, setH2hCardHeight] = useState<number>(640);
 
   const homePlayers = playerStats.filter((p) => p.team_side === "home");
   const awayPlayers = playerStats.filter((p) => p.team_side === "away");
@@ -64,6 +68,8 @@ export default function MatchClient({
   // Find GKs for save attribution
   const homeGk = homePlayers.find((p) => (p.position || "").toUpperCase() === "GK");
   const awayGk = awayPlayers.find((p) => (p.position || "").toUpperCase() === "GK");
+  const getSaveKeeperName = (shot: MatchShot) =>
+    shot.goalkeeper_username || (shot.team_side === "home" ? (awayGk?.username || "GK") : (homeGk?.username || "GK"));
 
   // Possession: compute as % of total so they sum to 100%
   const rawHomePoss = hT("possession");
@@ -71,10 +77,28 @@ export default function MatchClient({
   const totalPoss = rawHomePoss + rawAwayPoss;
   const homePossPct = totalPoss > 0 ? (rawHomePoss / totalPoss) * 100 : 50;
   const awayPossPct = totalPoss > 0 ? (rawAwayPoss / totalPoss) * 100 : 50;
+  const showLineups = false;
+
+  useEffect(() => {
+    const card = h2hCardRef.current;
+    if (!card) return;
+
+    const updateHeight = () => {
+      const measured = card.getBoundingClientRect().height;
+      if (measured > 0) setH2hCardHeight(Math.round(measured));
+    };
+
+    updateHeight();
+
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(card);
+    return () => observer.disconnect();
+  }, []);
 
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="max-w-5xl mx-auto px-4 py-8">
       {/* Breadcrumb */}
       <div className="text-xs font-mono text-chalk-400 mb-6">
         <Link href="/matches" className="hover:text-grass-500 transition-colors">Matches</Link>
@@ -84,30 +108,25 @@ export default function MatchClient({
 
       {/* Score header */}
       <div className="bg-pitch-900/60 border border-chalk-100/8 rounded-xl p-6 md:p-8 mb-6">
-        <div className="text-xs font-mono text-chalk-400 text-center mb-5">
-          {match.date}
-          {match.map && <> Â· {match.map}</>}
-          {match.server && <> Â· {serverFlag && <>{serverFlag} </>}{match.server}</>}
+        <div className="flex items-center justify-between text-xs font-mono text-chalk-400 mb-5">
+          <span>{match.date}{match.map && <> {" \u00B7 "}{match.map}</>}</span>
+          {match.server && <span>{serverFlag && <>{serverFlag} </>}{match.server}</span>}
         </div>
 
-        <div className="flex items-center justify-center gap-5 md:gap-8">
-          <div className="text-right flex-1">
-            <Link href={`/teams/${match.homeTeam.id}`} className="group inline-flex flex-col items-end gap-2">
-              {match.homeTeam.logo && <img src={match.homeTeam.logo} alt="" className="w-20 h-20 md:w-28 md:h-28 object-contain" />}
-              <span className="font-display font-800 text-xl md:text-2xl text-chalk-100 group-hover:text-grass-400 transition-colors">{match.homeTeam.name}</span>
-            </Link>
-          </div>
-          <div className="font-display font-900 text-5xl md:text-7xl flex items-center gap-5 shrink-0">
+        <div className="flex items-center justify-center gap-4 md:gap-6">
+          <Link href={`/teams/${match.homeTeam.id}`} className="group flex items-center gap-3 md:gap-4 flex-1 justify-end">
+            {match.homeTeam.logo && <img src={match.homeTeam.logo} alt="" className="w-20 h-20 md:w-28 md:h-28 object-contain shrink-0" />}
+            <span className="font-display font-800 text-lg md:text-2xl text-chalk-100 group-hover:text-grass-400 transition-colors text-right">{match.homeTeam.name}</span>
+          </Link>
+          <div className="font-display font-900 text-3xl md:text-5xl flex items-center gap-3 shrink-0">
             <span className="text-chalk-100">{match.homeScore}</span>
-            <span className="text-chalk-400/30 text-2xl md:text-3xl">:</span>
+            <span className="text-chalk-400/30 text-xl md:text-2xl">:</span>
             <span className="text-chalk-100">{match.awayScore}</span>
           </div>
-          <div className="flex-1">
-            <Link href={`/teams/${match.awayTeam.id}`} className="group inline-flex flex-col items-start gap-2">
-              {match.awayTeam.logo && <img src={match.awayTeam.logo} alt="" className="w-20 h-20 md:w-28 md:h-28 object-contain" />}
-              <span className="font-display font-800 text-xl md:text-2xl text-chalk-100 group-hover:text-grass-400 transition-colors">{match.awayTeam.name}</span>
-            </Link>
-          </div>
+          <Link href={`/teams/${match.awayTeam.id}`} className="group flex items-center gap-3 md:gap-4 flex-1">
+            <span className="font-display font-800 text-lg md:text-2xl text-chalk-100 group-hover:text-grass-400 transition-colors">{match.awayTeam.name}</span>
+            {match.awayTeam.logo && <img src={match.awayTeam.logo} alt="" className="w-20 h-20 md:w-28 md:h-28 object-contain shrink-0" />}
+          </Link>
         </div>
 
         {/* Goal scorers */}
@@ -129,13 +148,13 @@ export default function MatchClient({
 
         {(homeXg > 0 || awayXg > 0) && (
           <div className="mt-5">
-            <div className="flex justify-between text-xs font-mono text-grass-500 mb-1">
-              <span>{homeXg.toFixed(1)} xG</span>
-              <span>{awayXg.toFixed(1)} xG</span>
+            <div className="flex justify-between text-xs font-mono mb-1">
+              <span style={{ color: match.homeTeam.color || "#8ac5ff" }}>{homeXg.toFixed(1)} xG</span>
+              <span style={{ color: match.awayTeam.color || "#ff8a8a" }}>{awayXg.toFixed(1)} xG</span>
             </div>
             <div className="flex h-2 rounded-full overflow-hidden bg-pitch-700">
-              <div className="bg-grass-500/60" style={{ width: `${(homeXg / (homeXg + awayXg)) * 100}%` }} />
-              <div className="bg-chalk-400/40" style={{ width: `${(awayXg / (homeXg + awayXg)) * 100}%` }} />
+              <div style={{ width: `${(homeXg / (homeXg + awayXg)) * 100}%`, backgroundColor: match.homeTeam.color || "#8ac5ff" }} />
+              <div style={{ width: `${(awayXg / (homeXg + awayXg)) * 100}%`, backgroundColor: match.awayTeam.color || "#ff8a8a" }} />
             </div>
           </div>
         )}
@@ -145,28 +164,29 @@ export default function MatchClient({
         )}
       </div>
 
-      {/* Lineups */}
-      <div className="mb-8">
-        <div className="mb-3 flex items-end justify-between gap-4">
-          <div>
-            <h2 className="font-display text-base font-700 tracking-wider text-chalk-100">
-              STARTING LINEUPS
-            </h2>
-            <p className="mt-1 text-xs font-body text-chalk-400">
-              Vertical pitch view with starters separated from the bench.
-            </p>
+      {showLineups && (
+        <div className="mb-8">
+          <div className="mb-3 flex items-end justify-between gap-4">
+            <div>
+              <h2 className="font-display text-base font-700 tracking-wider text-chalk-100">
+                STARTING LINEUPS
+              </h2>
+              <p className="mt-1 text-xs font-body text-chalk-400">
+                Vertical pitch view with starters separated from the bench.
+              </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <LineupGraphic players={homePlayers} teamName={match.homeTeam.name} teamLogo={match.homeTeam.logo} teamColor={match.homeTeam.color} />
+            <LineupGraphic players={awayPlayers} teamName={match.awayTeam.name} teamLogo={match.awayTeam.logo} teamColor={match.awayTeam.color} />
           </div>
         </div>
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-          <LineupGraphic players={homePlayers} teamName={match.homeTeam.name} teamLogo={match.homeTeam.logo} teamColor={match.homeTeam.color} />
-          <LineupGraphic players={awayPlayers} teamName={match.awayTeam.name} teamLogo={match.awayTeam.logo} teamColor={match.awayTeam.color} />
-        </div>
-      </div>
+      )}
 
-      {/* Horizontal shot map â€” full width */}
+      {/* Horizontal shot map ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â full width */}
       <div className="mb-6">
         <h2 className="font-display font-700 text-base tracking-wider text-chalk-100 mb-3">
-          SHOT MAP <span className="text-xs text-grass-500 font-mono">Â· xG by IOStats</span>
+          SHOT MAP <span className="text-xs text-pink-400 font-mono">{" \u00B7 "}xG by IOStats</span>
         </h2>
         <div className="relative rounded-lg border border-chalk-100/8 overflow-hidden" style={{ aspectRatio: "105 / 50" }}>
           <div className="absolute inset-0 bg-[#0d1f0d]">
@@ -210,12 +230,17 @@ export default function MatchClient({
                 <span className="text-3xl font-display font-bold text-chalk-100/15">{match.awayTeam.name.slice(0, 3).toUpperCase()}</span>
               )}
             </div>
-            {/* Shot markers â€” horizontal: x maps to left-right, y maps to top-bottom */}
+            {/* Shot markers ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â horizontal: x maps to left-right, y maps to top-bottom */}
             {shots.map((s, i) => {
               // For horizontal: normalized_y becomes x (0=home goal left, 1=away goal right)
               // normalized_x becomes y (sideline)
-              const px = Math.max(4, Math.min(96, s.normalized_y * 92 + 4));
-              const py = Math.max(6, Math.min(94, s.normalized_x * 88 + 6));
+              // Flip second-half shots because teams switch sides at half time.
+              // Uses the period field from the API for accurate detection.
+              const isSecondHalf = s.period === "SECOND HALF";
+              const ny = isSecondHalf ? 1 - s.normalized_y : s.normalized_y;
+              const nx = isSecondHalf ? 1 - s.normalized_x : s.normalized_x;
+              const px = Math.max(4, Math.min(96, ny * 92 + 4));
+              const py = Math.max(6, Math.min(94, nx * 88 + 6));
               const isSelected = selectedShot === i;
               let emoji: string;
               if (s.is_goal) emoji = "\u26BD";
@@ -234,7 +259,7 @@ export default function MatchClient({
                     fontSize: "22px",
                     lineHeight: 1,
                   }}
-                  title={`${s.is_goal ? `Goal by ${s.username}` : s.is_save ? `Shot by ${s.username}, Saved by ${s.team_side === "home" ? (awayGk?.username || "GK") : (homeGk?.username || "GK")}` : `Missed by ${s.username}`} (xG: ${s.xg.toFixed(2)})`}
+                  title={`${s.is_goal ? `Goal by ${s.username}` : s.is_save ? `Save by ${getSaveKeeperName(s)} (shot by ${s.username})` : `Missed by ${s.username}`} (xG: ${s.xg.toFixed(2)})`}
                 >
                   {emoji}
                 </button>
@@ -243,27 +268,38 @@ export default function MatchClient({
             {/* Tooltip */}
             {selectedShot !== null && shots[selectedShot] && (() => {
               const s = shots[selectedShot];
-              const px = Math.max(4, Math.min(96, s.normalized_y * 92 + 4));
-              const py = Math.max(6, Math.min(94, s.normalized_x * 88 + 6));
+              const isSecondHalf = s.period === "SECOND HALF";
+              const ny = isSecondHalf ? 1 - s.normalized_y : s.normalized_y;
+              const nx = isSecondHalf ? 1 - s.normalized_x : s.normalized_x;
+              const px = Math.max(4, Math.min(96, ny * 92 + 4));
+              const py = Math.max(6, Math.min(94, nx * 88 + 6));
               const above = py > 50;
+              const anchor = px > 84 ? 'right' : px < 16 ? 'left' : 'center';
+              const left = anchor === 'right' ? `${px - 2}%` : anchor === 'left' ? `${px + 2}%` : `${px}%`;
+              const transformX = anchor === 'right' ? '-100%' : anchor === 'left' ? '0' : '-50%';
               return (
                 <div className="absolute z-30 pointer-events-none" style={{
-                  left: `${px}%`,
+                  left,
                   top: above ? `calc(${py}% - 12px)` : `calc(${py}% + 12px)`,
-                  transform: `translate(-50%, ${above ? "-100%" : "0"})`,
+                  transform: `translate(${transformX}, ${above ? "-100%" : "0"})`,
                 }}>
-                  <div className="bg-pitch-950/95 border border-chalk-100/15 rounded-lg px-3 py-2 text-xs font-mono whitespace-nowrap shadow-lg">
-                    <div className="font-medium text-chalk-100">{s.username}</div>
+                  <div className="max-w-[260px] bg-pitch-950/95 border border-chalk-100/15 rounded-lg px-3 py-2 text-xs font-mono whitespace-normal break-words shadow-lg">
+                    <div className="font-medium text-chalk-100">{s.is_save ? getSaveKeeperName(s) : s.username}</div>
                     <div className="flex items-center gap-2 mt-0.5">
                       <span className={s.is_goal ? "text-green-400" : s.is_save ? "text-amber-400" : "text-red-400"}>
                         {s.is_goal ? "Goal" : s.is_save ? "Saved" : "Missed"}
                       </span>
-                      <span className="text-chalk-400">xG: {s.xg.toFixed(2)}</span>
+                      <span className="text-pink-400">xG: {s.xg.toFixed(2)}</span>
                       {s.minute != null && <span className="text-chalk-400">{s.minute}&apos;</span>}
                     </div>
+                    {s.is_goal && s.assist_username && (
+                      <div className="text-chalk-400 mt-0.5">
+                        Assist by {s.assist_username}
+                      </div>
+                    )}
                     {s.is_save && (
                       <div className="text-chalk-400 mt-0.5">
-                        Shot by {s.username} Â· Saved by {s.team_side === "home" ? (awayGk?.username || "GK") : (homeGk?.username || "GK")}
+                        Shot by {s.username} - Saved by {getSaveKeeperName(s)}
                       </div>
                     )}
                   </div>
@@ -273,9 +309,9 @@ export default function MatchClient({
           </div>
         </div>
         <div className="flex items-center gap-4 mt-2 text-xs font-mono text-chalk-400">
-          <span className="flex items-center gap-1.5"><span>âš½</span> Goal</span>
-          <span className="flex items-center gap-1.5"><span>ðŸ§¤</span> Save</span>
-          <span className="flex items-center gap-1.5"><span>âŒ</span> Miss</span>
+          <span className="flex items-center gap-1.5"><span>{"\u26BD"}</span> Goal</span>
+          <span className="flex items-center gap-1.5"><span>{"\u{1F9E4}"}</span> Save</span>
+          <span className="flex items-center gap-1.5"><span>{"\u274C"}</span> Miss</span>
           <span className="text-chalk-400/40 ml-2">Click for details</span>
         </div>
       </div>
@@ -284,8 +320,9 @@ export default function MatchClient({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         <div className="lg:col-span-2">
           <H2HStats
-            homeName={match.homeTeam.name} homeLogo={match.homeTeam.logo} homeColor={match.homeTeam.color}
-            awayName={match.awayTeam.name} awayLogo={match.awayTeam.logo} awayColor={match.awayTeam.color}
+            cardRef={h2hCardRef}
+            homeColor={match.homeTeam.color}
+            awayColor={match.awayTeam.color}
             rows={[
               { label: "Possession", home: homePossPct, away: awayPossPct, pct: true },
               { label: "Shots", home: hT("shots"), away: aT("shots") },
@@ -300,30 +337,45 @@ export default function MatchClient({
               { label: "Yellow Cards", home: hT("yellow_cards"), away: aT("yellow_cards") },
               { label: "Red Cards", home: hT("red_cards"), away: aT("red_cards") },
             ]}
-            homeXg={homeXg} awayXg={awayXg}
             homePassAcc={hT("passes") > 0 ? (hT("passes_completed") / hT("passes")) * 100 : 0}
             awayPassAcc={aT("passes") > 0 ? (aT("passes_completed") / aT("passes")) * 100 : 0}
             homeShotAcc={hT("shots") > 0 ? (hT("shots_on_target") / hT("shots")) * 100 : 0}
             awayShotAcc={aT("shots") > 0 ? (aT("shots_on_target") / aT("shots")) * 100 : 0}
           />
         </div>
-        {/* Game Highlights on right â€” same height as H2H */}
+        {/* Game Highlights on right ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â same height as H2H */}
         {timeline.length > 0 && (
           <div className="flex flex-col">
             <h2 className="font-display font-700 text-base tracking-wider text-chalk-100 mb-3">GAME HIGHLIGHTS</h2>
-            <div className="bg-pitch-900/40 rounded-lg border border-chalk-100/8 divide-y divide-chalk-100/5 overflow-y-auto flex-1">
+            <div
+              className="bg-pitch-900/40 rounded-lg border border-chalk-100/8 divide-y divide-chalk-100/5 overflow-y-scroll"
+              style={{ maxHeight: `${h2hCardHeight}px` }}
+            >
               {timeline.map((ev, i) => {
                 const icon = ev.is_goal ? "\u26BD" : ev.is_save ? "\u{1F9E4}" : "\u274C";
                 const label = ev.is_goal ? "GOAL" : ev.is_save ? "SAVE" : "MISS";
                 const color = ev.is_goal ? "text-green-400" : ev.is_save ? "text-amber-400" : "text-red-400";
                 const isHome = ev.team_side === "home";
+                const eventActor = ev.is_save ? getSaveKeeperName(ev) : ev.username;
+                // Secondary info: assist for goals, shooter for saves
+                let secondaryText: string | null = null;
+                if (ev.is_goal && ev.assist_username) {
+                  secondaryText = `Assist by ${ev.assist_username}`;
+                } else if (ev.is_save) {
+                  secondaryText = `Shot by ${ev.username}`;
+                }
                 return (
                   <div key={i} className={`flex items-center gap-3 px-4 py-2.5 ${i % 2 === 0 ? "bg-pitch-600/15" : ""}`}>
                     <span className="text-xs font-mono text-chalk-400 w-8 shrink-0">{ev.minute}&apos;</span>
                     <span className="text-base shrink-0">{icon}</span>
                     <div className="flex-1 min-w-0">
-                      <span className={`text-xs font-mono font-bold ${color}`}>{label}</span>
-                      <span className="text-xs font-mono text-chalk-200 ml-2">{ev.username}</span>
+                      <div>
+                        <span className={`text-xs font-mono font-bold ${color}`}>{label}</span>
+                        <span className="text-xs font-mono text-chalk-200 ml-2">{eventActor}</span>
+                      </div>
+                      {secondaryText && (
+                        <div className="text-[10px] font-mono text-chalk-400">{secondaryText}</div>
+                      )}
                     </div>
                     {(isHome ? match.homeTeam.logo : match.awayTeam.logo) && (
                       <img src={(isHome ? match.homeTeam.logo : match.awayTeam.logo)!} alt="" className="w-4 h-4 object-contain opacity-50 shrink-0" />
@@ -347,15 +399,15 @@ export default function MatchClient({
   );
 }
 
-/* â”€â”€â”€ H2H Stats â”€â”€â”€ */
+/* ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ H2H Stats ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ */
 function H2HStats({
-  homeName, homeLogo, homeColor, awayName, awayLogo, awayColor, rows, homeXg, awayXg,
+  cardRef, homeColor, awayColor, rows,
   homePassAcc, awayPassAcc, homeShotAcc, awayShotAcc,
 }: {
-  homeName: string; homeLogo: string | null; homeColor: string | null;
-  awayName: string; awayLogo: string | null; awayColor: string | null;
+  cardRef?: Ref<HTMLDivElement>;
+  homeColor: string | null;
+  awayColor: string | null;
   rows: { label: string; home: number; away: number; pct?: boolean }[];
-  homeXg: number; awayXg: number;
   homePassAcc: number; awayPassAcc: number;
   homeShotAcc: number; awayShotAcc: number;
 }) {
@@ -364,23 +416,11 @@ function H2HStats({
   return (
     <div>
       <h2 className="font-display font-700 text-base tracking-wider text-chalk-100 mb-3">HEAD TO HEAD</h2>
-      <div className="bg-pitch-900/40 rounded-lg border border-chalk-100/8 p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            {homeLogo && <img src={homeLogo} alt="" className="w-10 h-10 object-contain" />}
-            <span className="font-display font-700 text-lg text-chalk-100">{homeName}</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="font-display font-700 text-lg text-chalk-100">{awayName}</span>
-            {awayLogo && <img src={awayLogo} alt="" className="w-10 h-10 object-contain" />}
-          </div>
-        </div>
-        <div className="flex justify-between items-center mb-6 px-2">
-          <div className="flex gap-6">
+      <div ref={cardRef} className="bg-pitch-900/40 rounded-lg border border-chalk-100/8 p-6">
+        <div className="mb-8 flex justify-center">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-14 place-items-center">
             <AccuracyCircle value={homeShotAcc} label="Shot Acc" color={hCol} />
             <AccuracyCircle value={homePassAcc} label="Pass Acc" color={hCol} />
-          </div>
-          <div className="flex gap-6">
             <AccuracyCircle value={awayShotAcc} label="Shot Acc" color={aCol} />
             <AccuracyCircle value={awayPassAcc} label="Pass Acc" color={aCol} />
           </div>
@@ -413,24 +453,24 @@ function H2HStats({
 }
 
 function AccuracyCircle({ value, label, color }: { value: number; label: string; color: string }) {
-  const r = 30;
+  const r = 48;
   const circ = 2 * Math.PI * r;
   const offset = circ - (value / 100) * circ;
   return (
-    <div className="flex flex-col items-center gap-1.5">
-      <svg width="76" height="76" viewBox="0 0 76 76">
-        <circle cx="38" cy="38" r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="5" />
-        <circle cx="38" cy="38" r={r} fill="none" stroke={color} strokeWidth="5" strokeLinecap="round"
-          strokeDasharray={circ} strokeDashoffset={offset} transform="rotate(-90 38 38)" />
-        <text x="38" y="38" textAnchor="middle" dominantBaseline="central"
-          fill="white" fontSize="14" fontFamily="monospace" fontWeight="bold">{value.toFixed(0)}%</text>
+    <div className="flex flex-col items-center gap-2">
+      <svg width="120" height="120" viewBox="0 0 120 120">
+        <circle cx="60" cy="60" r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="7" />
+        <circle cx="60" cy="60" r={r} fill="none" stroke={color} strokeWidth="7" strokeLinecap="round"
+          strokeDasharray={circ} strokeDashoffset={offset} transform="rotate(-90 60 60)" />
+        <text x="60" y="60" textAnchor="middle" dominantBaseline="central"
+          fill="white" fontSize="18" fontFamily="monospace" fontWeight="bold">{value.toFixed(0)}%</text>
       </svg>
-      <span className="text-[10px] font-mono text-chalk-400 uppercase">{label}</span>
+      <span className="text-[11px] font-mono text-chalk-400 uppercase">{label}</span>
     </div>
   );
 }
 
-/* â”€â”€â”€ Lineup Player Card â”€â”€â”€ */
+/* ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Lineup Player Card ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ */
 type LineupRows = {
   attack: MatchPlayer[];
   midfield: MatchPlayer[];
@@ -551,7 +591,7 @@ function ShirtIcon({
 function PlayerCard({ p, shirtColor, isSub }: { p: MatchPlayer; shirtColor: string; isSub?: boolean }) {
   return (
     <Link
-      href={`/players/${p.player_steam_id}`}
+      href={`/players/${encodeURIComponent(p.profile_steam_id || p.player_steam_id)}`}
       className="group relative flex w-[92px] flex-col items-center"
     >
       <div className="relative">
@@ -669,7 +709,7 @@ function LineupGraphic({
               {lineup.substitutes.map((player) => (
                 <Link
                   key={player.player_steam_id}
-                  href={`/players/${player.player_steam_id}`}
+                  href={`/players/${encodeURIComponent(player.profile_steam_id || player.player_steam_id)}`}
                   className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-body text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-100"
                 >
                   <span className="font-medium">{player.username}</span>
@@ -692,6 +732,7 @@ function SortablePlayerTable({
   team: { label: string; logo: string | null; players: MatchPlayer[]; side: "home" | "away" };
   shots: MatchShot[];
 }) {
+  const router = useRouter();
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortAsc, setSortAsc] = useState(false);
 
@@ -775,7 +816,7 @@ function SortablePlayerTable({
                   className={`${ci === 0 ? "px-3" : "px-2"} py-2 font-mono text-chalk-400 ${col.align} ${col.key ? "cursor-pointer hover:text-chalk-200 select-none transition-colors" : ""}`}
                   onClick={col.key ? () => handleSort(col.key as SortKey) : undefined}>
                   {col.label}
-                  {col.key && sortKey === col.key && <span className="ml-0.5 text-grass-500">{sortAsc ? "\u25B2" : "\u25BC"}</span>}
+                  {col.key && sortKey === col.key && <span className={`ml-0.5 ${sortAsc ? "text-grass-500" : "text-red-400"}`}>{sortAsc ? "\u25B2" : "\u25BC"}</span>}
                 </th>
               ))}
             </tr>
@@ -813,16 +854,31 @@ function SortablePlayerTable({
                   case "penalties": return <span className="text-chalk-300">{p.penalties}</span>;
                   case "yellow_cards": return <span className={p.yellow_cards > 0 ? "text-yellow-400" : "text-chalk-400"}>{p.yellow_cards}</span>;
                   case "red_cards": return <span className={p.red_cards > 0 ? "text-red-400" : "text-chalk-400"}>{p.red_cards}</span>;
-                  case "xg": return <span className={pxg > 0 ? "text-grass-500/80" : "text-chalk-400"}>{pxg > 0 ? pxg.toFixed(2) : "-"}</span>;
+                  case "xg": return <span className={pxg > 0 ? "text-pink-400" : "text-chalk-400"}>{pxg > 0 ? pxg.toFixed(2) : "-"}</span>;
                   default: return null;
                 }
               };
 
               return (
                 <tr key={p.player_steam_id}
-                  className={`${idx % 2 === 0 ? "bg-pitch-600/15" : "bg-transparent"} hover:bg-chalk-100/8 transition-colors`}>
+                  className={`${idx % 2 === 0 ? "bg-pitch-600/15" : "bg-transparent"} hover:bg-chalk-100/8 transition-colors cursor-pointer`}
+                  onClick={() => router.push(`/players/${encodeURIComponent(p.profile_steam_id || p.player_steam_id)}`)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      router.push(`/players/${encodeURIComponent(p.profile_steam_id || p.player_steam_id)}`);
+                    }
+                  }}
+                  tabIndex={0}
+                  role="link"
+                  aria-label={`Open profile for ${p.username}`}
+                >
                   <td className="px-3 py-2">
-                    <Link href={`/players/${p.player_steam_id}`} className="font-body font-medium text-chalk-100 hover:text-grass-400 transition-colors">
+                    <Link
+                      href={`/players/${encodeURIComponent(p.profile_steam_id || p.player_steam_id)}`}
+                      className="font-body font-medium text-chalk-100 hover:text-grass-400 transition-colors"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       {p.username}
                     </Link>
                   </td>

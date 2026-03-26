@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { proxyImg } from "@/lib/img";
 import { getSteamAvatar } from "@/lib/steam-avatar";
+import { getRelatedSteamIds } from "@/lib/player-aliases";
 import PlayerTabs from "./PlayerTabs";
 
 type CurrentTeam = {
@@ -25,13 +26,16 @@ export default async function PlayerLayout({
   children: React.ReactNode;
   params: Promise<{ steamId: string }>;
 }) {
-  const { steamId } = await params;
+  const { steamId: rawSteamId } = await params;
+  const steamId = decodeURIComponent(rawSteamId);
 
   const player = await prisma.player.findUnique({
     where: { steamId },
   });
 
   if (!player) return notFound();
+
+  const steamIds = await getRelatedSteamIds(steamId);
 
   // Current team from transfer data (official roster)
   const currentTeams = await prisma.$queryRaw<CurrentTeam[]>`
@@ -42,7 +46,7 @@ export default async function PlayerLayout({
       t.color AS team_color
     FROM transfers tr
     JOIN teams t ON t.id = tr.to_team_id
-    WHERE tr.player_steam_id = ${steamId}
+    WHERE tr.player_steam_id = ANY(${steamIds})
       AND tr.type = 'join'
       AND t.name NOT IN ('IOSoccer All', 'IOSoccer Overlap', 'IOSoccer Challenge', 'IOSoccer Premier')
       AND NOT EXISTS (
@@ -71,7 +75,7 @@ export default async function PlayerLayout({
         WHEN mps.team_side = 'home' THEN m.home_team_id
         WHEN mps.team_side = 'away' THEN m.away_team_id
       END
-      WHERE mps.player_steam_id = ${steamId}
+      WHERE mps.player_steam_id = ANY(${steamIds})
         AND t.name NOT IN ('IOSoccer All', 'IOSoccer Overlap', 'IOSoccer Challenge', 'IOSoccer Premier')
       ORDER BY m.date DESC
       LIMIT 1
@@ -84,7 +88,7 @@ export default async function PlayerLayout({
     SELECT m.home_score, m.away_score, mps.team_side
     FROM match_player_stats mps
     JOIN matches m ON m.id = mps.match_id
-    WHERE mps.player_steam_id = ${steamId}
+    WHERE mps.player_steam_id = ANY(${steamIds})
     ORDER BY m.date DESC
     LIMIT 5
   `;
@@ -99,7 +103,7 @@ export default async function PlayerLayout({
   const teamColor = currentTeam?.team_color || null;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
       {/* Breadcrumb */}
       <div className="text-xs font-mono text-chalk-400 mb-6">
         <Link href="/players" className="hover:text-grass-500 transition-colors">

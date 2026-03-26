@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { proxyImg } from "@/lib/img";
+import { getRelatedSteamIds } from "@/lib/player-aliases";
 
 const MATCHES_PER_PAGE = 20;
 
@@ -37,7 +38,9 @@ export default async function PlayerMatchesPage({
   params: Promise<{ steamId: string }>;
   searchParams: Promise<{ page?: string }>;
 }) {
-  const { steamId } = await params;
+  const { steamId: rawSteamId } = await params;
+  const steamId = decodeURIComponent(rawSteamId);
+  const steamIdParam = encodeURIComponent(steamId);
   const sp = await searchParams;
   const page = Math.max(1, parseInt(sp.page || "1", 10));
   const offset = (page - 1) * MATCHES_PER_PAGE;
@@ -45,8 +48,10 @@ export default async function PlayerMatchesPage({
   const player = await prisma.player.findUnique({ where: { steamId } });
   if (!player) return notFound();
 
+  const steamIds = await getRelatedSteamIds(steamId);
+
   const [countResult] = await prisma.$queryRaw<[{ total: bigint }]>`
-    SELECT COUNT(*) AS total FROM match_player_stats WHERE player_steam_id = ${steamId}
+    SELECT COUNT(*) AS total FROM match_player_stats WHERE player_steam_id = ANY(${steamIds})
   `;
   const totalMatches = Number(countResult?.total || 0);
   const totalPages = Math.max(1, Math.ceil(totalMatches / MATCHES_PER_PAGE));
@@ -81,7 +86,7 @@ export default async function PlayerMatchesPage({
       WHEN mps.team_side = 'home' THEN m.home_team_id
       WHEN mps.team_side = 'away' THEN m.away_team_id
     END
-    WHERE mps.player_steam_id = ${steamId}
+    WHERE mps.player_steam_id = ANY(${steamIds})
     ORDER BY m.date DESC
     LIMIT ${MATCHES_PER_PAGE} OFFSET ${offset}
   `;
@@ -207,7 +212,7 @@ export default async function PlayerMatchesPage({
           <span className="text-chalk-400">Page {page} of {totalPages}</span>
           <div className="flex gap-1">
             {page > 1 && (
-              <Link href={`/players/${steamId}/matches?page=${page - 1}`} className="px-3 py-1.5 rounded bg-pitch-800 text-chalk-300 hover:bg-pitch-700 transition-colors">
+              <Link href={`/players/${steamIdParam}/matches?page=${page - 1}`} className="px-3 py-1.5 rounded bg-pitch-800 text-chalk-300 hover:bg-pitch-700 transition-colors">
                 Prev
               </Link>
             )}
@@ -220,7 +225,7 @@ export default async function PlayerMatchesPage({
               return (
                 <Link
                   key={p}
-                  href={`/players/${steamId}/matches?page=${p}`}
+                  href={`/players/${steamIdParam}/matches?page=${p}`}
                   className={`px-3 py-1.5 rounded transition-colors ${
                     p === page ? "bg-grass-600 text-chalk-100" : "bg-pitch-800 text-chalk-300 hover:bg-pitch-700"
                   }`}
@@ -230,7 +235,7 @@ export default async function PlayerMatchesPage({
               );
             })}
             {page < totalPages && (
-              <Link href={`/players/${steamId}/matches?page=${page + 1}`} className="px-3 py-1.5 rounded bg-pitch-800 text-chalk-300 hover:bg-pitch-700 transition-colors">
+              <Link href={`/players/${steamIdParam}/matches?page=${page + 1}`} className="px-3 py-1.5 rounded bg-pitch-800 text-chalk-300 hover:bg-pitch-700 transition-colors">
                 Next
               </Link>
             )}

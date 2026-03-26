@@ -18,10 +18,7 @@ model Player {
   rating          Float?
   createdAt       DateTime               @default(now()) @map("created_at")
   updatedAt       DateTime               @updatedAt @map("updated_at")
-  achievements    Achievement[]
   matchStats      MatchPlayerStats[]
-  aggregateStats  PlayerAggregateStats[]
-  shots           Shot[]
   transfers       Transfer[]
 
   @@index([username])
@@ -41,7 +38,6 @@ model Team {
   teamType       Int?                 @map("team_type")
   awayMatches    Match[]              @relation("AwayTeam")
   homeMatches    Match[]              @relation("HomeTeam")
-  aggregateStats TeamAggregateStats[]
   standings      TournamentStanding[]
   transfersFrom  Transfer[]           @relation("TeamTransferFrom")
   transfersTo    Transfer[]           @relation("TeamTransferTo")
@@ -72,7 +68,6 @@ model Match {
   awayTeam     Team               @relation("AwayTeam", fields: [awayTeamId], references: [id])
   homeTeam     Team               @relation("HomeTeam", fields: [homeTeamId], references: [id])
   tournament   Tournament?        @relation(fields: [tournamentId], references: [id])
-  shots        Shot[]
 
   @@index([date])
   @@index([homeTeamId])
@@ -122,26 +117,6 @@ model MatchPlayerStats {
   @@map("match_player_stats")
 }
 
-model Shot {
-  id            Int     @id @default(autoincrement())
-  matchId       Int     @map("match_id")
-  playerSteamId String  @map("player_steam_id")
-  rawX          Float   @map("raw_x")
-  rawY          Float   @map("raw_y")
-  normalizedX   Float   @map("normalized_x")
-  normalizedY   Float   @map("normalized_y")
-  isGoal        Boolean @map("is_goal")
-  isSave        Boolean @default(false) @map("is_save")
-  xg            Float   @default(0)
-  minute        Int?
-  match         Match   @relation(fields: [matchId], references: [id])
-  player        Player  @relation(fields: [playerSteamId], references: [steamId])
-
-  @@index([matchId])
-  @@index([playerSteamId])
-  @@index([isGoal])
-  @@map("shots")
-}
 
 model Tournament {
   id                Int                  @id @default(autoincrement())
@@ -195,61 +170,6 @@ model Transfer {
   @@map("transfers")
 }
 
-model Achievement {
-  id            Int      @id @default(autoincrement())
-  playerSteamId String   @map("player_steam_id")
-  type          String
-  earnedDate    DateTime @map("earned_date")
-  metadata      Json?
-  player        Player   @relation(fields: [playerSteamId], references: [steamId])
-
-  @@index([playerSteamId])
-  @@map("achievements")
-}
-
-model PlayerAggregateStats {
-  id                   Int    @id @default(autoincrement())
-  playerSteamId        String @map("player_steam_id")
-  season               String
-  totalMatches         Int    @default(0) @map("total_matches")
-  totalWins            Int    @default(0) @map("total_wins")
-  totalDraws           Int    @default(0) @map("total_draws")
-  totalLosses          Int    @default(0) @map("total_losses")
-  totalGoals           Int    @default(0) @map("total_goals")
-  totalAssists         Int    @default(0) @map("total_assists")
-  totalShots           Int    @default(0) @map("total_shots")
-  totalShotsOnTarget   Int    @default(0) @map("total_shots_on_target")
-  totalPasses          Int    @default(0) @map("total_passes")
-  totalPassesCompleted Int    @default(0) @map("total_passes_completed")
-  totalSaves           Int    @default(0) @map("total_saves")
-  totalCleanSheets     Int    @default(0) @map("total_clean_sheets")
-  totalXg              Float  @default(0) @map("total_xg")
-  avgRating            Float  @default(0) @map("avg_rating")
-  player               Player @relation(fields: [playerSteamId], references: [steamId])
-
-  @@unique([playerSteamId, season])
-  @@index([season])
-  @@index([totalGoals])
-  @@index([totalXg])
-  @@map("player_aggregate_stats")
-}
-
-model TeamAggregateStats {
-  id           Int    @id @default(autoincrement())
-  teamId       Int    @map("team_id")
-  season       String
-  totalMatches Int    @default(0) @map("total_matches")
-  wins         Int    @default(0)
-  draws        Int    @default(0)
-  losses       Int    @default(0)
-  goalsFor     Int    @default(0) @map("goals_for")
-  goalsAgainst Int    @default(0) @map("goals_against")
-  team         Team   @relation(fields: [teamId], references: [id])
-
-  @@unique([teamId, season])
-  @@index([season])
-  @@map("team_aggregate_stats")
-}
 
 model ScraperState {
   id       Int       @id @default(1)

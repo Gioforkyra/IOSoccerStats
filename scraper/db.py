@@ -138,30 +138,6 @@ async def insert_player_stats(pool: asyncpg.Pool, stats: list[dict]):
         )
 
 
-async def insert_shots(pool: asyncpg.Pool, shots: list[dict]):
-    """Batch insert shots. Deletes existing shots for the match first to avoid duplicates."""
-    if not shots:
-        return
-    match_id = shots[0]["match_id"]
-    async with pool.acquire() as conn:
-        await conn.execute("DELETE FROM shots WHERE match_id = $1", match_id)
-        await conn.executemany(
-            """
-            INSERT INTO shots (match_id, player_steam_id, raw_x, raw_y,
-                               normalized_x, normalized_y, is_goal, is_save, xg, minute)
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-            """,
-            [
-                (
-                    s["match_id"], s["player_steam_id"],
-                    s["raw_x"], s["raw_y"],
-                    s["normalized_x"], s["normalized_y"],
-                    s["is_goal"], s["is_save"], s["xg"], s.get("minute"),
-                )
-                for s in shots
-            ],
-        )
-
 
 async def get_scraper_state(pool: asyncpg.Pool) -> int:
     """Get last scraped match ID."""

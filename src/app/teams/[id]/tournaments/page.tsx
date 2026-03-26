@@ -43,13 +43,12 @@ export default async function TeamTournamentsPage({
       t.winning_team_id,
       wt.name AS winning_team_name,
       wt.logo AS winning_team_logo,
-      COUNT(DISTINCT m.id) AS matches_played
-    FROM tournaments t
-    JOIN matches m ON m.tournament_id = t.id
-      AND (m.home_team_id = ${teamId} OR m.away_team_id = ${teamId})
+      (SELECT COUNT(*) FROM matches m WHERE m.tournament_id = t.id
+        AND (m.home_team_id = ${teamId} OR m.away_team_id = ${teamId})) AS matches_played
+    FROM tournament_standings ts
+    JOIN tournaments t ON t.id = ts.tournament_id
     LEFT JOIN teams wt ON wt.id = t.winning_team_id
-    GROUP BY t.id, t.name, t.organisation, t.tournament_format, t.team_type_id,
-             t.match_format, t.start_date, t.end_date, t.winning_team_id, wt.name, wt.logo
+    WHERE ts.team_id = ${teamId}
     ORDER BY t.start_date DESC NULLS LAST
   `;
 

@@ -80,7 +80,7 @@ export default async function MatchesPage({
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
       <SyncMatches />
       <div className="flex items-end justify-between mb-6">
         <div>
@@ -190,22 +190,32 @@ export default async function MatchesPage({
           <div className="flex items-center gap-1">
             {page > 1 && (
               <Link
-                href={pageUrl(page - 1)}
+                href={pageUrl(1)}
                 className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center"
+                title="First page"
+              >
+                &laquo;
+              </Link>
+            )}
+            {page > 1 && (
+              <Link
+                href={pageUrl(Math.max(1, page - 10))}
+                className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center"
+                title="Back 10 pages"
               >
                 &lt;
               </Link>
             )}
-            {Array.from({ length: Math.min(7, totalPages) }, (_, i) => {
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
               let p: number;
-              if (totalPages <= 7) {
+              if (totalPages <= 5) {
                 p = i + 1;
-              } else if (page <= 4) {
+              } else if (page <= 3) {
                 p = i + 1;
-              } else if (page >= totalPages - 3) {
-                p = totalPages - 6 + i;
+              } else if (page >= totalPages - 2) {
+                p = totalPages - 4 + i;
               } else {
-                p = page - 3 + i;
+                p = page - 2 + i;
               }
               return (
                 <Link
@@ -213,7 +223,7 @@ export default async function MatchesPage({
                   href={pageUrl(p)}
                   className={`w-8 h-8 rounded text-xs font-mono transition-colors flex items-center justify-center ${
                     p === page
-                      ? "bg-grass-500 text-pitch-950 font-700"
+                      ? "bg-[#F4119E] text-white font-700"
                       : "text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30"
                   }`}
                 >
@@ -223,10 +233,20 @@ export default async function MatchesPage({
             })}
             {page < totalPages && (
               <Link
-                href={pageUrl(page + 1)}
+                href={pageUrl(Math.min(totalPages, page + 10))}
                 className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center"
+                title="Forward 10 pages"
               >
                 &gt;
+              </Link>
+            )}
+            {page < totalPages && (
+              <Link
+                href={pageUrl(totalPages)}
+                className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center"
+                title="Last page"
+              >
+                &raquo;
               </Link>
             )}
           </div>

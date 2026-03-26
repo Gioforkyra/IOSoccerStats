@@ -12,7 +12,7 @@ const TABS = [
 
 export default function PlayerTabs({ steamId }: { steamId: string }) {
   const pathname = usePathname();
-  const basePath = `/players/${steamId}`;
+  const basePath = `/players/${encodeURIComponent(steamId)}`;
 
   return (
     <div className="flex border-b border-chalk-100/8 mb-6">

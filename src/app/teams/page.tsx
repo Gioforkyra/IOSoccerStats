@@ -63,7 +63,7 @@ export default async function TeamsPage({
   const currentTypeLabel = TEAM_TYPES.find((t) => t.value === typeFilter)?.label || "TEAMS";
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
       {/* Header + Filters */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
         <div>

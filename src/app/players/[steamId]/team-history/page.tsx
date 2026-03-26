@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { proxyImg } from "@/lib/img";
+import { getRelatedSteamIds } from "@/lib/player-aliases";
 
 type TeamTransfer = {
   team_id: number;
@@ -23,10 +24,13 @@ export default async function PlayerTeamHistoryPage({
 }: {
   params: Promise<{ steamId: string }>;
 }) {
-  const { steamId } = await params;
+  const { steamId: rawSteamId } = await params;
+  const steamId = decodeURIComponent(rawSteamId);
 
   const player = await prisma.player.findUnique({ where: { steamId } });
   if (!player) return notFound();
+
+  const steamIds = await getRelatedSteamIds(steamId);
 
   const teams = await prisma.$queryRaw<TeamTransfer[]>`
     WITH team_stints AS (
@@ -42,7 +46,7 @@ export default async function PlayerTeamHistoryPage({
             AND tr2.date > tr.date
         ) AS leave_date
       FROM transfers tr
-      WHERE tr.player_steam_id = ${steamId}
+      WHERE tr.player_steam_id = ANY(${steamIds})
         AND tr.type = 'join'
         AND tr.to_team_id IS NOT NULL
     ),
@@ -68,7 +72,7 @@ export default async function PlayerTeamHistoryPage({
         m.home_team_id = ts.team_id OR m.away_team_id = ts.team_id
       )
       LEFT JOIN match_player_stats mps ON mps.match_id = m.id
-        AND mps.player_steam_id = ${steamId}
+        AND mps.player_steam_id = ANY(${steamIds})
         AND (
           (mps.team_side = 'home' AND m.home_team_id = ts.team_id) OR
           (mps.team_side = 'away' AND m.away_team_id = ts.team_id)

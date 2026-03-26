@@ -21,7 +21,7 @@ import httpx
 from scraper import fetch_match, parse_match
 from db import (
     get_pool, upsert_team, upsert_player, insert_match,
-    insert_player_stats, insert_shots, get_scraper_state,
+    insert_player_stats, get_scraper_state,
     update_scraper_state, match_exists,
 )
 
@@ -59,9 +59,6 @@ async def scrape_match(client: httpx.AsyncClient, pool, match_id: int) -> bool:
 
     # Insert player stats
     await insert_player_stats(pool, parsed["player_stats"])
-
-    # Insert shots
-    await insert_shots(pool, parsed["shots"])
 
     return True
 

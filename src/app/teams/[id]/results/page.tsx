@@ -150,26 +150,73 @@ export default async function TeamResultsPage({
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 mt-6">
-          {currentPage > 1 && (
-            <Link
-              href={`/teams/${teamId}/results?page=${currentPage - 1}`}
-              className="px-3 py-1.5 rounded text-sm font-mono text-chalk-300 bg-pitch-800 border border-chalk-100/8 hover:bg-pitch-700 transition-colors"
-            >
-              Prev
-            </Link>
-          )}
-          <span className="text-sm font-mono text-chalk-400">
+        <div className="flex items-center justify-between mt-4">
+          <span className="text-xs font-mono text-chalk-400">
             Page {currentPage} of {totalPages}
           </span>
-          {currentPage < totalPages && (
-            <Link
-              href={`/teams/${teamId}/results?page=${currentPage + 1}`}
-              className="px-3 py-1.5 rounded text-sm font-mono text-chalk-300 bg-pitch-800 border border-chalk-100/8 hover:bg-pitch-700 transition-colors"
-            >
-              Next
-            </Link>
-          )}
+          <div className="flex items-center gap-1">
+            {currentPage > 1 && (
+              <Link
+                href={`/teams/${teamId}/results?page=1`}
+                className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center"
+                title="First page"
+              >
+                &laquo;
+              </Link>
+            )}
+            {currentPage > 1 && (
+              <Link
+                href={`/teams/${teamId}/results?page=${Math.max(1, currentPage - 10)}`}
+                className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center"
+                title="Back 10 pages"
+              >
+                &lt;
+              </Link>
+            )}
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              let p: number;
+              if (totalPages <= 5) {
+                p = i + 1;
+              } else if (currentPage <= 3) {
+                p = i + 1;
+              } else if (currentPage >= totalPages - 2) {
+                p = totalPages - 4 + i;
+              } else {
+                p = currentPage - 2 + i;
+              }
+              return (
+                <Link
+                  key={p}
+                  href={`/teams/${teamId}/results?page=${p}`}
+                  className={`w-8 h-8 rounded text-xs font-mono transition-colors flex items-center justify-center ${
+                    p === currentPage
+                      ? "bg-[#F4119E] text-white font-700"
+                      : "text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30"
+                  }`}
+                >
+                  {p}
+                </Link>
+              );
+            })}
+            {currentPage < totalPages && (
+              <Link
+                href={`/teams/${teamId}/results?page=${Math.min(totalPages, currentPage + 10)}`}
+                className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center"
+                title="Forward 10 pages"
+              >
+                &gt;
+              </Link>
+            )}
+            {currentPage < totalPages && (
+              <Link
+                href={`/teams/${teamId}/results?page=${totalPages}`}
+                className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center"
+                title="Last page"
+              >
+                &raquo;
+              </Link>
+            )}
+          </div>
         </div>
       )}
     </div>

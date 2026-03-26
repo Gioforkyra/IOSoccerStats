@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { proxyImg } from "@/lib/img";
+import { getRelatedSteamIds } from "@/lib/player-aliases";
 
 type TournamentRow = {
   tournament_id: number;
@@ -27,10 +28,13 @@ export default async function PlayerTournamentsPage({
 }: {
   params: Promise<{ steamId: string }>;
 }) {
-  const { steamId } = await params;
+  const { steamId: rawSteamId } = await params;
+  const steamId = decodeURIComponent(rawSteamId);
 
   const player = await prisma.player.findUnique({ where: { steamId } });
   if (!player) return notFound();
+
+  const steamIds = await getRelatedSteamIds(steamId);
 
   // Find tournaments where the player's team participated
   // Uses transfer history to find which teams the player was on,
@@ -50,7 +54,7 @@ export default async function PlayerTournamentsPage({
           NOW()
         ) AS leave_date
       FROM transfers tr
-      WHERE tr.player_steam_id = ${steamId}
+      WHERE tr.player_steam_id = ANY(${steamIds})
         AND tr.type = 'join'
         AND tr.to_team_id IS NOT NULL
     )

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
+import { getRelatedSteamIds } from "@/lib/player-aliases";
 
 type PlayerStats = {
   apps: bigint;
@@ -24,10 +25,13 @@ export default async function PlayerStatsPage({
 }: {
   params: Promise<{ steamId: string }>;
 }) {
-  const { steamId } = await params;
+  const { steamId: rawSteamId } = await params;
+  const steamId = decodeURIComponent(rawSteamId);
 
   const player = await prisma.player.findUnique({ where: { steamId } });
   if (!player) return notFound();
+
+  const steamIds = await getRelatedSteamIds(steamId);
 
   const [stats] = await prisma.$queryRaw<[PlayerStats]>`
     SELECT
@@ -54,11 +58,7 @@ export default async function PlayerStatsPage({
       COUNT(DISTINCT CASE WHEN m.home_score = m.away_score THEN m.id END) AS draws
     FROM match_player_stats mps
     JOIN matches m ON m.id = mps.match_id
-    WHERE mps.player_steam_id = ${steamId}
-  `;
-
-  const [xgResult] = await prisma.$queryRaw<[{ total_xg: number }]>`
-    SELECT COALESCE(SUM(xg), 0)::float AS total_xg FROM shots WHERE player_steam_id = ${steamId}
+    WHERE mps.player_steam_id = ANY(${steamIds})
   `;
 
   const apps = Number(stats.apps);
@@ -76,7 +76,6 @@ export default async function PlayerStatsPage({
   const yellows = Number(stats.total_yellow_cards);
   const reds = Number(stats.total_red_cards);
   const interceptions = Number(stats.total_interceptions);
-  const xg = xgResult.total_xg;
   const winPct = apps > 0 ? ((wins / apps) * 100).toFixed(1) : "0";
   const shotAcc = shots > 0 ? ((shotsOnTarget / shots) * 100).toFixed(1) : "0";
   const passAcc = passes > 0 ? ((passesCompleted / passes) * 100).toFixed(1) : "0";
@@ -91,13 +90,13 @@ export default async function PlayerStatsPage({
           { label: "Appearances", value: apps.toLocaleString() },
           { label: "Goals", value: goals.toLocaleString() },
           { label: "Assists", value: assists.toLocaleString() },
-          { label: "xG", value: xg.toFixed(1), highlight: true },
           { label: "Win Rate", value: `${winPct}%` },
           { label: "Goals/App", value: goalsPerApp },
+          { label: "Shot Accuracy", value: `${shotAcc}%` },
         ].map((s) => (
           <div key={s.label} className="bg-pitch-900/60 border border-chalk-100/8 rounded-lg p-4">
             <div className="text-[10px] font-mono text-chalk-400 uppercase mb-1">{s.label}</div>
-            <div className={`text-2xl font-display font-800 ${s.highlight ? "text-grass-500 stat-glow" : "text-chalk-100"}`}>
+            <div className="text-2xl font-display font-800 text-chalk-100">
               {s.value}
             </div>
           </div>
@@ -156,12 +155,11 @@ export default async function PlayerStatsPage({
               { label: "Goals/App", value: goalsPerApp },
               { label: "Assists", value: assists.toLocaleString() },
               { label: "Assists/App", value: assistsPerApp },
-              { label: "xG", value: xg.toFixed(1), highlight: true },
               { label: "Shot Accuracy", value: `${shotAcc}%` },
             ].map((r) => (
               <div key={r.label} className="flex justify-between text-sm">
                 <span className="font-body text-chalk-400">{r.label}</span>
-                <span className={`font-mono ${r.highlight ? "text-grass-500" : "text-chalk-200"}`}>{r.value}</span>
+                <span className="font-mono text-chalk-200">{r.value}</span>
               </div>
             ))}
           </div>

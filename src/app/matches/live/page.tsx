@@ -162,7 +162,7 @@ export default function LiveScoresPage() {
   }, [lastUpdated]);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-8">
         <div>
@@ -198,7 +198,7 @@ export default function LiveScoresPage() {
 
       {loading && (
         <div className="text-center py-20">
-          <div className="inline-block w-6 h-6 border-2 border-grass-500 border-t-transparent rounded-full animate-spin" />
+          <div className="inline-block w-6 h-6 border-2 border-[#F4119E] border-t-transparent rounded-full animate-spin" />
           <p className="text-chalk-400 font-body text-sm mt-3">Fetching live scores...</p>
         </div>
       )}

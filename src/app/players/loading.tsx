@@ -1,6 +1,6 @@
 export default function PlayersLoading() {
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="max-w-5xl mx-auto px-4 py-8">
       {/* Header skeleton */}
       <div className="mb-6">
         <div className="h-10 w-56 bg-pitch-800 rounded skeleton-fade" />

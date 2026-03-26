@@ -73,7 +73,7 @@ export default async function TournamentsPage({
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
         <div>
           <h1 className="font-display font-800 text-4xl tracking-tight text-chalk-100">

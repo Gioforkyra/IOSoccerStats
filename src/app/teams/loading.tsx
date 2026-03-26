@@ -1,6 +1,6 @@
 export default function TeamsLoading() {
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="max-w-5xl mx-auto px-4 py-8">
       <div className="mb-8">
         <div className="h-10 w-40 bg-pitch-800 rounded skeleton-fade" />
         <div className="h-4 w-48 bg-pitch-800 rounded skeleton-fade mt-2" style={{ animationDelay: "50ms" }} />

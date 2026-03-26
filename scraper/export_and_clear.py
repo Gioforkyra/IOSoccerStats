@@ -41,13 +41,9 @@ async def main():
         "players",
         "matches",
         "match_player_stats",
-        "shots",
         "tournaments",
         "tournament_standings",
         "transfers",
-        "achievements",
-        "player_aggregate_stats",
-        "team_aggregate_stats",
     ]
 
     total = 0
@@ -63,12 +59,8 @@ async def main():
     # Clear tables (in reverse order to respect foreign keys)
     print("\n=== Clearing database ===")
     clear_order = [
-        "player_aggregate_stats",
-        "team_aggregate_stats",
-        "achievements",
         "transfers",
         "tournament_standings",
-        "shots",
         "match_player_stats",
         "matches",
         "tournaments",

@@ -97,7 +97,7 @@ export default async function HomePage() {
       {/* Content */}
       <div className="relative z-10">
         <section>
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-12 pb-12">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-12 pb-12">
             {/* Header */}
             <div className="mb-8">
               <div className="flex items-center flex-wrap">

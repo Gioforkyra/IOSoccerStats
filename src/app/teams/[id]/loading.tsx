@@ -1,6 +1,6 @@
 export default function TeamProfileLoading() {
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="max-w-5xl mx-auto px-4 py-8">
       <div className="h-4 w-32 bg-pitch-800 rounded animate-pulse mb-6" />
       <div className="rounded-xl border border-chalk-100/8 bg-pitch-900 p-6 md:p-8 mb-8">
         <div className="flex items-center gap-6">
