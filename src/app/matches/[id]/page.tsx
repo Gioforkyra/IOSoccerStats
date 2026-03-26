@@ -72,32 +72,151 @@ function normalizeFromField(val: number, min: number, max: number) {
 
 type PlayerInfo = { username: string; team_side: string; position: string | null };
 
-async function fetchShotsFromApi(
-  matchId: number,
-  playerMap: Map<string, PlayerInfo>,
-): Promise<MatchShot[]> {
-  const API_BASE = "https://iosoccer.com:44380/api";
-  const HEADERS = {
-    Accept: "application/json",
-    Origin: "https://www.iosoccer.com",
-    Referer: "https://www.iosoccer.com/",
-  };
+const API_BASE = "https://iosoccer.com:44380/api";
+const API_HEADERS = {
+  Accept: "application/json",
+  Origin: "https://www.iosoccer.com",
+  Referer: "https://www.iosoccer.com/",
+};
 
+const STAT_IDX = {
+  red_cards: 0,
+  yellow_cards: 1,
+  fouls: 2,
+  fouls_suffered: 3,
+  goals_conceded: 6,
+  shots: 7,
+  shots_on_target: 8,
+  passes_completed: 9,
+  interceptions: 10,
+  offsides: 11,
+  goals: 12,
+  own_goals: 13,
+  assists: 14,
+  passes: 15,
+  free_kicks: 16,
+  penalties: 17,
+  corners: 18,
+  throw_ins: 19,
+  saves: 20,
+  goal_kicks: 21,
+  possession: 22,
+  distance_run: 23,
+  key_passes: 25,
+  chances_created: 26,
+  second_assists: 27,
+} as const;
+
+function safeStat(stats: number[], idx: number): number {
+  return idx < stats.length ? Number(stats[idx] || 0) : 0;
+}
+
+async function fetchMatchApiRaw(matchId: number): Promise<any | null> {
   try {
     const res = await fetch(`${API_BASE}/match/${matchId}`, {
-      headers: HEADERS,
+      headers: API_HEADERS,
       signal: AbortSignal.timeout(8000),
       next: { revalidate: 60 },
     });
-    if (!res.ok) return [];
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
 
-    const raw = await res.json();
+function parsePlayerStatsFromApi(raw: any): MatchPlayer[] {
+  const md = raw?.matchStatistics?.matchData;
+  if (!md) return [];
+
+  const out: MatchPlayer[] = [];
+  const players: any[] = md.players || [];
+  for (const rp of players) {
+    const info = rp?.info || {};
+    const steam64 = info.steamId64 ? String(info.steamId64) : (info.steamId ? String(info.steamId) : "");
+    if (!steam64) continue;
+
+    const periods: any[] = rp?.matchPeriodData || [];
+    if (periods.length === 0) continue;
+
+    const firstInfo = periods[0]?.info || {};
+    const team_side = firstInfo.team === "away" ? "away" : "home";
+    const position = firstInfo.position || null;
+
+    const totals = new Array(30).fill(0);
+    for (const period of periods) {
+      const stats: number[] = period?.statistics || [];
+      for (let i = 0; i < stats.length; i++) totals[i] += Number(stats[i] || 0);
+    }
+
+    out.push({
+      player_steam_id: steam64,
+      profile_steam_id: steam64,
+      username: String(info.name || "Unknown"),
+      position,
+      team_side,
+      goals: safeStat(totals, STAT_IDX.goals),
+      assists: safeStat(totals, STAT_IDX.assists),
+      second_assists: safeStat(totals, STAT_IDX.second_assists),
+      shots: safeStat(totals, STAT_IDX.shots),
+      shots_on_target: safeStat(totals, STAT_IDX.shots_on_target),
+      passes: safeStat(totals, STAT_IDX.passes),
+      passes_completed: safeStat(totals, STAT_IDX.passes_completed),
+      key_passes: safeStat(totals, STAT_IDX.key_passes),
+      chances_created: safeStat(totals, STAT_IDX.chances_created),
+      interceptions: safeStat(totals, STAT_IDX.interceptions),
+      saves: safeStat(totals, STAT_IDX.saves),
+      offsides: safeStat(totals, STAT_IDX.offsides),
+      fouls: safeStat(totals, STAT_IDX.fouls),
+      fouls_suffered: safeStat(totals, STAT_IDX.fouls_suffered),
+      yellow_cards: safeStat(totals, STAT_IDX.yellow_cards),
+      red_cards: safeStat(totals, STAT_IDX.red_cards),
+      own_goals: safeStat(totals, STAT_IDX.own_goals),
+      goals_conceded: safeStat(totals, STAT_IDX.goals_conceded),
+      corners: safeStat(totals, STAT_IDX.corners),
+      throw_ins: safeStat(totals, STAT_IDX.throw_ins),
+      free_kicks: safeStat(totals, STAT_IDX.free_kicks),
+      goal_kicks: safeStat(totals, STAT_IDX.goal_kicks),
+      penalties: safeStat(totals, STAT_IDX.penalties),
+      distance_run: safeStat(totals, STAT_IDX.distance_run),
+      possession: safeStat(totals, STAT_IDX.possession),
+    });
+  }
+  return out;
+}
+
+async function fetchShotsFromApi(
+  matchId: number,
+  playerMap: Map<string, PlayerInfo>,
+  rawOverride?: any | null,
+): Promise<MatchShot[]> {
+  try {
+    const raw = rawOverride ?? await fetchMatchApiRaw(matchId);
     const md = raw?.matchStatistics?.matchData;
     if (!md) return [];
 
     const fieldMin = md.matchInfo?.fieldMin || { x: -1554, y: -2406 };
     const fieldMax = md.matchInfo?.fieldMax || { x: 1554, y: 2406 };
     const events: any[] = md.matchEvents || [];
+    const rawPlayers: any[] = md.players || [];
+
+    const steamLookup = new Map<string, string>();
+    const apiPlayerInfo = new Map<string, PlayerInfo>();
+    for (const rp of rawPlayers) {
+      const shortId = rp?.info?.steamId ? String(rp.info.steamId) : "";
+      const steam64 = rp?.info?.steamId64 ? String(rp.info.steamId64) : "";
+      if (shortId && steam64) steamLookup.set(shortId, steam64);
+      if (steam64) steamLookup.set(steam64, steam64);
+      if (steam64) {
+        const periods: any[] = rp?.matchPeriodData || [];
+        const firstInfo = periods[0]?.info || {};
+        apiPlayerInfo.set(steam64, {
+          username: String(rp?.info?.name || "Unknown"),
+          team_side: firstInfo.team === "away" ? "away" : "home",
+          position: firstInfo.position || null,
+        });
+      }
+    }
 
     // Find GKs for each side
     const homeGk = [...playerMap.entries()].find(
@@ -127,8 +246,8 @@ async function fetchShotsFromApi(
       if (seen.has(dedupKey)) continue;
       seen.add(dedupKey);
 
-      const shooterSteamId = String(shooterRaw);
-      const shooterInfo = playerMap.get(shooterSteamId);
+      const shooterSteamId = steamLookup.get(String(shooterRaw)) || String(shooterRaw);
+      const shooterInfo = playerMap.get(shooterSteamId) || apiPlayerInfo.get(shooterSteamId);
       if (!shooterInfo) continue;
 
       const normalized_x = normalizeFromField(Number(pos.x), Number(fieldMin.x), Number(fieldMax.x));
@@ -141,8 +260,8 @@ async function fetchShotsFromApi(
       let goalkeeper_steam_id: string | null = null;
       let goalkeeper_username: string | null = null;
       if (evtType === "SAVE" && evt.player1SteamId) {
-        goalkeeper_steam_id = String(evt.player1SteamId);
-        goalkeeper_username = playerMap.get(goalkeeper_steam_id)?.username || null;
+        goalkeeper_steam_id = steamLookup.get(String(evt.player1SteamId)) || String(evt.player1SteamId);
+        goalkeeper_username = playerMap.get(goalkeeper_steam_id)?.username || apiPlayerInfo.get(goalkeeper_steam_id)?.username || null;
       } else {
         // Use opposing team's GK
         const opposingGk = shooterInfo.team_side === "home" ? awayGk : homeGk;
@@ -155,8 +274,8 @@ async function fetchShotsFromApi(
       // Assist (only for goals)
       let assist_username: string | null = null;
       if (evtType === "GOAL" && evt.player2SteamId) {
-        const assistSteamId = String(evt.player2SteamId);
-        assist_username = playerMap.get(assistSteamId)?.username || null;
+        const assistSteamId = steamLookup.get(String(evt.player2SteamId)) || String(evt.player2SteamId);
+        assist_username = playerMap.get(assistSteamId)?.username || apiPlayerInfo.get(assistSteamId)?.username || null;
       }
 
       shots.push({
@@ -203,7 +322,7 @@ export default async function MatchPage({
   if (!match) return notFound();
 
   // Player stats for this match
-  const playerStats = await prisma.$queryRaw<MatchPlayer[]>`
+  let playerStats = await prisma.$queryRaw<MatchPlayer[]>`
     SELECT
       mps.player_steam_id,
       COALESCE(canonical.steam_id, p.steam_id) AS profile_steam_id,
@@ -263,6 +382,12 @@ export default async function MatchPage({
     ORDER BY mps.team_side ASC, mps.goals DESC, mps.assists DESC
   `;
 
+  let apiRaw: any | null = null;
+  if (playerStats.length === 0) {
+    apiRaw = await fetchMatchApiRaw(matchId);
+    if (apiRaw) playerStats = parsePlayerStatsFromApi(apiRaw);
+  }
+
   // Build player map for API shot resolution
   const playerMap = new Map<string, PlayerInfo>(
     playerStats.map((p) => [p.player_steam_id, {
@@ -273,7 +398,7 @@ export default async function MatchPage({
   );
 
   // Fetch shots directly from IOSoccer API
-  const shots = await fetchShotsFromApi(matchId, playerMap);
+  const shots = await fetchShotsFromApi(matchId, playerMap, apiRaw);
 
   const matchDate = new Date(match.date).toLocaleDateString("en-GB", {
     weekday: "short",
