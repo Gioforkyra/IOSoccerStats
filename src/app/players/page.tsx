@@ -363,7 +363,7 @@ export default async function PlayersPage({
                       {col.avg && <span className="text-[9px] text-chalk-500">AVERAGE</span>}
                     </span>
                     {sortKey === col.key && (
-                      <span className="text-chalk-300">
+                      <span className={dir === "DESC" ? "text-red-400" : "text-green-400"}>
                         {dir === "DESC" ? "\u2193" : "\u2191"}
                       </span>
                     )}

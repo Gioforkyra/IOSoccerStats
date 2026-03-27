@@ -49,6 +49,7 @@ export default async function PlayerLayout({
     WHERE tr.player_steam_id = ANY(${steamIds})
       AND tr.type = 'join'
       AND t.inactive = false
+      AND t.team_type = 1
       AND t.name NOT IN ('IOSoccer All', 'IOSoccer Overlap', 'IOSoccer Challenge', 'IOSoccer Premier')
       AND NOT EXISTS (
         SELECT 1 FROM transfers tr2

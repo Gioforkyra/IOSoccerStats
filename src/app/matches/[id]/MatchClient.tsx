@@ -803,7 +803,7 @@ function SortablePlayerTable({
           {team.label}
         </h2>
         <button onClick={() => setShowMore(!showMore)}
-          className="text-xs font-mono text-grass-500 hover:text-grass-400 transition-colors cursor-pointer">
+          className="text-xs font-mono text-[#F4119E] hover:text-[#F4119E]/70 transition-colors cursor-pointer">
           {showMore ? "SHOW FEWER STATS" : "SHOW MORE STATS"}
         </button>
       </div>
