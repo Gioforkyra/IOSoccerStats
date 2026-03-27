@@ -121,7 +121,7 @@ export default async function HomePage() {
               <HomeSearchPanel playersCount={playersCount} teamsCount={teamsCount} />
 
               {/* Database stats card */}
-              <div className="rounded-xl border border-chalk-100/8 bg-pitch-900/50 p-4">
+              <div className="rounded-xl border border-chalk-100/8 bg-pitch-900/50 p-4 hover:border-[#F4119E]/30 transition-colors">
                 <div className="text-[10px] font-mono uppercase tracking-[0.22em] text-chalk-400 mb-4">
                   Database
                 </div>
@@ -165,7 +165,7 @@ export default async function HomePage() {
             {/* Bottom row: Leaderboards, Recent Matches, Live Scores, Teams */}
             <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               {/* Leaderboards */}
-              <div className="rounded-xl border border-chalk-100/8 bg-pitch-900/50 p-4">
+              <div className="rounded-xl border border-chalk-100/8 bg-pitch-900/50 p-4 hover:border-[#F4119E]/30 transition-colors">
                 <div className="text-[10px] font-mono uppercase tracking-[0.22em] text-chalk-400 mb-3">
                   Leaderboards
                 </div>
@@ -202,7 +202,7 @@ export default async function HomePage() {
               </div>
 
               {/* Recent Matches */}
-              <div className="rounded-xl border border-chalk-100/8 bg-pitch-900/50 p-4">
+              <div className="rounded-xl border border-chalk-100/8 bg-pitch-900/50 p-4 hover:border-[#F4119E]/30 transition-colors">
                 <div className="text-[10px] font-mono uppercase tracking-[0.22em] text-chalk-400 mb-3">
                   Recent Matches
                 </div>

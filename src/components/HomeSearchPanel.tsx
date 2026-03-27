@@ -82,7 +82,7 @@ export default function HomeSearchPanel({
   return (
     <div
       ref={panelRef}
-      className="relative rounded-xl border border-chalk-100/8 bg-pitch-900/50 p-6"
+      className="relative rounded-xl border border-chalk-100/8 bg-pitch-900/50 p-6 hover:border-[#F4119E]/30 transition-colors"
     >
       <div className="text-[10px] font-mono uppercase tracking-[0.22em] text-chalk-400">
         Search
