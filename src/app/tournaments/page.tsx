@@ -1,25 +1,16 @@
-import { prisma } from "@/lib/prisma";
 import Link from "next/link";
-import { proxyImg } from "@/lib/img";
+import { getPastTournaments, getCurrentTournaments, badgeSmallUrl, type ApiTournament } from "@/lib/iosoccer-api";
 
-type TournamentRow = {
-  id: number;
-  name: string;
-  type: string;
-  region: string | null;
-  start_date: Date | null;
-  end_date: Date | null;
-  status: string;
-  organisation: string | null;
-  tournament_format: string | null;
-  team_type_id: number | null;
-  match_format: number | null;
-  winning_team_id: number | null;
-  winner_name: string | null;
-  winner_logo: string | null;
-  winner_color: string | null;
-  team_count: bigint;
-  match_count: bigint;
+const TEAM_TYPES: Record<number, string> = { 1: "Club", 2: "National", 3: "Mix", 4: "Draft" };
+const FORMAT_LABELS: Record<number, string> = {
+  1: "League",
+  2: "Knockout",
+  3: "Group + Knockout",
+  4: "Custom",
+  5: "Swiss",
+  6: "Round Robin",
+  7: "Double Elimination",
+  8: "League",
 };
 
 export default async function TournamentsPage({
@@ -30,47 +21,32 @@ export default async function TournamentsPage({
   const params = await searchParams;
   const statusFilter = params.status || "all";
 
-  const tournaments = await prisma.$queryRaw<TournamentRow[]>`
-    SELECT
-      t.id,
-      t.name,
-      t.type,
-      t.region,
-      t.start_date,
-      t.end_date,
-      t.status,
-      t.organisation,
-      t.tournament_format,
-      t.team_type_id,
-      t.match_format,
-      t.winning_team_id,
-      wt.name AS winner_name,
-      wt.logo AS winner_logo,
-      wt.color AS winner_color,
-      (SELECT COUNT(*) FROM tournament_standings ts2 WHERE ts2.tournament_id = t.id) AS team_count,
-      (SELECT COUNT(*) FROM matches m WHERE m.tournament_id = t.id) AS match_count
-    FROM tournaments t
-    LEFT JOIN teams wt ON wt.id = t.winning_team_id
-    ORDER BY
-      CASE WHEN t.status = 'active' THEN 0 ELSE 1 END,
-      t.start_date DESC NULLS LAST
-  `;
+  const [current, past] = await Promise.all([
+    getCurrentTournaments(),
+    getPastTournaments(),
+  ]);
 
-  const active = tournaments.filter((t) => t.status === "active");
-  const completed = tournaments.filter((t) => t.status === "completed");
-  const display = statusFilter === "active" ? active : statusFilter === "completed" ? completed : tournaments;
+  const all: (ApiTournament & { _active: boolean })[] = [
+    ...current.map((t) => ({ ...t, _active: true })),
+    ...past.map((t) => ({ ...t, _active: false })),
+  ];
+
+  // Sort: active first, then by start date descending
+  all.sort((a, b) => {
+    if (a._active !== b._active) return a._active ? -1 : 1;
+    const da = a.startDate ? new Date(a.startDate).getTime() : 0;
+    const db = b.startDate ? new Date(b.startDate).getTime() : 0;
+    return db - da;
+  });
+
+  const display =
+    statusFilter === "active" ? all.filter((t) => t._active) :
+    statusFilter === "completed" ? all.filter((t) => !t._active) :
+    all;
 
   function filterUrl(status: string) {
     return status === "all" ? "/tournaments" : `/tournaments?status=${status}`;
   }
-
-  const TEAM_TYPES: Record<number, string> = { 1: "Club", 2: "National", 3: "Mix", 4: "Draft" };
-  const FORMAT_LABELS: Record<string, string> = {
-    league: "League",
-    knockout: "Knockout",
-    group_knockout: "Group + Knockout",
-    custom: "Custom",
-  };
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
@@ -80,7 +56,7 @@ export default async function TournamentsPage({
             TOURNAMENTS
           </h1>
           <p className="text-chalk-400 text-sm font-body mt-1">
-            {active.length} active · {completed.length} completed
+            {current.length} active · {past.length} completed
           </p>
         </div>
       </div>
@@ -113,15 +89,16 @@ export default async function TournamentsPage({
       ) : (
         <div className="space-y-3">
           {display.map((t) => {
-            const teams = Number(t.team_count);
-            const matches = Number(t.match_count);
-            const isActive = t.status === "active";
-            const startStr = t.start_date
-              ? new Date(t.start_date).toLocaleDateString("en-GB", { month: "short", year: "numeric" })
+            const isActive = t._active;
+            const startStr = t.startDate
+              ? new Date(t.startDate).toLocaleDateString("en-GB", { month: "short", year: "numeric" })
               : "?";
-            const endStr = t.end_date
-              ? new Date(t.end_date).toLocaleDateString("en-GB", { month: "short", year: "numeric" })
+            const endStr = t.endDate
+              ? new Date(t.endDate).toLocaleDateString("en-GB", { month: "short", year: "numeric" })
               : isActive ? "Ongoing" : "?";
+
+            const winnerLogo = badgeSmallUrl(t.winningTeam?.badgeImage ?? null);
+            const org = t.tournamentSeries?.organisation?.acronym ?? null;
 
             return (
               <div
@@ -129,10 +106,9 @@ export default async function TournamentsPage({
                 className="bg-pitch-900/40 border border-chalk-100/8 rounded-lg p-5 hover:border-[#F4119E]/20 transition-colors"
               >
                 <div className="flex items-center gap-3 mb-1 flex-wrap">
-                  {/* Winner logo as icon, or emoji fallback */}
-                  {t.winner_logo ? (
-                    <Link href={`/teams/${t.winning_team_id}`} className="shrink-0">
-                      <img src={proxyImg(t.winner_logo)!} alt="" className="w-8 h-8 object-contain" />
+                  {winnerLogo ? (
+                    <Link href={`/teams/${t.winningTeamId}`} className="shrink-0">
+                      <img src={winnerLogo} alt="" className="w-8 h-8 object-contain" />
                     </Link>
                   ) : (
                     <span className="text-lg shrink-0">
@@ -142,13 +118,13 @@ export default async function TournamentsPage({
                   <h3 className="font-display font-700 text-lg text-chalk-100">
                     {t.name}
                   </h3>
-                  {t.winner_name && (
+                  {t.winningTeam?.name && (
                     <Link
-                      href={`/teams/${t.winning_team_id}`}
+                      href={`/teams/${t.winningTeamId}`}
                       className="flex items-center gap-1.5 hover:opacity-80 transition-opacity"
                     >
                       <span className="text-[10px] font-mono text-[#F4119E] uppercase tracking-wider">{"\u{1F3C6}"}</span>
-                      <span className="font-display font-700 text-sm text-[#F4119E]">{t.winner_name}</span>
+                      <span className="font-display font-700 text-sm text-[#F4119E]">{t.winningTeam.name}</span>
                     </Link>
                   )}
                   {isActive && (
@@ -156,24 +132,21 @@ export default async function TournamentsPage({
                       ACTIVE
                     </span>
                   )}
-                  {t.organisation && (
+                  {org && (
                     <span className="text-[10px] font-mono bg-[#F4119E]/15 text-[#F4119E] px-2 py-0.5 rounded">
-                      {t.organisation}
+                      {org}
                     </span>
                   )}
                 </div>
 
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-mono text-chalk-400 ml-0">
                   <span>{startStr} — {endStr}</span>
-                  {t.tournament_format && (
-                    <span>{FORMAT_LABELS[t.tournament_format] || t.tournament_format}</span>
+                  {t.format > 0 && (
+                    <span>{FORMAT_LABELS[t.format] || `Format ${t.format}`}</span>
                   )}
-                  {t.team_type_id && (
-                    <span>{TEAM_TYPES[t.team_type_id] || "Unknown"}</span>
+                  {t.teamType > 0 && (
+                    <span>{TEAM_TYPES[t.teamType] || "Unknown"}</span>
                   )}
-                  {t.match_format && <span>{t.match_format}v{t.match_format}</span>}
-                  <span>{teams} teams</span>
-                  <span>{matches} matches</span>
                 </div>
               </div>
             );

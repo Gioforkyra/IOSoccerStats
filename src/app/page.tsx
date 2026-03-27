@@ -1,16 +1,15 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
-import { proxyImg } from "@/lib/img";
 import HomeSearchPanel from "@/components/HomeSearchPanel";
+import {
+  getMatches,
+  getActiveTeams,
+  getPastTournaments,
+  getCurrentTournaments,
+  getPlayers,
+  badgeSmallUrl,
+} from "@/lib/iosoccer-api";
 
-const HIDDEN_TEAMS = [
-  "IOSoccer All",
-  "IOSoccer Overlap",
-  "IOSoccer Challenge",
-  "IOSoccer Premier",
-];
-
-function formatMatchTime(date: Date) {
+function formatMatchTime(date: string) {
   return new Intl.DateTimeFormat("en-GB", {
     day: "2-digit",
     month: "short",
@@ -21,73 +20,24 @@ function formatMatchTime(date: Date) {
 
 export default async function HomePage() {
   const [
-    playersCount,
-    matchesCount,
-    teamsCount,
-    tournamentsCount,
-    ratingAggregate,
-    featuredPlayers,
-    recentMatches,
+    matchData,
+    playerData,
+    activeTeams,
+    pastTournaments,
+    currentTournaments,
   ] = await Promise.all([
-    prisma.player.count(),
-    prisma.match.count(),
-    prisma.team.count({
-      where: {
-        name: {
-          notIn: HIDDEN_TEAMS,
-        },
-      },
-    }),
-    prisma.tournament.count(),
-    prisma.player.aggregate({
-      _avg: { rating: true },
-      where: {
-        rating: {
-          not: null,
-        },
-      },
-    }),
-    prisma.player.findMany({
-      where: {
-        rating: {
-          not: null,
-        },
-      },
-      orderBy: [{ rating: "desc" }, { updatedAt: "desc" }],
-      take: 4,
-      select: {
-        steamId: true,
-        username: true,
-        rating: true,
-        position: true,
-      },
-    }),
-    prisma.match.findMany({
-      orderBy: [{ date: "desc" }, { id: "desc" }],
-      take: 4,
-      select: {
-        id: true,
-        date: true,
-        map: true,
-        homeScore: true,
-        awayScore: true,
-        homeTeam: {
-          select: {
-            name: true,
-            logo: true,
-          },
-        },
-        awayTeam: {
-          select: {
-            name: true,
-            logo: true,
-          },
-        },
-      },
-    }),
+    getMatches({ page: 1, pageSize: 4, matchType: 1 }),
+    getPlayers({ page: 1, pageSize: 1 }),
+    getActiveTeams(1, 1),
+    getPastTournaments(),
+    getCurrentTournaments(),
   ]);
 
-  const avgRating = ratingAggregate._avg.rating ?? 0;
+  const matchesCount = matchData.totalItems;
+  const playersCount = playerData.totalItems;
+  const teamsCount = activeTeams.length;
+  const tournamentsCount = pastTournaments.length + currentTournaments.length;
+  const recentMatches = matchData.items;
 
   return (
     <div className="min-h-screen relative overflow-hidden bg-pitch-950">
@@ -135,11 +85,11 @@ export default async function HomePage() {
                     </div>
                   </div>
                   <div>
-                    <div className="font-display text-2xl font-800 pink-gradient-text inline-block">
-                      {avgRating.toFixed(2)}
+                    <div className="font-display text-2xl font-800 text-chalk-100">
+                      {teamsCount.toLocaleString("en-GB")}
                     </div>
                     <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-chalk-400">
-                      Avg Rating
+                      Active Teams
                     </div>
                   </div>
                   <div>
@@ -164,40 +114,41 @@ export default async function HomePage() {
 
             {/* Bottom row: Leaderboards, Recent Matches, Live Scores, Teams */}
             <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              {/* Leaderboards */}
+              {/* Active Tournaments */}
               <div className="rounded-xl border border-chalk-100/8 bg-pitch-900/50 p-4 hover:border-[#F4119E]/30 transition-colors">
                 <div className="text-[10px] font-mono uppercase tracking-[0.22em] text-chalk-400 mb-3">
-                  Leaderboards
+                  Active Tournaments
                 </div>
                 <div className="space-y-1.5">
-                  {featuredPlayers.map((player, index) => (
+                  {currentTournaments.slice(0, 4).map((t) => (
                     <Link
-                      key={player.steamId}
-                      href={`/players/${player.steamId}`}
+                      key={t.id}
+                      href="/tournaments?status=active"
                       className="flex items-center gap-2.5 rounded-md bg-pitch-800/40 px-2.5 py-2 pink-hover"
                     >
-                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#F4119E]/15 text-[#F4119E] text-[11px] font-display font-700">
-                        {index + 1}
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-grass-500/15 text-grass-400 text-[11px]">
+                        ⚽
                       </span>
                       <div className="min-w-0 flex-1">
                         <div className="truncate font-body text-sm text-chalk-100">
-                          {player.username}
+                          {t.name}
                         </div>
                         <div className="text-[10px] font-mono text-chalk-400">
-                          {player.position || "Player"}
+                          {t.tournamentSeries?.organisation?.acronym || "Tournament"}
                         </div>
                       </div>
-                      <span className="text-xs font-mono text-[#F4119E]">
-                        {player.rating?.toFixed(1)}
-                      </span>
+                      <span className="text-[10px] font-mono text-grass-400">LIVE</span>
                     </Link>
                   ))}
+                  {currentTournaments.length === 0 && (
+                    <div className="text-xs text-chalk-400 font-mono py-2">No active tournaments</div>
+                  )}
                 </div>
                 <Link
-                  href="/players?sort=rating"
+                  href="/tournaments"
                   className="mt-3 inline-block text-xs font-mono text-[#F4119E] hover:text-[#F4119E]/70 transition-colors"
                 >
-                  View Rankings {"->"}
+                  All Tournaments {"->"}
                 </Link>
               </div>
 
@@ -208,8 +159,8 @@ export default async function HomePage() {
                 </div>
                 <div className="space-y-1.5">
                   {recentMatches.map((match) => {
-                    const homeLogo = proxyImg(match.homeTeam.logo);
-                    const awayLogo = proxyImg(match.awayTeam.logo);
+                    const homeLogo = badgeSmallUrl(match.teamHome.badgeImage);
+                    const awayLogo = badgeSmallUrl(match.teamAway.badgeImage);
                     return (
                       <Link
                         key={match.id}
@@ -217,12 +168,11 @@ export default async function HomePage() {
                         className="block rounded-md bg-pitch-800/40 px-2.5 py-2 pink-hover"
                       >
                         <div className="text-[10px] font-mono text-chalk-400 mb-1">
-                          {formatMatchTime(match.date)}
-                          {match.map ? ` · ${match.map}` : ""}
+                          {formatMatchTime(match.kickOff)}
                         </div>
                         <div className="flex items-center gap-1.5">
                           <span className="truncate text-xs font-body text-chalk-100">
-                            {match.homeTeam.name}
+                            {match.teamHome.name}
                           </span>
                           {homeLogo ? (
                             <img src={homeLogo} alt="" className="h-4 w-4 shrink-0 object-contain" />
@@ -230,7 +180,7 @@ export default async function HomePage() {
                             <div className="h-4 w-4 shrink-0 rounded-full bg-pitch-700" />
                           )}
                           <span className="font-display text-sm font-700 text-chalk-100 mx-0.5">
-                            {match.homeScore}-{match.awayScore}
+                            {match.matchStatistics?.matchGoalsHome ?? "?"}-{match.matchStatistics?.matchGoalsAway ?? "?"}
                           </span>
                           {awayLogo ? (
                             <img src={awayLogo} alt="" className="h-4 w-4 shrink-0 object-contain" />
@@ -238,7 +188,7 @@ export default async function HomePage() {
                             <div className="h-4 w-4 shrink-0 rounded-full bg-pitch-700" />
                           )}
                           <span className="truncate text-xs font-body text-chalk-100">
-                            {match.awayTeam.name}
+                            {match.teamAway.name}
                           </span>
                         </div>
                       </Link>

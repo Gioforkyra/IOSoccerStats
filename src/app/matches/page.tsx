@@ -1,29 +1,7 @@
-import { prisma } from "@/lib/prisma";
 import Link from "next/link";
-import { proxyImg } from "@/lib/img";
-import SyncMatches from "@/components/SyncMatches";
+import { getMatches, badgeSmallUrl } from "@/lib/iosoccer-api";
 
-export const dynamic = "force-dynamic";
-
-const PAGE_SIZE = 10;
-
-type MatchRow = {
-  id: number;
-  date: Date;
-  home_team_id: number;
-  away_team_id: number;
-  home_score: number;
-  away_score: number;
-  match_type: string;
-  map: string | null;
-  server: string | null;
-  potm: string | null;
-  potm_steam_id: string | null;
-  home_name: string;
-  away_name: string;
-  home_logo: string | null;
-  away_logo: string | null;
-};
+const PAGE_SIZE = 15;
 
 const SERVER_FLAGS: Record<string, string> = {
   fr: "\u{1F1EB}\u{1F1F7}", de: "\u{1F1E9}\u{1F1EA}", uk: "\u{1F1EC}\u{1F1E7}", gb: "\u{1F1EC}\u{1F1E7}",
@@ -37,10 +15,9 @@ function getServerFlag(server: string | null): string {
   if (!server) return "-";
   const lower = server.toLowerCase();
 
-  // City / region-first parsing (most reliable with IOSoccer naming)
-  if (lower.includes("| paris |") || lower.includes(" paris ")) return "\u{1F1EB}\u{1F1F7}"; // FR
-  if (lower.includes("| amsterdam |") || lower.includes("| ams |") || lower.includes(" amsterdam ")) return "\u{1F1F3}\u{1F1F1}"; // NL
-  if (lower.includes("| de |") || lower.includes(" germany ") || lower.includes(" deutschland ") || lower.includes(" frankfurt ")) return "\u{1F1E9}\u{1F1EA}"; // DE
+  if (lower.includes("| paris |") || lower.includes(" paris ")) return "\u{1F1EB}\u{1F1F7}";
+  if (lower.includes("| amsterdam |") || lower.includes("| ams |") || lower.includes(" amsterdam ")) return "\u{1F1F3}\u{1F1F1}";
+  if (lower.includes("| de |") || lower.includes(" germany ") || lower.includes(" deutschland ") || lower.includes(" frankfurt ")) return "\u{1F1E9}\u{1F1EA}";
 
   if (lower.includes("sudamerica") || lower.includes("south america")) return "\u{1F30E}";
   if (lower.includes("europe")) return "\u{1F1EA}\u{1F1FA}";
@@ -62,66 +39,25 @@ function getServerFlag(server: string | null): string {
 export default async function MatchesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; region?: string }>;
+  searchParams: Promise<{ page?: string; type?: string; region?: string }>;
 }) {
   const params = await searchParams;
   const page = Math.max(1, parseInt(params.page || "1", 10));
-  const region = ["all", "eu", "am"].includes((params.region || "eu").toLowerCase())
-    ? (params.region || "eu").toLowerCase()
-    : "eu";
-  const offset = (page - 1) * PAGE_SIZE;
+  const matchTypeFilter = params.type || "all";
+  const regionFilter = params.region || "eu";
 
-  const regionPatterns =
-    region === "eu"
-      ? [
-          "%[fr]%", "%[de]%", "%[uk]%", "%[gb]%", "%[es]%", "%[it]%", "%[nl]%", "%[pl]%",
-          "%[ru]%", "%[se]%", "%[no]%", "%[fi]%", "%[pt]%", "%[eu]%", "%[eu/%", "%/eu]%", "%/nl]%",
-          "%france%", "%germany%", "%italy%", "%spain%", "%europe%",
-          "%amsterdam%", "%ams%", "%paris%", "%london%", "%netherlands%", "%dutch%",
-        ]
-      : region === "am"
-        ? [
-            "%[us]%", "%[br]%", "%[ar]%", "%[mx]%", "%[cl]%", "%[co]%", "%[pe]%", "%[sa]%",
-            "%usa%", "%brazil%", "%argentina%", "%mexico%", "%sudamerica%", "%south america%",
-          ]
-        : null;
+  const matchType = matchTypeFilter === "all" ? undefined : matchTypeFilter === "comp" ? 2 : 1;
+  const regionId = regionFilter === "all" ? undefined : regionFilter === "am" ? 2 : 1;
 
-  const matches = await prisma.$queryRaw<MatchRow[]>`
-    SELECT
-      m.id,
-      m.date,
-      m.home_team_id,
-      m.away_team_id,
-      m.home_score,
-      m.away_score,
-      m.match_type,
-      m.map,
-      m.server,
-      m.potm,
-      (SELECT p.steam_id FROM players p WHERE LOWER(p.username) = LOWER(m.potm) LIMIT 1) AS potm_steam_id,
-      ht.name AS home_name,
-      at.name AS away_name,
-      ht.logo AS home_logo,
-      at.logo AS away_logo
-    FROM matches m
-    JOIN teams ht ON ht.id = m.home_team_id
-    JOIN teams at ON at.id = m.away_team_id
-    WHERE (${region} = 'all' OR LOWER(COALESCE(m.server, '')) LIKE ANY(${regionPatterns || ["%"]}))
-    ORDER BY m.date DESC, m.id DESC
-    LIMIT ${PAGE_SIZE} OFFSET ${offset}
-  `;
+  const data = await getMatches({ page, pageSize: PAGE_SIZE, matchType, regionId });
+  const matches = data.items;
+  const totalMatches = data.totalItems;
+  const totalPages = data.totalPages;
 
-  const countResult = await prisma.$queryRaw<{ total: bigint }[]>`
-    SELECT COUNT(*) AS total
-    FROM matches m
-    WHERE (${region} = 'all' OR LOWER(COALESCE(m.server, '')) LIKE ANY(${regionPatterns || ["%"]}))
-  `;
-  const totalMatches = Number(countResult[0]?.total || 0);
-  const totalPages = Math.max(1, Math.ceil(totalMatches / PAGE_SIZE));
-
-  function pageUrl(p: number, r = region) {
+  function pageUrl(p: number, t = matchTypeFilter, r = regionFilter) {
     const q = new URLSearchParams();
     if (p > 1) q.set("page", String(p));
+    if (t !== "all") q.set("type", t);
     if (r !== "eu") q.set("region", r);
     const qs = q.toString();
     return qs ? `/matches?${qs}` : "/matches";
@@ -129,7 +65,6 @@ export default async function MatchesPage({
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-      <SyncMatches />
       <div className="flex items-end justify-between mb-6">
         <div>
           <h1 className="font-display font-800 text-4xl tracking-tight text-chalk-100">
@@ -141,22 +76,42 @@ export default async function MatchesPage({
         </div>
       </div>
 
-      <div className="flex items-center gap-2 mb-4">
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
         {[
           { key: "eu", label: "EU" },
-          { key: "am", label: "AMERICA" },
+          { key: "am", label: "AM" },
           { key: "all", label: "ALL" },
         ].map((r) => (
           <Link
             key={r.key}
-            href={pageUrl(1, r.key)}
+            href={pageUrl(1, matchTypeFilter, r.key)}
             className={`h-8 px-3 rounded text-xs font-mono border transition-colors flex items-center ${
-              region === r.key
+              regionFilter === r.key
                 ? "bg-[#F4119E] text-white border-[#F4119E]"
                 : "text-chalk-400 border-chalk-100/10 hover:text-chalk-100 hover:border-chalk-100/30"
             }`}
           >
             {r.label}
+          </Link>
+        ))}
+
+        <div className="w-px h-6 bg-chalk-100/15 mx-1" />
+
+        {[
+          { key: "all", label: "ALL" },
+          { key: "comp", label: "COMP" },
+          { key: "friendly", label: "FRIENDLY" },
+        ].map((t) => (
+          <Link
+            key={t.key}
+            href={pageUrl(1, t.key, regionFilter)}
+            className={`h-8 px-3 rounded text-xs font-mono border transition-colors flex items-center ${
+              matchTypeFilter === t.key
+                ? "bg-[#F4119E] text-white border-[#F4119E]"
+                : "text-chalk-400 border-chalk-100/10 hover:text-chalk-100 hover:border-chalk-100/30"
+            }`}
+          >
+            {t.label}
           </Link>
         ))}
       </div>
@@ -171,9 +126,10 @@ export default async function MatchesPage({
         </div>
         <div className="divide-y divide-chalk-100/20">
           {matches.map((m, i) => {
-            const homeLogo = m.home_logo ? proxyImg(m.home_logo) : null;
-            const awayLogo = m.away_logo ? proxyImg(m.away_logo) : null;
-            const matchDate = new Date(m.date);
+            const homeLogo = badgeSmallUrl(m.teamHome.badgeImage);
+            const awayLogo = badgeSmallUrl(m.teamAway.badgeImage);
+            const matchDate = new Date(m.kickOff);
+            const isComp = m.matchType === 2;
 
             return (
               <div
@@ -201,43 +157,43 @@ export default async function MatchesPage({
                 </div>
 
                 <div className="relative z-10 font-body text-sm text-chalk-200 flex items-center gap-1.5 min-w-0 pointer-events-none">
-                  <Link href={`/teams/${m.home_team_id}`} className="relative z-10 flex items-center gap-1.5 hover:text-[#F4119E] transition-colors truncate pointer-events-auto">
+                  <Link href={`/teams/${m.teamHomeId}`} className="relative z-10 flex items-center gap-1.5 hover:text-[#F4119E] transition-colors truncate pointer-events-auto">
                     {homeLogo && (
                       <img src={homeLogo} alt="" className="w-5 h-5 object-contain inline-block shrink-0" />
                     )}
-                    <span className="truncate">{m.home_name}</span>
+                    <span className="truncate">{m.teamHome.name}</span>
                   </Link>
                   <span className="font-mono text-sm text-chalk-100 mx-2 whitespace-nowrap min-w-[54px] text-center">
-                    {m.home_score} - {m.away_score}
+                    {m.matchStatistics?.matchGoalsHome ?? "?"} - {m.matchStatistics?.matchGoalsAway ?? "?"}
                   </span>
-                  <Link href={`/teams/${m.away_team_id}`} className="relative z-10 flex items-center gap-1.5 hover:text-[#F4119E] transition-colors truncate pointer-events-auto">
+                  <Link href={`/teams/${m.teamAwayId}`} className="relative z-10 flex items-center gap-1.5 hover:text-[#F4119E] transition-colors truncate pointer-events-auto">
                     {awayLogo && (
                       <img src={awayLogo} alt="" className="w-5 h-5 object-contain inline-block shrink-0" />
                     )}
-                    <span className="truncate">{m.away_name}</span>
+                    <span className="truncate">{m.teamAway.name}</span>
                   </Link>
                 </div>
 
                 <div className="relative z-10 text-xs font-mono uppercase pointer-events-none">
-                  <span className={m.match_type === "competitive" ? "text-yellow-400" : "text-chalk-300"}>
-                    {m.match_type === "competitive" ? "comp" : "friendly"}
+                  <span className={isComp ? "text-yellow-400" : "text-chalk-300"}>
+                    {isComp ? "comp" : "friendly"}
                   </span>
                 </div>
 
                 <div className="relative z-20 text-xs font-body truncate">
-                  {m.potm ? (
-                    m.potm_steam_id ? (
-                      <Link href={`/players/${m.potm_steam_id}`} className="text-[#56a3ff] hover:text-[#F4119E] transition-colors">
-                        {m.potm}
+                  {m.playerOfTheMatch ? (
+                    m.playerOfTheMatch.steamID ? (
+                      <Link href={`/players/${m.playerOfTheMatch.steamID}`} className="text-[#56a3ff] hover:text-[#F4119E] transition-colors">
+                        {m.playerOfTheMatch.name}
                       </Link>
                     ) : (
-                      <span className="text-[#56a3ff]">{m.potm}</span>
+                      <span className="text-[#56a3ff]">{m.playerOfTheMatch.name}</span>
                     )
                   ) : "-"}
                 </div>
 
                 <div className="relative z-10 text-sm font-mono text-chalk-200 pointer-events-none">
-                  {getServerFlag(m.server)}
+                  {getServerFlag(m.server?.name ?? null)}
                 </div>
               </div>
             );

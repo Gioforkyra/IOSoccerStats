@@ -44,12 +44,21 @@ export type ApiTransfer = {
   joinDate: string | null;
 };
 
+export type ApiBadgeImage = {
+  smallUrl: string;
+  mediumUrl?: string;
+  largeUrl?: string;
+  originalUrl?: string;
+  extraSmallUrl?: string;
+};
+
 export type ApiTeamSummary = {
   id: number;
   name: string;
   teamType: number;
   color: string | null;
-  badgeImageId: string | null;
+  badgeImageId: number | null;
+  badgeImage: ApiBadgeImage | null;
   inactive: boolean;
 };
 
@@ -73,9 +82,12 @@ export type ApiTournament = {
   format: number;
   startDate: string | null;
   endDate: string | null;
+  hasStarted: boolean;
   hasEnded: boolean;
   winningTeamId: number | null;
+  winningTeam: { id: number; name: string; badgeImage: ApiBadgeImage | null; color: string | null } | null;
   tournamentSeries: {
+    name: string;
     organisation: { name: string; acronym: string } | null;
   } | null;
 };
@@ -84,8 +96,8 @@ export type ApiMatchListItem = {
   id: number;
   teamHomeId: number;
   teamAwayId: number;
-  teamHome: { name: string; badgeImage: string | null; color: string | null };
-  teamAway: { name: string; badgeImage: string | null; color: string | null };
+  teamHome: { name: string; badgeImage: ApiBadgeImage | null; color: string | null };
+  teamAway: { name: string; badgeImage: ApiBadgeImage | null; color: string | null };
   matchStatistics: {
     matchGoalsHome: number;
     matchGoalsAway: number;
@@ -157,6 +169,8 @@ export async function getMatches(opts: {
   page?: number;
   pageSize?: number;
   matchType?: number;
+  tournamentId?: number;
+  regionId?: number;
 }) {
   return apiFetch<Paginated<ApiMatchListItem>>("/match", {
     method: "POST",
@@ -168,6 +182,8 @@ export async function getMatches(opts: {
       filters: {
         includePast: true,
         ...(opts.matchType ? { matchType: opts.matchType } : {}),
+        ...(opts.tournamentId ? { tournamentId: opts.tournamentId } : {}),
+        ...(opts.regionId ? { regionId: opts.regionId } : {}),
       },
     }),
   });
@@ -189,8 +205,33 @@ export async function getCurrentTournaments() {
   return apiFetch<ApiTournament[]>("/tournaments/current");
 }
 
+export async function getTournamentDetail(id: number) {
+  return apiFetch<ApiTournament & Record<string, unknown>>(`/tournament/${id}`);
+}
+
 export async function getTournamentTeams(id: number) {
   return apiFetch<{ teamId?: number; id?: number }[]>(`/tournaments/${id}/teams`);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Single team detail                                                 */
+/* ------------------------------------------------------------------ */
+
+export type ApiTeamDetail = {
+  id: number;
+  name: string;
+  teamCode: string | null;
+  teamType: number;
+  regionId: number;
+  color: string | null;
+  inactive: boolean;
+  badgeImageId: number | null;
+  badgeImage: ApiBadgeImage | null;
+  form: number[] | null;
+};
+
+export async function getTeamDetail(id: number) {
+  return apiFetch<ApiTeamDetail>(`/team/${id}`);
 }
 
 /* ------------------------------------------------------------------ */
@@ -212,7 +253,17 @@ export async function getPlayers(opts: { page?: number; pageSize?: number }) {
 /*  Badge image URL helper                                             */
 /* ------------------------------------------------------------------ */
 
-export function badgeUrl(badgeImageId: string | null | undefined): string | null {
+/** Get a proxied badge URL from a badge image object or raw URL. */
+export function badgeSmallUrl(badge: ApiBadgeImage | null | undefined): string | null {
+  if (!badge?.smallUrl) return null;
+  return proxyBadge(badge.smallUrl);
+}
+
+function proxyBadge(url: string): string {
+  return `/api/img?url=${encodeURIComponent(url)}`;
+}
+
+export function badgeUrl(badgeImageId: string | number | null | undefined): string | null {
   if (!badgeImageId) return null;
-  return `/api/img?url=${encodeURIComponent(`https://www.iosoccer.com/img/badges/${badgeImageId}`)}`;
+  return `/api/img?url=${encodeURIComponent(`https://www.iosoccer.com/images/hub/${badgeImageId}_sm.png`)}`;
 }

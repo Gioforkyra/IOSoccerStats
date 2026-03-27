@@ -1,6 +1,4 @@
-import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
-import { proxyImg } from "@/lib/img";
 import MatchClient from "./MatchClient";
 
 export type MatchPlayer = {
@@ -316,96 +314,18 @@ export default async function MatchPage({
   const matchId = parseInt(id, 10);
   if (isNaN(matchId)) return notFound();
 
-  const match = await prisma.match.findUnique({
-    where: { id: matchId },
-    include: {
-      homeTeam: true,
-      awayTeam: true,
-    },
-  });
+  const apiRaw = await fetchMatchApiRaw(matchId);
+  if (!apiRaw) return notFound();
 
-  if (!match) return notFound();
+  // Extract match info from API
+  const homeTeamRaw = apiRaw.teamHome || {};
+  const awayTeamRaw = apiRaw.teamAway || {};
+  const stats = apiRaw.matchStatistics || {};
 
-  // Player stats for this match
-  let playerStats = await prisma.$queryRaw<MatchPlayer[]>`
-    SELECT
-      mps.player_steam_id,
-      COALESCE(canonical.steam_id, p.steam_id) AS profile_steam_id,
-      p.username,
-      mps.position,
-      mps.team_side,
-      mps.goals,
-      mps.assists,
-      mps.second_assists,
-      mps.shots,
-      mps.shots_on_target,
-      mps.passes,
-      mps.passes_completed,
-      mps.key_passes,
-      mps.chances_created,
-      mps.interceptions,
-      mps.saves,
-      mps.offsides,
-      mps.fouls,
-      mps.fouls_suffered,
-      mps.yellow_cards,
-      mps.red_cards,
-      mps.own_goals,
-      mps.goals_conceded,
-      mps.corners,
-      mps.throw_ins,
-      mps.free_kicks,
-      mps.goal_kicks,
-      mps.penalties,
-      mps.distance_run,
-      mps.possession
-    FROM match_player_stats mps
-    JOIN players p ON p.steam_id = mps.player_steam_id
-    LEFT JOIN LATERAL (
-      SELECT p2.steam_id
-      FROM players p2
-      LEFT JOIN LATERAL (
-        SELECT COUNT(DISTINCT mps2.match_id) AS apps
-        FROM match_player_stats mps2
-        WHERE mps2.player_steam_id = p2.steam_id
-      ) p2stats ON true
-      WHERE
-        (
-          p.iosoccer_id IS NOT NULL
-          AND p2.iosoccer_id = p.iosoccer_id
-        )
-        OR
-        (
-          p.iosoccer_id IS NULL
-          AND p2.iosoccer_id IS NOT NULL
-          AND LOWER(TRIM(p2.username)) = LOWER(TRIM(p.username))
-        )
-      ORDER BY COALESCE(p2stats.apps, 0) DESC, p2.steam_id
-      LIMIT 1
-    ) canonical ON true
-    WHERE mps.match_id = ${matchId}
-    ORDER BY mps.team_side ASC, mps.goals DESC, mps.assists DESC
-  `;
+  const homeScore = stats.matchGoalsHome ?? 0;
+  const awayScore = stats.matchGoalsAway ?? 0;
 
-  let apiRaw: any | null = null;
-  if (playerStats.length === 0) {
-    apiRaw = await fetchMatchApiRaw(matchId);
-    if (apiRaw) playerStats = parsePlayerStatsFromApi(apiRaw);
-  }
-
-  // Build player map for API shot resolution
-  const playerMap = new Map<string, PlayerInfo>(
-    playerStats.map((p) => [p.player_steam_id, {
-      username: p.username,
-      team_side: p.team_side,
-      position: p.position,
-    }])
-  );
-
-  // Fetch shots directly from IOSoccer API
-  const shots = await fetchShotsFromApi(matchId, playerMap, apiRaw);
-
-  const matchDate = new Date(match.date).toLocaleDateString("en-GB", {
+  const matchDate = new Date(apiRaw.kickOff || Date.now()).toLocaleDateString("en-GB", {
     weekday: "short",
     day: "2-digit",
     month: "short",
@@ -414,22 +334,54 @@ export default async function MatchPage({
     minute: "2-digit",
   });
 
-  // Proxy logos server-side
-  const homeLogoUrl = match.homeTeam.logo ? proxyImg(match.homeTeam.logo) : null;
-  const awayLogoUrl = match.awayTeam.logo ? proxyImg(match.awayTeam.logo) : null;
+  const homeBadge = homeTeamRaw.badgeImage?.smallUrl
+    ? `/api/img?url=${encodeURIComponent(homeTeamRaw.badgeImage.smallUrl)}`
+    : null;
+  const awayBadge = awayTeamRaw.badgeImage?.smallUrl
+    ? `/api/img?url=${encodeURIComponent(awayTeamRaw.badgeImage.smallUrl)}`
+    : null;
+
+  // Parse player stats from API
+  const playerStats = parsePlayerStatsFromApi(apiRaw);
+
+  // Build player map for shot resolution
+  const playerMap = new Map<string, PlayerInfo>(
+    playerStats.map((p) => [p.player_steam_id, {
+      username: p.username,
+      team_side: p.team_side,
+      position: p.position,
+    }])
+  );
+
+  // Fetch shots from API
+  const shots = await fetchShotsFromApi(matchId, playerMap, apiRaw);
+
+  // Determine server and POTM
+  const serverName: string | null = apiRaw.server?.name ?? null;
+  const potmName: string | null = apiRaw.playerOfTheMatch?.name ?? null;
 
   return (
     <MatchClient
       match={{
-        id: match.id,
+        id: matchId,
         date: matchDate,
-        map: match.map,
-        server: match.server,
-        potm: match.potm,
-        homeScore: match.homeScore,
-        awayScore: match.awayScore,
-        homeTeam: { id: match.homeTeamId, name: match.homeTeam.name, logo: homeLogoUrl, color: match.homeTeam.color },
-        awayTeam: { id: match.awayTeamId, name: match.awayTeam.name, logo: awayLogoUrl, color: match.awayTeam.color },
+        map: null,
+        server: serverName,
+        potm: potmName,
+        homeScore,
+        awayScore,
+        homeTeam: {
+          id: apiRaw.teamHomeId ?? 0,
+          name: homeTeamRaw.name ?? "Home",
+          logo: homeBadge,
+          color: homeTeamRaw.color ?? null,
+        },
+        awayTeam: {
+          id: apiRaw.teamAwayId ?? 0,
+          name: awayTeamRaw.name ?? "Away",
+          logo: awayBadge,
+          color: awayTeamRaw.color ?? null,
+        },
       }}
       playerStats={playerStats.map((p) => {
         const n: Record<string, unknown> = { ...p };

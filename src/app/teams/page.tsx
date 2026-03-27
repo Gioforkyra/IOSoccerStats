@@ -1,6 +1,5 @@
-import { prisma } from "@/lib/prisma";
 import Link from "next/link";
-import { proxyImg } from "@/lib/img";
+import { getActiveTeams, badgeUrl, type ApiTeamSummary } from "@/lib/iosoccer-api";
 
 const TEAM_TYPES = [
   { value: "1", label: "CLUB TEAMS" },
@@ -9,54 +8,27 @@ const TEAM_TYPES = [
   { value: "4", label: "DRAFT TEAMS" },
 ];
 
-type TeamCard = {
-  id: number;
-  name: string;
-  logo: string | null;
-  color: string | null;
-  inactive: boolean;
-  team_type: number | null;
-  total_matches: bigint;
-};
-
 export default async function TeamsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ type?: string; status?: string }>;
+  searchParams: Promise<{ type?: string }>;
 }) {
   const params = await searchParams;
-  const typeFilter = params.type || "1"; // default Club
-  const statusFilter = params.status || "current"; // current or past
+  const typeFilter = params.type || "1";
 
-  const isInactive = statusFilter === "past";
+  let teams: ApiTeamSummary[] = [];
+  try {
+    teams = await getActiveTeams(1, parseInt(typeFilter));
+  } catch {
+    // API might not have teams for this type
+  }
 
-  const teams = await prisma.$queryRaw<TeamCard[]>`
-    SELECT
-      t.id,
-      t.name,
-      t.logo,
-      t.color,
-      t.inactive,
-      t.team_type,
-      COUNT(DISTINCT m.id) AS total_matches
-    FROM teams t
-    LEFT JOIN matches m ON m.home_team_id = t.id OR m.away_team_id = t.id
-    WHERE t.region_id = 1
-      AND t.team_type = ${parseInt(typeFilter)}::int
-      AND t.inactive = ${isInactive}
-    GROUP BY t.id, t.name, t.logo, t.color, t.inactive, t.team_type
-    ORDER BY t.name ASC
-  `;
+  // Sort alphabetically
+  teams.sort((a, b) => a.name.localeCompare(b.name));
 
-  function filterUrl(key: string, value: string) {
+  function filterUrl(value: string) {
     const sp = new URLSearchParams();
-    if (key === "type") {
-      sp.set("type", value);
-      sp.set("status", statusFilter);
-    } else {
-      sp.set("type", typeFilter);
-      sp.set("status", value);
-    }
+    sp.set("type", value);
     return `/teams?${sp.toString()}`;
   }
 
@@ -71,7 +43,7 @@ export default async function TeamsPage({
             TEAMS
           </h1>
           <p className="text-chalk-400 text-sm font-body mt-1">
-            {teams.length} {currentTypeLabel.toLowerCase()} · {statusFilter === "current" ? "active" : "inactive"}
+            {teams.length} {currentTypeLabel.toLowerCase()} · active
           </p>
         </div>
 
@@ -81,7 +53,7 @@ export default async function TeamsPage({
             {TEAM_TYPES.map((t) => (
               <Link
                 key={t.value}
-                href={filterUrl("type", t.value)}
+                href={filterUrl(t.value)}
                 className={`px-3 py-1.5 rounded border transition-colors ${
                   typeFilter === t.value
                     ? "border-[#F4119E] text-[#F4119E] bg-[#F4119E]/10"
@@ -93,23 +65,6 @@ export default async function TeamsPage({
             ))}
           </div>
         </div>
-      </div>
-
-      {/* Current / Past toggle */}
-      <div className="flex items-center gap-3 mb-6">
-        {["current", "past"].map((s) => (
-          <Link
-            key={s}
-            href={filterUrl("status", s)}
-            className={`text-sm font-display font-700 tracking-wider uppercase transition-colors ${
-              statusFilter === s
-                ? "text-chalk-100 border-b-2 border-[#F4119E] pb-1"
-                : "text-chalk-400 hover:text-chalk-200 pb-1 border-b-2 border-transparent"
-            }`}
-          >
-            {s}
-          </Link>
-        ))}
       </div>
 
       {/* Team Cards Grid */}
@@ -124,7 +79,7 @@ export default async function TeamsPage({
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
           {teams.map((t) => {
             const bgColor = t.color || "#1a2d52";
-            const matches = Number(t.total_matches);
+            const logo = badgeUrl(t.badgeImageId);
 
             return (
               <Link
@@ -140,9 +95,9 @@ export default async function TeamsPage({
                   {/* Subtle gradient overlay for readability */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
 
-                  {t.logo ? (
+                  {logo ? (
                     <img
-                      src={proxyImg(t.logo)!}
+                      src={logo}
                       alt={t.name}
                       className="w-20 h-20 object-contain relative z-10 drop-shadow-lg group-hover:scale-110 transition-transform"
                     />
@@ -159,11 +114,6 @@ export default async function TeamsPage({
                 <div className="bg-pitch-900 p-3 text-center">
                   <div className="font-display font-700 text-sm text-chalk-100 uppercase tracking-wide truncate">
                     {t.name}
-                  </div>
-                  <div className="text-[10px] font-mono text-chalk-400 mt-1">
-                    {matches > 0
-                      ? `${matches} match${matches !== 1 ? "es" : ""}`
-                      : "No matches yet"}
                   </div>
                 </div>
               </Link>
