@@ -122,7 +122,7 @@ export default async function MatchesPage({
   function pageUrl(p: number, r = region) {
     const q = new URLSearchParams();
     if (p > 1) q.set("page", String(p));
-    if (r !== "all") q.set("region", r);
+    if (r !== "eu") q.set("region", r);
     const qs = q.toString();
     return qs ? `/matches?${qs}` : "/matches";
   }

@@ -4,11 +4,37 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState, useRef, useEffect, useCallback } from "react";
 import clsx from "clsx";
 
-const NAV = [
+type NavItem = {
+  label: string;
+  href: string;
+  live?: boolean;
+  exact?: boolean;
+  dropdown?: { label: string; href: string }[];
+};
+
+const NAV: NavItem[] = [
   { label: "Live", href: "/matches/live", live: true, exact: true },
   { label: "Matches", href: "/matches", exact: false },
-  { label: "Players", href: "/players", exact: false },
-  { label: "Teams", href: "/teams", exact: false },
+  {
+    label: "Players",
+    href: "/players",
+    exact: false,
+    dropdown: [
+      { label: "Statistics", href: "/players" },
+      { label: "Transfers", href: "/players/transfers" },
+      { label: "Head2Head", href: "/players/h2h" },
+    ],
+  },
+  {
+    label: "Teams",
+    href: "/teams",
+    exact: false,
+    dropdown: [
+      { label: "List", href: "/teams" },
+      { label: "Statistics", href: "/teams/statistics" },
+      { label: "Head2Head", href: "/teams/h2h" },
+    ],
+  },
   { label: "Tournaments", href: "/tournaments", exact: false },
 ];
 
@@ -19,7 +45,7 @@ type SearchResult = {
   extra: string | null;
 };
 
-function isActive(path: string, item: typeof NAV[number]): boolean {
+function isActive(path: string, item: NavItem): boolean {
   if (item.exact) return path === item.href;
   // For "/matches", don't match "/matches/live"
   if (item.href === "/matches") return path === "/matches" || (path.startsWith("/matches") && !path.startsWith("/matches/live"));
@@ -133,23 +159,58 @@ export default function Navbar() {
 
         {/* Desktop nav links */}
         <div className="relative z-10 hidden md:flex items-center gap-1">
-          {NAV.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={clsx(
-                "nav-link flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-body font-medium transition-colors",
-                isActive(path, item)
-                  ? "text-chalk-100 border border-[#F4119E]/40 bg-[#F4119E]/5"
-                  : "text-chalk-400 hover:text-chalk-100 border border-transparent"
-              )}
-            >
-              {item.live && (
-                <span className="live-dot w-1.5 h-1.5 rounded-full bg-grass-500 inline-block" />
-              )}
-              {item.label}
-            </Link>
-          ))}
+          {NAV.map((item) =>
+            item.dropdown ? (
+              <div key={item.href} className="relative group">
+                <Link
+                  href={item.href}
+                  className={clsx(
+                    "nav-link flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-body font-medium transition-colors",
+                    isActive(path, item)
+                      ? "text-chalk-100 border border-[#F4119E]/40 bg-[#F4119E]/5"
+                      : "text-chalk-400 hover:text-chalk-100 border border-transparent"
+                  )}
+                >
+                  {item.label}
+                  <svg className="w-3 h-3 ml-0.5 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                </Link>
+                <div className="absolute top-full left-0 pt-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150">
+                  <div className="min-w-[140px] bg-pitch-900 border border-chalk-100/10 rounded-lg shadow-xl overflow-hidden">
+                    {item.dropdown.map((sub) => (
+                      <Link
+                        key={sub.href}
+                        href={sub.href}
+                        className={clsx(
+                          "block px-4 py-2 text-sm font-body transition-colors",
+                          path === sub.href
+                            ? "text-chalk-100 bg-[#F4119E]/10"
+                            : "text-chalk-400 hover:text-chalk-100 hover:bg-pitch-700/50"
+                        )}
+                      >
+                        {sub.label}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={clsx(
+                  "nav-link flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-body font-medium transition-colors",
+                  isActive(path, item)
+                    ? "text-chalk-100 border border-[#F4119E]/40 bg-[#F4119E]/5"
+                    : "text-chalk-400 hover:text-chalk-100 border border-transparent"
+                )}
+              >
+                {item.live && (
+                  <span className="live-dot w-1.5 h-1.5 rounded-full bg-grass-500 inline-block" />
+                )}
+                {item.label}
+              </Link>
+            )
+          )}
         </div>
 
         {/* Right side */}
@@ -174,22 +235,42 @@ export default function Navbar() {
         <div className="md:hidden border-t border-chalk-100/5 bg-pitch-950/95 backdrop-blur-md">
           <div className="px-4 py-3 space-y-1">
             {NAV.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setOpen(false)}
-                className={clsx(
-                  "flex items-center gap-2 px-3 py-2.5 rounded text-sm font-body font-medium transition-colors",
-                  isActive(path, item)
-                    ? "text-chalk-100 bg-pitch-800"
-                    : "text-chalk-400 hover:text-chalk-100 hover:bg-pitch-800/50"
+              <div key={item.href}>
+                <Link
+                  href={item.href}
+                  onClick={() => setOpen(false)}
+                  className={clsx(
+                    "flex items-center gap-2 px-3 py-2.5 rounded text-sm font-body font-medium transition-colors",
+                    isActive(path, item)
+                      ? "text-chalk-100 bg-pitch-800"
+                      : "text-chalk-400 hover:text-chalk-100 hover:bg-pitch-800/50"
+                  )}
+                >
+                  {item.live && (
+                    <span className="live-dot w-1.5 h-1.5 rounded-full bg-grass-500 inline-block" />
+                  )}
+                  {item.label}
+                </Link>
+                {item.dropdown && (
+                  <div className="ml-6 mt-0.5 space-y-0.5">
+                    {item.dropdown.map((sub) => (
+                      <Link
+                        key={sub.href}
+                        href={sub.href}
+                        onClick={() => setOpen(false)}
+                        className={clsx(
+                          "block px-3 py-2 rounded text-sm font-body transition-colors",
+                          path === sub.href
+                            ? "text-chalk-100 bg-pitch-800/60"
+                            : "text-chalk-500 hover:text-chalk-100 hover:bg-pitch-800/30"
+                        )}
+                      >
+                        {sub.label}
+                      </Link>
+                    ))}
+                  </div>
                 )}
-              >
-                {item.live && (
-                  <span className="live-dot w-1.5 h-1.5 rounded-full bg-grass-500 inline-block" />
-                )}
-                {item.label}
-              </Link>
+              </div>
             ))}
             <div className="pt-2">
               {searchBox("sm:hidden")}
