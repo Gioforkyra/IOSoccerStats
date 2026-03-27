@@ -248,7 +248,10 @@ async function fetchShotsFromApi(
 
       const shooterSteamId = steamLookup.get(String(shooterRaw)) || String(shooterRaw);
       const shooterInfo = playerMap.get(shooterSteamId) || apiPlayerInfo.get(shooterSteamId);
-      if (!shooterInfo) continue;
+      if (!shooterInfo) {
+        console.warn(`[shots] no info for shooter raw=${shooterRaw} resolved=${shooterSteamId}, playerMap size=${playerMap.size}, apiPlayerInfo size=${apiPlayerInfo.size}`);
+        continue;
+      }
 
       const normalized_x = normalizeFromField(Number(pos.x), Number(fieldMin.x), Number(fieldMax.x));
       const normalized_y = normalizeFromField(Number(pos.y), Number(fieldMin.y), Number(fieldMax.y));
@@ -295,9 +298,11 @@ async function fetchShotsFromApi(
       });
     }
 
+    console.log(`[shots] matchId=${matchId}: ${shotEvents.length} shot events, ${shots.length} resolved shots, steamLookup size=${steamLookup.size}, playerMap size=${playerMap.size}, apiPlayerInfo size=${apiPlayerInfo.size}`);
     shots.sort((a, b) => (a.minute ?? 999) - (b.minute ?? 999));
     return shots;
-  } catch {
+  } catch (err) {
+    console.error(`[shots] error for match ${matchId}:`, err);
     return [];
   }
 }

@@ -66,9 +66,9 @@ export default async function MatchesPage({
 }) {
   const params = await searchParams;
   const page = Math.max(1, parseInt(params.page || "1", 10));
-  const region = ["all", "eu", "am"].includes((params.region || "all").toLowerCase())
-    ? (params.region || "all").toLowerCase()
-    : "all";
+  const region = ["all", "eu", "am"].includes((params.region || "eu").toLowerCase())
+    ? (params.region || "eu").toLowerCase()
+    : "eu";
   const offset = (page - 1) * PAGE_SIZE;
 
   const regionPatterns =
@@ -143,9 +143,9 @@ export default async function MatchesPage({
 
       <div className="flex items-center gap-2 mb-4">
         {[
-          { key: "all", label: "ALL" },
           { key: "eu", label: "EU" },
           { key: "am", label: "AMERICA" },
+          { key: "all", label: "ALL" },
         ].map((r) => (
           <Link
             key={r.key}
