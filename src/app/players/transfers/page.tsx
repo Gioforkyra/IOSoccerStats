@@ -1,4 +1,5 @@
-import { getTransfers } from "@/lib/iosoccer-api";
+import { getTransfers, getPlayerById } from "@/lib/iosoccer-api";
+import { fetchSteamAvatarCached } from "@/lib/steam-avatar";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -26,6 +27,21 @@ export default async function TransfersPage({
   const transfers = data.items;
   const totalTransfers = data.totalItems;
   const totalPages = Math.max(1, data.totalPages);
+
+  // Resolve steamIDs and avatars for player profile links (parallel)
+  const uniquePlayerIds = [...new Set(transfers.map((t) => t.playerId))];
+  const playerMap = new Map<number, { steamId: string; avatar: string | null }>();
+  await Promise.all(
+    uniquePlayerIds.map(async (pid) => {
+      try {
+        const p = await getPlayerById(pid);
+        if (p.steamID) {
+          const avatar = await fetchSteamAvatarCached(p.steamID);
+          playerMap.set(pid, { steamId: p.steamID, avatar });
+        }
+      } catch { /* skip if player not found */ }
+    })
+  );
 
   function pageUrl(p: number) {
     const sp = new URLSearchParams();
@@ -150,14 +166,35 @@ export default async function TransfersPage({
                 >
                   {/* Player */}
                   <td className="px-3 py-1.5">
-                    <span className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded bg-pitch-700 flex items-center justify-center text-[10px] font-display font-700 text-chalk-300 shrink-0">
-                        {t.playerName[0]?.toUpperCase() || "?"}
-                      </div>
-                      <span className="font-body font-medium text-chalk-100 truncate max-w-[120px]">
-                        {t.playerName}
-                      </span>
-                    </span>
+                    {(() => {
+                      const info = playerMap.get(t.playerId);
+                      const steamId = info?.steamId;
+                      const avatar = info?.avatar;
+                      const inner = (
+                        <span className="flex items-center gap-2">
+                          {avatar ? (
+                            <img src={avatar} alt="" className="w-6 h-6 rounded object-cover shrink-0" />
+                          ) : (
+                            <div className="w-6 h-6 rounded bg-pitch-700 flex items-center justify-center text-[10px] font-display font-700 text-chalk-300 shrink-0">
+                              {t.playerName[0]?.toUpperCase() || "?"}
+                            </div>
+                          )}
+                          <span className="font-body font-medium text-chalk-100 group-hover:text-[#F4119E] transition-colors truncate max-w-[120px]">
+                            {t.playerName}
+                          </span>
+                        </span>
+                      );
+                      return steamId ? (
+                        <Link
+                          href={`/players/${steamId}`}
+                          className="hover:text-[#F4119E] transition-colors"
+                        >
+                          {inner}
+                        </Link>
+                      ) : (
+                        inner
+                      );
+                    })()}
                   </td>
 
                   {/* Leave Date */}

@@ -249,6 +249,17 @@ export async function getPlayers(opts: { page?: number; pageSize?: number }) {
   });
 }
 
+export type ApiPlayerDetail = {
+  id: number;
+  steamID: string;
+  name: string;
+  rating: number | null;
+};
+
+export async function getPlayerById(id: number) {
+  return apiFetch<ApiPlayerDetail>(`/player/${id}`);
+}
+
 /* ------------------------------------------------------------------ */
 /*  Badge image URL helper                                             */
 /* ------------------------------------------------------------------ */

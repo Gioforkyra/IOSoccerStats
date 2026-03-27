@@ -115,3 +115,22 @@ export async function batchGetSteamAvatars(
 
   return result;
 }
+
+/**
+ * Fetch avatar URL directly from Steam XML profile (no DB).
+ * Relies on Next.js fetch cache (revalidate) for caching.
+ */
+export async function fetchSteamAvatarCached(steamId64: string): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://steamcommunity.com/profiles/${steamId64}?xml=1`,
+      { next: { revalidate: 86400 } } // cache 24h
+    );
+    if (!res.ok) return null;
+    const xml = await res.text();
+    const match = xml.match(/<avatarMedium><!\[CDATA\[(.*?)\]\]><\/avatarMedium>/);
+    return match?.[1] || null;
+  } catch {
+    return null;
+  }
+}
