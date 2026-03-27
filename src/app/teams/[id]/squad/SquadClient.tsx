@@ -84,7 +84,7 @@ export default function SquadClient({ squad }: { squad: SquadPlayer[] }) {
             {cols.map((col, ci) => (
               <th
                 key={ci}
-                className={`px-4 py-3 font-mono text-[11px] text-chalk-400 ${col.align} ${col.key ? "cursor-pointer hover:text-chalk-200 select-none transition-colors" : ""}`}
+                className={`px-4 py-1 font-mono text-[11px] text-chalk-400 ${col.align} ${col.key ? "cursor-pointer hover:text-chalk-200 select-none transition-colors" : ""}`}
                 onClick={col.key ? () => handleSort(col.key as SortKey) : undefined}
                 title={col.title}
               >
@@ -107,17 +107,17 @@ export default function SquadClient({ squad }: { squad: SquadPlayer[] }) {
             sorted.map((p, idx) => (
               <tr
                 key={p.steam_id}
-                className={`${idx % 2 === 0 ? "bg-pitch-600/15" : "bg-transparent"} pink-hover group`}
+                className={idx % 2 === 0 ? "bg-pitch-600/15" : "bg-transparent"}
               >
-                <td className="px-4 py-3">
+                <td className="px-4 py-1">
                   <Link
                     href={`/players/${p.steam_id}`}
-                    className="font-body text-chalk-100 group-hover:text-[#F4119E] transition-colors"
+                    className="font-body text-chalk-100 hover:text-[#F4119E] transition-colors"
                   >
                     {p.username}
                   </Link>
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-1">
                   {p.role != null && ROLE_LABELS[p.role] ? (
                     <span className={`text-xs font-mono font-medium ${ROLE_COLORS[p.role] || "text-chalk-400"}`}>
                       {ROLE_LABELS[p.role]}
@@ -126,7 +126,7 @@ export default function SquadClient({ squad }: { squad: SquadPlayer[] }) {
                     <span className="text-chalk-400/50 text-xs font-mono">-</span>
                   )}
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-1">
                   {p.position ? (
                     <span className="text-[10px] font-mono text-chalk-400 bg-pitch-800 px-1.5 py-0.5 rounded">
                       {p.position}
@@ -135,25 +135,25 @@ export default function SquadClient({ squad }: { squad: SquadPlayer[] }) {
                     <span className="text-chalk-400">-</span>
                   )}
                 </td>
-                <td className="px-4 py-3 text-right font-mono text-xs text-chalk-300">
+                <td className="px-4 py-1 text-right font-mono text-xs text-chalk-300">
                   {p.rating != null ? p.rating.toFixed(1) : "-"}
                 </td>
-                <td className="px-4 py-3 font-mono text-xs text-chalk-400">
+                <td className="px-4 py-1 font-mono text-xs text-chalk-400">
                   {p.join_date || "-"}
                 </td>
-                <td className="px-4 py-3 text-right font-mono text-chalk-300">
+                <td className="px-4 py-1 text-right font-mono text-chalk-300">
                   {p.apps.toLocaleString()}
                 </td>
-                <td className="px-4 py-3 text-right font-mono text-chalk-200 font-medium">
+                <td className="px-4 py-1 text-right font-mono text-chalk-200 font-medium">
                   {p.goals.toLocaleString()}
                 </td>
-                <td className="px-4 py-3 text-right font-mono text-chalk-300">
+                <td className="px-4 py-1 text-right font-mono text-chalk-300">
                   {p.assists.toLocaleString()}
                 </td>
-                <td className={`px-4 py-3 text-right font-mono text-xs ${p.yellow_cards > 0 ? "text-amber-400" : "text-chalk-400"}`}>
+                <td className={`px-4 py-1 text-right font-mono text-xs ${p.yellow_cards > 0 ? "text-amber-400" : "text-chalk-400"}`}>
                   {p.yellow_cards}
                 </td>
-                <td className={`px-4 py-3 text-right font-mono text-xs ${p.red_cards > 0 ? "text-red-400" : "text-chalk-400"}`}>
+                <td className={`px-4 py-1 text-right font-mono text-xs ${p.red_cards > 0 ? "text-red-400" : "text-chalk-400"}`}>
                   {p.red_cards}
                 </td>
               </tr>

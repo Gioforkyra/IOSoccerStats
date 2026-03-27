@@ -17,7 +17,7 @@ type PlayerCount = {
   total: bigint;
 };
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 15;
 
 export default async function TeamPlayerHistoryPage({
   params,
@@ -81,13 +81,13 @@ export default async function TeamPlayerHistoryPage({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-chalk-100/8">
-              <th className="text-left px-4 py-3 font-mono text-xs text-chalk-400">PLAYER</th>
-              <th className="text-left px-4 py-3 font-mono text-xs text-chalk-400">POS</th>
-              <th className="text-right px-4 py-3 font-mono text-xs text-chalk-400">APPS</th>
-              <th className="text-right px-4 py-3 font-mono text-xs text-chalk-400">GOALS</th>
-              <th className="text-right px-4 py-3 font-mono text-xs text-chalk-400">ASSISTS</th>
-              <th className="text-right px-4 py-3 font-mono text-xs text-chalk-400 hidden md:table-cell">FIRST</th>
-              <th className="text-right px-4 py-3 font-mono text-xs text-chalk-400 hidden md:table-cell">LAST</th>
+              <th className="text-left px-4 py-1.5 font-mono text-xs text-chalk-400">PLAYER</th>
+              <th className="text-left px-4 py-1.5 font-mono text-xs text-chalk-400">POS</th>
+              <th className="text-right px-4 py-1.5 font-mono text-xs text-chalk-400">APPS</th>
+              <th className="text-right px-4 py-1.5 font-mono text-xs text-chalk-400">GOALS</th>
+              <th className="text-right px-4 py-1.5 font-mono text-xs text-chalk-400">ASSISTS</th>
+              <th className="text-right px-4 py-1.5 font-mono text-xs text-chalk-400 hidden md:table-cell">FIRST</th>
+              <th className="text-right px-4 py-1.5 font-mono text-xs text-chalk-400 hidden md:table-cell">LAST</th>
             </tr>
           </thead>
           <tbody>
@@ -101,17 +101,17 @@ export default async function TeamPlayerHistoryPage({
               players.map((p, idx) => (
                 <tr
                   key={p.steam_id}
-                  className={`stat-row ${idx % 2 === 0 ? "bg-pitch-600/15" : "bg-transparent"}`}
+                  className={idx % 2 === 0 ? "bg-pitch-600/15" : "bg-transparent"}
                 >
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-1.5">
                     <Link
                       href={`/players/${p.steam_id}`}
-                      className="font-body text-chalk-100 hover:text-grass-400 transition-colors"
+                      className="font-body text-chalk-100 hover:text-[#F4119E] transition-colors"
                     >
                       {p.username}
                     </Link>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-1.5">
                     {p.position ? (
                       <span className="text-[10px] font-mono text-chalk-400 bg-pitch-800 px-1.5 py-0.5 rounded">
                         {p.position}
@@ -120,23 +120,23 @@ export default async function TeamPlayerHistoryPage({
                       <span className="text-chalk-400">-</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-right font-mono text-chalk-200 font-medium">
+                  <td className="px-4 py-1.5 text-right font-mono text-chalk-200 font-medium">
                     {Number(p.apps).toLocaleString()}
                   </td>
-                  <td className="px-4 py-3 text-right font-mono text-chalk-200">
+                  <td className="px-4 py-1.5 text-right font-mono text-chalk-200">
                     {Number(p.goals).toLocaleString()}
                   </td>
-                  <td className="px-4 py-3 text-right font-mono text-chalk-300">
+                  <td className="px-4 py-1.5 text-right font-mono text-chalk-300">
                     {Number(p.assists).toLocaleString()}
                   </td>
-                  <td className="px-4 py-3 text-right font-mono text-chalk-400 text-xs hidden md:table-cell">
+                  <td className="px-4 py-1.5 text-right font-mono text-chalk-400 text-xs hidden md:table-cell">
                     {new Date(p.first_match).toLocaleDateString("en-GB", {
                       day: "2-digit",
                       month: "short",
                       year: "numeric",
                     })}
                   </td>
-                  <td className="px-4 py-3 text-right font-mono text-chalk-400 text-xs hidden md:table-cell">
+                  <td className="px-4 py-1.5 text-right font-mono text-chalk-400 text-xs hidden md:table-cell">
                     {new Date(p.last_match).toLocaleDateString("en-GB", {
                       day: "2-digit",
                       month: "short",
