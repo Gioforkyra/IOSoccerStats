@@ -4,6 +4,8 @@ import { getActiveTeams, badgeUrl } from "@/lib/iosoccer-api";
 import { proxyImg } from "@/lib/img";
 import { H2HPicker } from "./H2HPicker";
 import { H2HStatSlider, type StatPage } from "./H2HStatSlider";
+import { Prisma } from "@/generated/prisma/client";
+import { MatchFilterDropdown } from "@/components/MatchFilterDropdown";
 
 export const dynamic = "force-dynamic";
 
@@ -94,9 +96,9 @@ type TeamRow = {
 export default async function H2HPage({
   searchParams,
 }: {
-  searchParams: Promise<{ team1?: string; team2?: string; page?: string }>;
+  searchParams: Promise<{ team1?: string; team2?: string; page?: string; filter?: string }>;
 }) {
-  const { team1: t1Param, team2: t2Param, page: pageParam } = await searchParams;
+  const { team1: t1Param, team2: t2Param, page: pageParam, filter: filterParam } = await searchParams;
   const team1Id = t1Param ? parseInt(t1Param, 10) : null;
   const team2Id = t2Param ? parseInt(t2Param, 10) : null;
 
@@ -150,6 +152,9 @@ export default async function H2HPage({
   // ── H2H RESULTS VIEW ───────────────────────────────────────────────
   const currentPage = Math.max(1, parseInt(pageParam || "1", 10) || 1);
   const offset = (currentPage - 1) * PAGE_SIZE;
+  const filter = filterParam === "friendly" || filterParam === "competitive" ? filterParam : "all";
+  const typeFilter = filter === "competitive" ? Prisma.sql`AND match_type = 'competitive'` : filter === "friendly" ? Prisma.sql`AND match_type = 'friendly'` : Prisma.empty;
+  const typeFilterM = filter === "competitive" ? Prisma.sql`AND m.match_type = 'competitive'` : filter === "friendly" ? Prisma.sql`AND m.match_type = 'friendly'` : Prisma.empty;
 
   // Load team info from DB
   const [team1Row] = await prisma.$queryRaw<[TeamRow]>`
@@ -174,8 +179,9 @@ export default async function H2HPage({
   // Match count
   const [{ total: totalRaw }] = await prisma.$queryRaw<[{ total: bigint }]>`
     SELECT COUNT(*) AS total FROM matches
-    WHERE (home_team_id = ${team1Id} AND away_team_id = ${team2Id})
-       OR (home_team_id = ${team2Id} AND away_team_id = ${team1Id})
+    WHERE ((home_team_id = ${team1Id} AND away_team_id = ${team2Id})
+       OR (home_team_id = ${team2Id} AND away_team_id = ${team1Id}))
+      ${typeFilter}
   `;
   const totalMatches = Number(totalRaw);
   const totalPages = Math.ceil(totalMatches / PAGE_SIZE);
@@ -191,8 +197,9 @@ export default async function H2HPage({
       SUM(CASE WHEN home_team_id = ${team1Id} THEN home_score ELSE away_score END) AS team1_goals,
       SUM(CASE WHEN home_team_id = ${team2Id} THEN home_score ELSE away_score END) AS team2_goals
     FROM matches
-    WHERE (home_team_id = ${team1Id} AND away_team_id = ${team2Id})
-       OR (home_team_id = ${team2Id} AND away_team_id = ${team1Id})
+    WHERE ((home_team_id = ${team1Id} AND away_team_id = ${team2Id})
+       OR (home_team_id = ${team2Id} AND away_team_id = ${team1Id}))
+      ${typeFilter}
   `;
 
   // H2H player stats averages (per match, normalised)
@@ -222,8 +229,9 @@ export default async function H2HPage({
         SUM(CASE WHEN mps.team_side = 'away' THEN mps.red_cards ELSE 0 END) AS away_rc
       FROM matches m
       JOIN match_player_stats mps ON mps.match_id = m.id
-      WHERE (m.home_team_id = ${team1Id} AND m.away_team_id = ${team2Id})
-         OR (m.home_team_id = ${team2Id} AND m.away_team_id = ${team1Id})
+      WHERE ((m.home_team_id = ${team1Id} AND m.away_team_id = ${team2Id})
+         OR (m.home_team_id = ${team2Id} AND m.away_team_id = ${team1Id}))
+        ${typeFilterM}
       GROUP BY m.id, m.home_team_id
     )
     SELECT
@@ -267,8 +275,9 @@ export default async function H2HPage({
     FROM match_player_stats mps
     JOIN matches m ON m.id = mps.match_id
     JOIN players p ON p.steam_id = mps.player_steam_id
-    WHERE (m.home_team_id = ${team1Id} AND m.away_team_id = ${team2Id})
-       OR (m.home_team_id = ${team2Id} AND m.away_team_id = ${team1Id})
+    WHERE ((m.home_team_id = ${team1Id} AND m.away_team_id = ${team2Id})
+       OR (m.home_team_id = ${team2Id} AND m.away_team_id = ${team1Id}))
+      ${typeFilterM}
     GROUP BY p.steam_id, p.username, p.avatar
     ORDER BY apps DESC, goals DESC
     LIMIT 10
@@ -284,8 +293,9 @@ export default async function H2HPage({
     FROM match_player_stats mps
     JOIN matches m ON m.id = mps.match_id
     JOIN players p ON p.steam_id = mps.player_steam_id
-    WHERE (m.home_team_id = ${team1Id} AND m.away_team_id = ${team2Id})
-       OR (m.home_team_id = ${team2Id} AND m.away_team_id = ${team1Id})
+    WHERE ((m.home_team_id = ${team1Id} AND m.away_team_id = ${team2Id})
+       OR (m.home_team_id = ${team2Id} AND m.away_team_id = ${team1Id}))
+      ${typeFilterM}
     GROUP BY p.steam_id, p.username, p.avatar
     ORDER BY goals DESC, apps DESC
     LIMIT 10
@@ -301,8 +311,9 @@ export default async function H2HPage({
     FROM match_player_stats mps
     JOIN matches m ON m.id = mps.match_id
     JOIN players p ON p.steam_id = mps.player_steam_id
-    WHERE (m.home_team_id = ${team1Id} AND m.away_team_id = ${team2Id})
-       OR (m.home_team_id = ${team2Id} AND m.away_team_id = ${team1Id})
+    WHERE ((m.home_team_id = ${team1Id} AND m.away_team_id = ${team2Id})
+       OR (m.home_team_id = ${team2Id} AND m.away_team_id = ${team1Id}))
+      ${typeFilterM}
     GROUP BY p.steam_id, p.username, p.avatar
     ORDER BY assists DESC, apps DESC
     LIMIT 10
@@ -318,8 +329,9 @@ export default async function H2HPage({
     FROM match_player_stats mps
     JOIN matches m ON m.id = mps.match_id
     JOIN players p ON p.steam_id = mps.player_steam_id
-    WHERE (m.home_team_id = ${team1Id} AND m.away_team_id = ${team2Id})
-       OR (m.home_team_id = ${team2Id} AND m.away_team_id = ${team1Id})
+    WHERE ((m.home_team_id = ${team1Id} AND m.away_team_id = ${team2Id})
+       OR (m.home_team_id = ${team2Id} AND m.away_team_id = ${team1Id}))
+      ${typeFilterM}
     GROUP BY p.steam_id, p.username, p.avatar
     ORDER BY wins DESC, apps DESC
     LIMIT 10
@@ -345,8 +357,9 @@ export default async function H2HPage({
     FROM matches m
     JOIN teams th ON th.id = m.home_team_id
     JOIN teams ta ON ta.id = m.away_team_id
-    WHERE (m.home_team_id = ${team1Id} AND m.away_team_id = ${team2Id})
-       OR (m.home_team_id = ${team2Id} AND m.away_team_id = ${team1Id})
+    WHERE ((m.home_team_id = ${team1Id} AND m.away_team_id = ${team2Id})
+       OR (m.home_team_id = ${team2Id} AND m.away_team_id = ${team1Id}))
+      ${typeFilterM}
     ORDER BY m.date DESC, m.id DESC
     LIMIT ${PAGE_SIZE} OFFSET ${offset}
   `;
@@ -424,7 +437,7 @@ export default async function H2HPage({
   const logo2 = proxyImg(team2Row.logo);
 
   function paginationHref(p: number) {
-    return `/teams/h2h?team1=${team1Id}&team2=${team2Id}&page=${p}`;
+    return `/teams/h2h?team1=${team1Id}&team2=${team2Id}&page=${p}&filter=${filter}`;
   }
 
   function PlayerLeaderboard({
@@ -483,9 +496,17 @@ export default async function H2HPage({
 
       {/* Team comparison header */}
       <div
-        className="rounded-xl border border-chalk-100/8 overflow-hidden mb-6"
+        className="rounded-xl border border-chalk-100/8 overflow-hidden mb-6 relative"
         style={{ background: `linear-gradient(to right, ${color1}25, transparent 40%, transparent 60%, ${color2}25)` }}
       >
+        <div className="absolute top-3 right-3 z-10">
+          <MatchFilterDropdown
+            current={filter}
+            hrefAll={`/teams/h2h?team1=${team1Id}&team2=${team2Id}&page=1&filter=all`}
+            hrefFriendly={`/teams/h2h?team1=${team1Id}&team2=${team2Id}&page=1&filter=friendly`}
+            hrefCompetitive={`/teams/h2h?team1=${team1Id}&team2=${team2Id}&page=1&filter=competitive`}
+          />
+        </div>
         <div className="flex items-center justify-between p-6 gap-4">
           {/* Team 1 */}
           <Link href={`/teams/${team1Id}`} className="flex flex-col items-center gap-2 flex-1 group">

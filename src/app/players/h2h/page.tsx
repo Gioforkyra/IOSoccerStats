@@ -5,6 +5,8 @@ import { getSteamAvatar } from "@/lib/steam-avatar";
 import { getRelatedSteamIds } from "@/lib/player-aliases";
 import { PlayerH2HPicker } from "./PlayerH2HPicker";
 import { H2HStatSlider, type StatPage } from "../../teams/h2h/H2HStatSlider";
+import { Prisma } from "@/generated/prisma/client";
+import { MatchFilterDropdown } from "@/components/MatchFilterDropdown";
 import { PlayerAvatar } from "./PlayerAvatar";
 
 export const dynamic = "force-dynamic";
@@ -80,9 +82,9 @@ type H2HPlayerMatch = {
 export default async function PlayerH2HPage({
   searchParams,
 }: {
-  searchParams: Promise<{ p1?: string; p2?: string; page?: string }>;
+  searchParams: Promise<{ p1?: string; p2?: string; page?: string; filter?: string }>;
 }) {
-  const { p1: p1Param, p2: p2Param, page: pageParam } = await searchParams;
+  const { p1: p1Param, p2: p2Param, page: pageParam, filter: filterParam } = await searchParams;
 
   // ── PICKER VIEW ──────────────────────────────────────────────────────
   if (!p1Param || !p2Param) {
@@ -116,6 +118,8 @@ export default async function PlayerH2HPage({
   // ── RESULTS VIEW ──────────────────────────────────────────────────────
   const currentPage = Math.max(1, parseInt(pageParam || "1", 10) || 1);
   const offset = (currentPage - 1) * PAGE_SIZE;
+  const filter = filterParam === "friendly" || filterParam === "competitive" ? filterParam : "all";
+  const typeFilterM = filter === "competitive" ? Prisma.sql`AND m.match_type = 'competitive'` : filter === "friendly" ? Prisma.sql`AND m.match_type = 'friendly'` : Prisma.empty;
 
   // Resolve aliases for both players in parallel
   const [p1Ids, p2Ids] = await Promise.all([
@@ -151,6 +155,7 @@ export default async function PlayerH2HPage({
           AND mps1.player_steam_id = ANY(${p1Ids})
           AND mps2.player_steam_id = ANY(${p2Ids})
       )
+      ${typeFilterM}
     `,
     prisma.$queryRaw<[PlayerH2HStats]>`
       SELECT
@@ -186,6 +191,7 @@ export default async function PlayerH2HPage({
             AND mps2.player_steam_id = ANY(${p2Ids})
             AND mps2.team_side != mps.team_side
         )
+        ${typeFilterM}
     `,
     prisma.$queryRaw<[PlayerH2HStats]>`
       SELECT
@@ -221,6 +227,7 @@ export default async function PlayerH2HPage({
             AND mps2.player_steam_id = ANY(${p1Ids})
             AND mps2.team_side != mps.team_side
         )
+        ${typeFilterM}
     `,
     prisma.$queryRaw<H2HPlayerMatch[]>`
       SELECT
@@ -251,6 +258,7 @@ export default async function PlayerH2HPage({
           AND mps1.player_steam_id = ANY(${p1Ids})
           AND mps2.player_steam_id = ANY(${p2Ids})
       )
+      ${typeFilterM}
       ORDER BY m.date DESC, m.id DESC
       LIMIT ${PAGE_SIZE} OFFSET ${offset}
     `,
@@ -363,7 +371,7 @@ export default async function PlayerH2HPage({
   ]);
 
   function paginationHref(p: number) {
-    return `/players/h2h?p1=${encodeURIComponent(p1SteamId)}&p2=${encodeURIComponent(p2SteamId)}&page=${p}`;
+    return `/players/h2h?p1=${encodeURIComponent(p1SteamId)}&p2=${encodeURIComponent(p2SteamId)}&page=${p}&filter=${filter}`;
   }
 
   return (
@@ -380,9 +388,17 @@ export default async function PlayerH2HPage({
 
       {/* Player comparison header */}
       <div
-        className="rounded-xl border border-chalk-100/8 overflow-hidden mb-6"
+        className="rounded-xl border border-chalk-100/8 overflow-hidden mb-6 relative"
         style={{ background: `linear-gradient(to right, ${P1_COLOR}25, transparent 40%, transparent 60%, ${P2_COLOR}25)` }}
       >
+        <div className="absolute top-3 right-3 z-10">
+          <MatchFilterDropdown
+            current={filter}
+            hrefAll={`/players/h2h?p1=${encodeURIComponent(p1SteamId)}&p2=${encodeURIComponent(p2SteamId)}&page=1&filter=all`}
+            hrefFriendly={`/players/h2h?p1=${encodeURIComponent(p1SteamId)}&p2=${encodeURIComponent(p2SteamId)}&page=1&filter=friendly`}
+            hrefCompetitive={`/players/h2h?p1=${encodeURIComponent(p1SteamId)}&p2=${encodeURIComponent(p2SteamId)}&page=1&filter=competitive`}
+          />
+        </div>
         <div className="flex items-center justify-between p-6 gap-4">
           {/* Player 1 */}
           <Link href={`/players/${p1SteamId}`} className="flex flex-col items-center gap-2 flex-1 min-w-0 group">
