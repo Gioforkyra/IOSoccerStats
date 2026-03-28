@@ -13,14 +13,12 @@ type TournamentRow = {
   match_format: number | null;
   start_date: Date | null;
   end_date: Date | null;
-  status: string;
   winning_team_id: number | null;
   winning_team_name: string | null;
   winning_team_logo: string | null;
   team_name: string;
   team_id: number;
-  team_logo: string | null;
-  team_color: string | null;
+  matches_played: bigint;
 };
 
 export default async function PlayerTournamentsPage({
@@ -63,14 +61,18 @@ export default async function PlayerTournamentsPage({
       t.match_format,
       t.start_date,
       t.end_date,
-      t.status,
       t.winning_team_id,
       wt.name AS winning_team_name,
       wt.logo AS winning_team_logo,
       team.name AS team_name,
       team.id AS team_id,
-      team.logo AS team_logo,
-      team.color AS team_color
+      (
+        SELECT COUNT(DISTINCT mps.match_id)
+        FROM match_player_stats mps
+        JOIN matches m ON m.id = mps.match_id
+        WHERE mps.player_steam_id = ANY(${steamIds})
+          AND m.tournament_id = t.id
+      ) AS matches_played
     FROM player_teams pt
     JOIN tournament_standings ts ON ts.team_id = pt.team_id
     JOIN tournaments t ON t.id = ts.tournament_id
@@ -81,10 +83,10 @@ export default async function PlayerTournamentsPage({
     ORDER BY t.start_date DESC NULLS LAST
   `;
 
-  const teamTypes: Record<number, string> = { 1: "Club", 2: "National", 3: "Mix", 4: "Draft" };
   const formatLabels: Record<string, string> = {
-    league: "League", knockout: "Knockout", group_knockout: "Group + Knockout", custom: "Custom",
+    league: "League", knockout: "Knockout", group_knockout: "Group Knockout", custom: "Custom",
   };
+  const teamTypes: Record<number, string> = { 1: "Club", 2: "National", 3: "Mix", 4: "Draft" };
 
   return (
     <>
@@ -97,79 +99,75 @@ export default async function PlayerTournamentsPage({
           No tournament data found for this player.
         </div>
       ) : (
-        <div className="space-y-3">
-          {tournaments.map((t) => {
-            const isActive = t.status === "active";
-            const startStr = t.start_date
-              ? new Date(t.start_date).toLocaleDateString("en-GB", { month: "short", year: "numeric" })
-              : "?";
-            const endStr = t.end_date
-              ? new Date(t.end_date).toLocaleDateString("en-GB", { month: "short", year: "numeric" })
-              : isActive ? "Ongoing" : "?";
-            const isWinner = t.winning_team_id === t.team_id;
-
-            return (
-              <div
-                key={`${t.tournament_id}-${t.team_id}`}
-                className="border border-chalk-100/30 rounded-lg p-4 relative overflow-hidden transition-colors hover:border-[#F4119E]"
-                style={{ backgroundColor: t.team_color ? `${t.team_color}20` : "rgba(28,28,28,0.4)" }}
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-pitch-950/60 to-transparent pointer-events-none" />
-
-                <div className="relative z-10 flex items-center gap-3">
-                  <Link href={`/teams/${t.team_id}`} className="shrink-0">
-                    {t.team_logo ? (
-                      <img src={proxyImg(t.team_logo)!} alt="" className="w-10 h-10 object-contain" />
-                    ) : (
-                      <div className="w-10 h-10 rounded bg-pitch-700 flex items-center justify-center text-xs font-display font-700 text-chalk-300">
-                        {t.team_name.slice(0, 3).toUpperCase()}
-                      </div>
-                    )}
-                  </Link>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                      <h4 className="font-display font-700 text-base text-chalk-100">
-                        {t.tournament_name}
-                      </h4>
-                      {isActive && (
-                        <span className="text-[10px] font-mono bg-grass-500/20 text-grass-400 px-2 py-0.5 rounded">ACTIVE</span>
-                      )}
-                      {isWinner && (
-                        <span className="text-[10px] font-mono bg-amber-400/20 text-amber-400 px-2 py-0.5 rounded">WINNER</span>
-                      )}
-                      {t.organisation && (
-                        <span className="text-[10px] font-mono bg-cyan-500/15 text-cyan-400 px-2 py-0.5 rounded">{t.organisation}</span>
-                      )}
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-mono text-chalk-400">
-                      <span>{startStr} - {endStr}</span>
-                      {t.tournament_format && <span>{formatLabels[t.tournament_format] || t.tournament_format}</span>}
-                      {t.team_type_id && <span>{teamTypes[t.team_type_id] || "Unknown"}</span>}
-                      {t.match_format && <span>{t.match_format}v{t.match_format}</span>}
-                      <span>
-                        with:{" "}
-                        <Link href={`/teams/${t.team_id}`} className="text-chalk-200 hover:text-[#F4119E] transition-colors">
-                          {t.team_name}
-                        </Link>
-                      </span>
-                    </div>
-                  </div>
-
-                  {t.winning_team_name && (
-                    <Link
-                      href={`/teams/${t.winning_team_id}`}
-                      className="shrink-0 flex flex-col items-center gap-1 hover:opacity-80 transition-opacity"
-                    >
-                      <span className="text-[10px] font-mono text-amber-400 uppercase tracking-wider">Winner</span>
-                      {t.winning_team_logo && <img src={proxyImg(t.winning_team_logo)!} alt="" className="w-8 h-8 object-contain" />}
+        <div className="rounded-lg border border-chalk-100/8 overflow-x-auto bg-pitch-900/40">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-chalk-100/8">
+                <th className="text-left px-4 py-3 font-mono text-[10px] text-chalk-400">ORG</th>
+                <th className="text-left px-4 py-3 font-mono text-[10px] text-chalk-400">TOURNAMENT</th>
+                <th className="text-left px-4 py-3 font-mono text-[10px] text-chalk-400">FORMAT</th>
+                <th className="text-left px-4 py-3 font-mono text-[10px] text-chalk-400">TEAM TYPE</th>
+                <th className="text-center px-4 py-3 font-mono text-[10px] text-chalk-400">MATCHES</th>
+                <th className="text-left px-4 py-3 font-mono text-[10px] text-chalk-400">TEAM</th>
+                <th className="text-left px-4 py-3 font-mono text-[10px] text-chalk-400">START</th>
+                <th className="text-left px-4 py-3 font-mono text-[10px] text-chalk-400">END</th>
+                <th className="text-left px-4 py-3 font-mono text-[10px] text-chalk-400">WINNER</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tournaments.map((t, i) => (
+                <tr
+                  key={`${t.tournament_id}-${t.team_id}`}
+                  className={`stat-row ${i % 2 === 0 ? "bg-pitch-600/15" : "bg-transparent"}`}
+                >
+                  <td className="px-4 py-1.5 font-mono text-xs text-chalk-400">
+                    {t.organisation || "-"}
+                  </td>
+                  <td className="px-4 py-1.5 font-body text-chalk-200">
+                    {t.tournament_name}
+                  </td>
+                  <td className="px-4 py-1.5 font-mono text-xs text-chalk-400">
+                    {t.tournament_format ? formatLabels[t.tournament_format] || t.tournament_format : "-"}
+                  </td>
+                  <td className="px-4 py-1.5 font-mono text-xs text-chalk-400">
+                    {t.team_type_id ? teamTypes[t.team_type_id] || "-" : "-"}
+                  </td>
+                  <td className="px-4 py-1.5 text-center font-mono text-xs text-chalk-300">
+                    {Number(t.matches_played)}
+                  </td>
+                  <td className="px-4 py-1.5">
+                    <Link href={`/teams/${t.team_id}`} className="font-body text-xs text-chalk-200 hover:text-[#F4119E] transition-colors">
+                      {t.team_name}
                     </Link>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+                  </td>
+                  <td className="px-4 py-1.5 font-mono text-xs text-chalk-400">
+                    {t.start_date
+                      ? new Date(t.start_date).toLocaleDateString("en-GB", { month: "short", day: "numeric", year: "numeric" })
+                      : "-"}
+                  </td>
+                  <td className="px-4 py-1.5 font-mono text-xs text-chalk-400">
+                    {t.end_date
+                      ? new Date(t.end_date).toLocaleDateString("en-GB", { month: "short", day: "numeric", year: "numeric" })
+                      : "-"}
+                  </td>
+                  <td className="px-4 py-1.5">
+                    {t.winning_team_name ? (
+                      <Link href={`/teams/${t.winning_team_id}`} className="flex items-center gap-1.5 hover:text-grass-400 transition-colors">
+                        {t.winning_team_logo && (
+                          <img src={proxyImg(t.winning_team_logo)!} alt="" className="w-4 h-4 object-contain" />
+                        )}
+                        <span className={`font-body text-xs ${t.winning_team_id === t.team_id ? "text-grass-400 font-medium" : "text-chalk-200"}`}>
+                          {t.winning_team_name}
+                        </span>
+                      </Link>
+                    ) : (
+                      <span className="text-xs font-mono text-chalk-400">TBD</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </>
