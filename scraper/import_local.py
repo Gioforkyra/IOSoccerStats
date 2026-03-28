@@ -119,7 +119,7 @@ async def import_db_export(conn):
                        goals, assists, shots, shots_on_target, passes, passes_completed,
                        saves, fouls, yellow_cards, red_cards, interceptions, possession)
                        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
-                       ON CONFLICT (match_id, player_steam_id) DO NOTHING""",
+                       ON CONFLICT (match_id, player_steam_id, team_side) DO NOTHING""",
                     batch
                 )
             except:
@@ -135,7 +135,7 @@ async def import_db_export(conn):
                    goals, assists, shots, shots_on_target, passes, passes_completed,
                    saves, fouls, yellow_cards, red_cards, interceptions, possession)
                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
-                   ON CONFLICT (match_id, player_steam_id) DO NOTHING""",
+                   ON CONFLICT (match_id, player_steam_id, team_side) DO NOTHING""",
                 batch
             )
         except:
@@ -251,7 +251,7 @@ async def import_raw_matches(conn):
                            goals, assists, shots, shots_on_target, passes, passes_completed,
                            saves, fouls, yellow_cards, red_cards, interceptions, possession)
                            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
-                           ON CONFLICT (match_id, player_steam_id) DO NOTHING""",
+                           ON CONFLICT (match_id, player_steam_id, team_side) DO NOTHING""",
                         [(s["match_id"], s["player_steam_id"], s["team_side"], s.get("position"),
                           s["goals"], s["assists"], s["shots"], s["shots_on_target"],
                           s["passes"], s["passes_completed"], s["saves"], s["fouls"],

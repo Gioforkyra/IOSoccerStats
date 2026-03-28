@@ -9,7 +9,7 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    // Direct connection for migrations/schema push (port 5432)
-    url: process.env["DIRECT_URL"],
+    // Direct connection for migrations/schema push
+    url: process.env["DIRECT_URL"] || process.env["DATABASE_URL"],
   },
 });

@@ -163,7 +163,7 @@ const S = {
   Offsides: 11, Goals: 12, OwnGoals: 13, Assists: 14, Passes: 15,
   FreeKicks: 16, Penalties: 17, Corners: 18, ThrowIns: 19,
   KeeperSaves: 20, GoalKicks: 21, Possession: 22, DistanceCovered: 23,
-  KeeperSavesCaught: 24,
+  KeeperSavesCaught: 24, KeyPasses: 25, ChancesCreated: 26, SecondAssists: 27,
 } as const;
 
 /** Convert Steam3 ID [U:1:X] to Steam64, or return as-is if already Steam64 */
@@ -230,26 +230,26 @@ async function insertMatch(raw: any): Promise<boolean> {
 
       const steamId = normalizeSteamId(rawSteamId);
 
-      // Aggregate stats across all periods
+      // Group periods by team side (handles shared GK who plays for both teams)
       const periods: any[] = p.matchPeriodData || [];
       if (periods.length === 0) continue;
 
-      let teamSide = "home";
-      let position: string | null = null;
-      const totals = new Array(28).fill(0);
-
-      // A player is a substitute if their first period starts after the match kickoff
-      const firstPeriod = periods[0]?.info || {};
-      const isSubstitute = (firstPeriod.startSecond || 0) > 0;
-
+      const byTeam: Record<string, { totals: number[]; position: string | null; isSub: boolean }> = {};
       for (const period of periods) {
         const info = period.info || {};
-        teamSide = info.team === "away" ? "away" : "home";
-        if (!position) position = info.position || null;
-
+        const side = info.team === "away" ? "away" : "home";
+        if (!byTeam[side]) {
+          // First period for this team side — sub if it starts after kickoff
+          byTeam[side] = {
+            totals: new Array(28).fill(0),
+            position: info.position || null,
+            isSub: (info.startSecond || 0) > 0,
+          };
+        }
+        if (!byTeam[side].position) byTeam[side].position = info.position || null;
         const stats: number[] = period.statistics || [];
         for (let i = 0; i < stats.length; i++) {
-          totals[i] += stats[i] || 0;
+          byTeam[side].totals[i] += stats[i] || 0;
         }
       }
 
@@ -258,34 +258,56 @@ async function insertMatch(raw: any): Promise<boolean> {
         INSERT INTO players (steam_id, username, created_at, updated_at)
         VALUES (${steamId}, ${name}, NOW(), NOW())
         ON CONFLICT (steam_id) DO UPDATE SET
-          username = EXCLUDED.username,
+          username = CASE
+            WHEN players.username IS NULL OR players.username = '' OR LOWER(players.username) = 'unknown'
+            THEN EXCLUDED.username
+            ELSE players.username
+          END,
           updated_at = NOW()
       `;
 
-      // Insert player match stats
-      const minutesPlayed = Math.round(totals[S.Possession] / 10);
-      await prisma.$executeRaw`
-        INSERT INTO match_player_stats (
-          match_id, player_steam_id, team_side, position,
-          goals, assists, second_assists, shots, shots_on_target,
-          passes, passes_completed, key_passes, chances_created,
-          interceptions, saves, saves_caught, offsides, fouls, fouls_suffered,
-          yellow_cards, red_cards, own_goals, goals_conceded,
-          corners, throw_ins, free_kicks, goal_kicks, penalties,
-          distance_run, possession, minutes_played, is_substitute, is_potm,
-          sliding_tackles, sliding_tackles_completed
-        ) VALUES (
-          ${m.id}, ${steamId}, ${teamSide}, ${position},
-          ${totals[S.Goals]}, ${totals[S.Assists]}, ${0}, ${totals[S.Shots]}, ${totals[S.ShotsOnGoal]},
-          ${totals[S.Passes]}, ${totals[S.PassesCompleted]}, ${0}, ${0},
-          ${totals[S.Interceptions]}, ${totals[S.KeeperSaves]}, ${totals[S.KeeperSavesCaught]}, ${totals[S.Offsides]}, ${totals[S.Fouls]}, ${totals[S.FoulsSuffered]},
-          ${totals[S.YellowCards]}, ${totals[S.RedCards]}, ${totals[S.OwnGoals]}, ${totals[S.GoalsConceded]},
-          ${totals[S.Corners]}, ${totals[S.ThrowIns]}, ${totals[S.FreeKicks]}, ${totals[S.GoalKicks]}, ${totals[S.Penalties]},
-          ${totals[S.DistanceCovered]}, ${totals[S.Possession]}, ${minutesPlayed}, ${isSubstitute}, ${name === m.potm},
-          ${totals[S.SlidingTackles]}, ${totals[S.SlidingTacklesCompleted]}
-        )
-        ON CONFLICT (match_id, player_steam_id) DO NOTHING
-      `;
+      // Insert one stat record per team side
+      for (const [teamSide, data] of Object.entries(byTeam)) {
+        const totals = data.totals;
+        const minutesPlayed = Math.round(totals[S.Possession] / 10);
+        await prisma.$executeRaw`
+          INSERT INTO match_player_stats (
+            match_id, player_steam_id, team_side, position,
+            goals, assists, second_assists, shots, shots_on_target,
+            passes, passes_completed, key_passes, chances_created,
+            interceptions, saves, saves_caught, offsides, fouls, fouls_suffered,
+            yellow_cards, red_cards, own_goals, goals_conceded,
+            corners, throw_ins, free_kicks, goal_kicks, penalties,
+            distance_run, possession, minutes_played, is_substitute, is_potm,
+            sliding_tackles, sliding_tackles_completed
+          ) VALUES (
+            ${m.id}, ${steamId}, ${teamSide}, ${data.position},
+            ${totals[S.Goals]}, ${totals[S.Assists]}, ${totals[S.SecondAssists]}, ${totals[S.Shots]}, ${totals[S.ShotsOnGoal]},
+            ${totals[S.Passes]}, ${totals[S.PassesCompleted]}, ${totals[S.KeyPasses]}, ${totals[S.ChancesCreated]},
+            ${totals[S.Interceptions]}, ${totals[S.KeeperSaves]}, ${totals[S.KeeperSavesCaught]}, ${totals[S.Offsides]}, ${totals[S.Fouls]}, ${totals[S.FoulsSuffered]},
+            ${totals[S.YellowCards]}, ${totals[S.RedCards]}, ${totals[S.OwnGoals]}, ${totals[S.GoalsConceded]},
+            ${totals[S.Corners]}, ${totals[S.ThrowIns]}, ${totals[S.FreeKicks]}, ${totals[S.GoalKicks]}, ${totals[S.Penalties]},
+            ${totals[S.DistanceCovered]}, ${totals[S.Possession]}, ${minutesPlayed}, ${data.isSub}, ${name === m.potm},
+            ${totals[S.SlidingTackles]}, ${totals[S.SlidingTacklesCompleted]}
+          )
+          ON CONFLICT (match_id, player_steam_id, team_side) DO UPDATE SET
+            position = EXCLUDED.position,
+            goals = EXCLUDED.goals, assists = EXCLUDED.assists, second_assists = EXCLUDED.second_assists,
+            shots = EXCLUDED.shots, shots_on_target = EXCLUDED.shots_on_target,
+            passes = EXCLUDED.passes, passes_completed = EXCLUDED.passes_completed,
+            key_passes = EXCLUDED.key_passes, chances_created = EXCLUDED.chances_created,
+            interceptions = EXCLUDED.interceptions, saves = EXCLUDED.saves, saves_caught = EXCLUDED.saves_caught,
+            offsides = EXCLUDED.offsides, fouls = EXCLUDED.fouls, fouls_suffered = EXCLUDED.fouls_suffered,
+            yellow_cards = EXCLUDED.yellow_cards, red_cards = EXCLUDED.red_cards,
+            own_goals = EXCLUDED.own_goals, goals_conceded = EXCLUDED.goals_conceded,
+            corners = EXCLUDED.corners, throw_ins = EXCLUDED.throw_ins, free_kicks = EXCLUDED.free_kicks,
+            goal_kicks = EXCLUDED.goal_kicks, penalties = EXCLUDED.penalties,
+            distance_run = EXCLUDED.distance_run, possession = EXCLUDED.possession,
+            minutes_played = EXCLUDED.minutes_played, is_substitute = EXCLUDED.is_substitute,
+            is_potm = EXCLUDED.is_potm,
+            sliding_tackles = EXCLUDED.sliding_tackles, sliding_tackles_completed = EXCLUDED.sliding_tackles_completed
+        `;
+      }
     }
 
     return true;

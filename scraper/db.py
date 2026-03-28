@@ -48,7 +48,11 @@ async def upsert_player(pool: asyncpg.Pool, steam_id: str, username: str, positi
             INSERT INTO players (steam_id, username, position, updated_at)
             VALUES ($1, $2, $3, NOW())
             ON CONFLICT (steam_id) DO UPDATE SET
-                username = EXCLUDED.username,
+                username = CASE
+                    WHEN players.username IS NULL OR players.username = '' OR LOWER(players.username) = 'unknown'
+                    THEN EXCLUDED.username
+                    ELSE players.username
+                END,
                 position = COALESCE(EXCLUDED.position, players.position),
                 updated_at = NOW()
             """,
@@ -104,7 +108,7 @@ async def insert_player_stats(pool: asyncpg.Pool, stats: list[dict]):
                 corners, throw_ins, free_kicks, goal_kicks, penalties,
                 distance_run, possession
             ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29)
-            ON CONFLICT (match_id, player_steam_id) DO UPDATE SET
+            ON CONFLICT (match_id, player_steam_id, team_side) DO UPDATE SET
                 goals = EXCLUDED.goals, assists = EXCLUDED.assists,
                 second_assists = EXCLUDED.second_assists,
                 shots = EXCLUDED.shots, shots_on_target = EXCLUDED.shots_on_target,

@@ -29,6 +29,7 @@ type MatchRow = {
   yellow_cards: number;
   red_cards: number;
   distance_run: number;
+  is_substitute: boolean;
 };
 
 export default async function PlayerMatchesPage({
@@ -58,36 +59,54 @@ export default async function PlayerMatchesPage({
 
   const matches = await prisma.$queryRaw<MatchRow[]>`
     SELECT
-      m.id AS match_id,
-      m.date,
-      t.name AS team_name,
-      t.logo AS team_logo,
-      mps.team_side,
-      m.home_score,
-      m.away_score,
-      mps.position,
-      mps.goals,
-      mps.assists,
-      mps.shots,
-      mps.shots_on_target,
-      mps.passes,
-      mps.passes_completed,
-      mps.interceptions,
-      mps.possession,
-      mps.saves,
-      mps.goals_conceded,
-      mps.offsides,
-      mps.yellow_cards,
-      mps.red_cards,
-      mps.distance_run
-    FROM match_player_stats mps
-    JOIN matches m ON m.id = mps.match_id
-    JOIN teams t ON t.id = CASE
-      WHEN mps.team_side = 'home' THEN m.home_team_id
-      WHEN mps.team_side = 'away' THEN m.away_team_id
-    END
-    WHERE mps.player_steam_id = ANY(${steamIds})
-    ORDER BY m.date DESC
+      sub.match_id, sub.date, sub.team_name, sub.team_logo, sub.team_side,
+      sub.home_score, sub.away_score, sub.position,
+      sub.goals, sub.assists, sub.shots, sub.shots_on_target,
+      sub.passes, sub.passes_completed, sub.interceptions, sub.possession,
+      sub.saves, sub.goals_conceded, sub.offsides, sub.yellow_cards,
+      sub.red_cards, sub.distance_run, sub.is_substitute
+    FROM (
+      SELECT
+        m.id AS match_id,
+        m.date,
+        t.name AS team_name,
+        t.logo AS team_logo,
+        mps.team_side,
+        m.home_score,
+        m.away_score,
+        mps.position,
+        mps.goals,
+        mps.assists,
+        mps.shots,
+        mps.shots_on_target,
+        mps.passes,
+        mps.passes_completed,
+        mps.interceptions,
+        mps.possession,
+        mps.saves,
+        mps.goals_conceded,
+        mps.offsides,
+        mps.yellow_cards,
+        mps.red_cards,
+        mps.distance_run,
+        CASE
+          WHEN mps.is_substitute THEN true
+          WHEN COUNT(*) OVER (PARTITION BY mps.match_id) > 1
+            AND MAX(mps.is_substitute::int) OVER (PARTITION BY mps.match_id) = 0
+            AND ROW_NUMBER() OVER (PARTITION BY mps.match_id ORDER BY mps.team_side) > 1
+          THEN true
+          ELSE false
+        END AS is_substitute
+      FROM match_player_stats mps
+      JOIN matches m ON m.id = mps.match_id
+      JOIN teams t ON t.id = CASE
+        WHEN mps.team_side = 'home' THEN m.home_team_id
+        WHEN mps.team_side = 'away' THEN m.away_team_id
+      END
+      WHERE mps.player_steam_id = ANY(${steamIds})
+      ORDER BY m.date DESC, m.id DESC, mps.team_side
+    ) sub
+    ORDER BY sub.date DESC, sub.match_id DESC, sub.team_side
     LIMIT ${MATCHES_PER_PAGE} OFFSET ${offset}
   `;
 
@@ -165,12 +184,15 @@ export default async function PlayerMatchesPage({
               const dist = (m.distance_run / 1000).toFixed(2);
 
               return (
-                <tr key={m.match_id} className={`${rowTone} ${rowBorder} transition-colors hover:brightness-125`}>
+                <tr key={`${m.match_id}-${m.team_side}`} className={`${rowTone} ${rowBorder} transition-colors hover:brightness-125`}>
                   <td className={`px-3 py-2.5 font-mono text-[11px] text-chalk-400 sticky left-0 z-10 ${rowTone}`}>
                     {new Date(m.date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
                     <span className="text-[11px] text-chalk-100 font-700 ml-5">
                       {new Date(m.date).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
                     </span>
+                    {m.is_substitute && (
+                      <span className="ml-1.5 text-[#F4119E] text-[11px]" title="Substitute">▶</span>
+                    )}
                   </td>
                   <td className="px-2 py-2.5 text-center">
                     <span className="text-[10px] font-mono text-chalk-400">{m.position || "-"}</span>

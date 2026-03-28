@@ -32,6 +32,7 @@ export type MatchPlayer = {
   penalties: number;
   distance_run: number;
   possession: number;
+  is_sub: boolean;
 };
 
 export type MatchShot = {
@@ -67,8 +68,6 @@ function normalizeFromField(val: number, min: number, max: number) {
   if (!Number.isFinite(val) || !Number.isFinite(range) || range === 0) return 0.5;
   return Math.min(1, Math.max(0, (val - min) / range));
 }
-
-type PlayerInfo = { username: string; team_side: string; position: string | null };
 
 const API_BASE = "https://iosoccer.com:44380/api";
 const API_HEADERS = {
@@ -137,55 +136,65 @@ function parsePlayerStatsFromApi(raw: any): MatchPlayer[] {
     const periods: any[] = rp?.matchPeriodData || [];
     if (periods.length === 0) continue;
 
-    const firstInfo = periods[0]?.info || {};
-    const team_side = firstInfo.team === "away" ? "away" : "home";
-    const position = firstInfo.position || null;
-
-    const totals = new Array(30).fill(0);
+    // Group periods by team side so a shared GK gets separate entries per team
+    const byTeam: Record<string, { totals: number[]; position: string | null; isSub: boolean }> = {};
     for (const period of periods) {
+      const pInfo = period?.info || {};
+      const side = pInfo.team === "away" ? "away" : "home";
       const stats: number[] = period?.statistics || [];
-      for (let i = 0; i < stats.length; i++) totals[i] += Number(stats[i] || 0);
+      if (!byTeam[side]) {
+        byTeam[side] = {
+          totals: new Array(30).fill(0),
+          position: pInfo.position || null,
+          isSub: (pInfo.startSecond || 0) > 0,
+        };
+      }
+      for (let i = 0; i < stats.length; i++) byTeam[side].totals[i] += Number(stats[i] || 0);
     }
 
-    out.push({
-      player_steam_id: steam64,
-      profile_steam_id: steam64,
-      username: String(info.name || "Unknown"),
-      position,
-      team_side,
-      goals: safeStat(totals, STAT_IDX.goals),
-      assists: safeStat(totals, STAT_IDX.assists),
-      second_assists: safeStat(totals, STAT_IDX.second_assists),
-      shots: safeStat(totals, STAT_IDX.shots),
-      shots_on_target: safeStat(totals, STAT_IDX.shots_on_target),
-      passes: safeStat(totals, STAT_IDX.passes),
-      passes_completed: safeStat(totals, STAT_IDX.passes_completed),
-      key_passes: safeStat(totals, STAT_IDX.key_passes),
-      chances_created: safeStat(totals, STAT_IDX.chances_created),
-      interceptions: safeStat(totals, STAT_IDX.interceptions),
-      saves: safeStat(totals, STAT_IDX.saves),
-      offsides: safeStat(totals, STAT_IDX.offsides),
-      fouls: safeStat(totals, STAT_IDX.fouls),
-      fouls_suffered: safeStat(totals, STAT_IDX.fouls_suffered),
-      yellow_cards: safeStat(totals, STAT_IDX.yellow_cards),
-      red_cards: safeStat(totals, STAT_IDX.red_cards),
-      own_goals: safeStat(totals, STAT_IDX.own_goals),
-      goals_conceded: safeStat(totals, STAT_IDX.goals_conceded),
-      corners: safeStat(totals, STAT_IDX.corners),
-      throw_ins: safeStat(totals, STAT_IDX.throw_ins),
-      free_kicks: safeStat(totals, STAT_IDX.free_kicks),
-      goal_kicks: safeStat(totals, STAT_IDX.goal_kicks),
-      penalties: safeStat(totals, STAT_IDX.penalties),
-      distance_run: safeStat(totals, STAT_IDX.distance_run),
-      possession: safeStat(totals, STAT_IDX.possession),
-    });
+    for (const [team_side, data] of Object.entries(byTeam)) {
+      const totals = data.totals;
+      out.push({
+        player_steam_id: steam64,
+        profile_steam_id: steam64,
+        username: String(info.name || "Unknown"),
+        position: data.position,
+        team_side,
+        goals: safeStat(totals, STAT_IDX.goals),
+        assists: safeStat(totals, STAT_IDX.assists),
+        second_assists: safeStat(totals, STAT_IDX.second_assists),
+        shots: safeStat(totals, STAT_IDX.shots),
+        shots_on_target: safeStat(totals, STAT_IDX.shots_on_target),
+        passes: safeStat(totals, STAT_IDX.passes),
+        passes_completed: safeStat(totals, STAT_IDX.passes_completed),
+        key_passes: safeStat(totals, STAT_IDX.key_passes),
+        chances_created: safeStat(totals, STAT_IDX.chances_created),
+        interceptions: safeStat(totals, STAT_IDX.interceptions),
+        saves: safeStat(totals, STAT_IDX.saves),
+        offsides: safeStat(totals, STAT_IDX.offsides),
+        fouls: safeStat(totals, STAT_IDX.fouls),
+        fouls_suffered: safeStat(totals, STAT_IDX.fouls_suffered),
+        yellow_cards: safeStat(totals, STAT_IDX.yellow_cards),
+        red_cards: safeStat(totals, STAT_IDX.red_cards),
+        own_goals: safeStat(totals, STAT_IDX.own_goals),
+        goals_conceded: safeStat(totals, STAT_IDX.goals_conceded),
+        corners: safeStat(totals, STAT_IDX.corners),
+        throw_ins: safeStat(totals, STAT_IDX.throw_ins),
+        free_kicks: safeStat(totals, STAT_IDX.free_kicks),
+        goal_kicks: safeStat(totals, STAT_IDX.goal_kicks),
+        penalties: safeStat(totals, STAT_IDX.penalties),
+        distance_run: safeStat(totals, STAT_IDX.distance_run),
+        possession: safeStat(totals, STAT_IDX.possession),
+        is_sub: data.isSub,
+      });
+    }
   }
   return out;
 }
 
 async function fetchShotsFromApi(
   matchId: number,
-  playerMap: Map<string, PlayerInfo>,
+  playerStats: MatchPlayer[],
   rawOverride?: any | null,
 ): Promise<MatchShot[]> {
   try {
@@ -199,29 +208,48 @@ async function fetchShotsFromApi(
     const rawPlayers: any[] = md.players || [];
 
     const steamLookup = new Map<string, string>();
-    const apiPlayerInfo = new Map<string, PlayerInfo>();
+    // Build period-level team lookup: steamId → array of { side, startSecond, endSecond }
+    const periodTeams = new Map<string, { side: string; start: number; end: number }[]>();
+    const playerNames = new Map<string, string>();
     for (const rp of rawPlayers) {
       const shortId = rp?.info?.steamId ? String(rp.info.steamId) : "";
       const steam64 = rp?.info?.steamId64 ? String(rp.info.steamId64) : "";
       if (shortId && steam64) steamLookup.set(shortId, steam64);
       if (steam64) steamLookup.set(steam64, steam64);
       if (steam64) {
+        playerNames.set(steam64, String(rp?.info?.name || "Unknown"));
         const periods: any[] = rp?.matchPeriodData || [];
-        const firstInfo = periods[0]?.info || {};
-        apiPlayerInfo.set(steam64, {
-          username: String(rp?.info?.name || "Unknown"),
-          team_side: firstInfo.team === "away" ? "away" : "home",
-          position: firstInfo.position || null,
-        });
+        const entries: { side: string; start: number; end: number }[] = [];
+        for (const period of periods) {
+          const pInfo = period?.info || {};
+          entries.push({
+            side: pInfo.team === "away" ? "away" : "home",
+            start: Number(pInfo.startSecond || 0),
+            end: Number(pInfo.endSecond || 99999),
+          });
+        }
+        periodTeams.set(steam64, entries);
       }
     }
 
-    // Find GKs for each side
-    const homeGk = [...playerMap.entries()].find(
-      ([, p]) => p.team_side === "home" && (p.position || "").toUpperCase() === "GK"
+    // Resolve team_side at a given event second
+    function getTeamAtSecond(steamId: string, second: number): string {
+      const periods = periodTeams.get(steamId);
+      if (!periods || periods.length === 0) return "home";
+      // Find the period that contains this second
+      for (const p of periods) {
+        if (second >= p.start && second <= p.end) return p.side;
+      }
+      // Fallback: closest period
+      return periods[periods.length - 1].side;
+    }
+
+    // Find GKs for each side from the split playerStats array
+    const homeGk = playerStats.find(
+      (p) => p.team_side === "home" && (p.position || "").toUpperCase() === "GK"
     );
-    const awayGk = [...playerMap.entries()].find(
-      ([, p]) => p.team_side === "away" && (p.position || "").toUpperCase() === "GK"
+    const awayGk = playerStats.find(
+      (p) => p.team_side === "away" && (p.position || "").toUpperCase() === "GK"
     );
 
     const shotEvents = events.filter(
@@ -245,11 +273,12 @@ async function fetchShotsFromApi(
       seen.add(dedupKey);
 
       const shooterSteamId = steamLookup.get(String(shooterRaw)) || String(shooterRaw);
-      const shooterInfo = playerMap.get(shooterSteamId) || apiPlayerInfo.get(shooterSteamId);
-      if (!shooterInfo) {
-        console.warn(`[shots] no info for shooter raw=${shooterRaw} resolved=${shooterSteamId}, playerMap size=${playerMap.size}, apiPlayerInfo size=${apiPlayerInfo.size}`);
+      const shooterName = playerNames.get(shooterSteamId);
+      if (!shooterName) {
+        console.warn(`[shots] no info for shooter raw=${shooterRaw} resolved=${shooterSteamId}`);
         continue;
       }
+      const shooterTeamSide = getTeamAtSecond(shooterSteamId, eventSecond);
 
       const normalized_x = normalizeFromField(Number(pos.x), Number(fieldMin.x), Number(fieldMax.x));
       const normalized_y = normalizeFromField(Number(pos.y), Number(fieldMin.y), Number(fieldMax.y));
@@ -262,13 +291,13 @@ async function fetchShotsFromApi(
       let goalkeeper_username: string | null = null;
       if (evtType === "SAVE" && evt.player1SteamId) {
         goalkeeper_steam_id = steamLookup.get(String(evt.player1SteamId)) || String(evt.player1SteamId);
-        goalkeeper_username = playerMap.get(goalkeeper_steam_id)?.username || apiPlayerInfo.get(goalkeeper_steam_id)?.username || null;
+        goalkeeper_username = playerNames.get(goalkeeper_steam_id) || null;
       } else {
         // Use opposing team's GK
-        const opposingGk = shooterInfo.team_side === "home" ? awayGk : homeGk;
+        const opposingGk = shooterTeamSide === "home" ? awayGk : homeGk;
         if (opposingGk) {
-          goalkeeper_steam_id = opposingGk[0];
-          goalkeeper_username = opposingGk[1].username;
+          goalkeeper_steam_id = opposingGk.player_steam_id;
+          goalkeeper_username = opposingGk.username;
         }
       }
 
@@ -276,13 +305,13 @@ async function fetchShotsFromApi(
       let assist_username: string | null = null;
       if (evtType === "GOAL" && evt.player2SteamId) {
         const assistSteamId = steamLookup.get(String(evt.player2SteamId)) || String(evt.player2SteamId);
-        assist_username = playerMap.get(assistSteamId)?.username || apiPlayerInfo.get(assistSteamId)?.username || null;
+        assist_username = playerNames.get(assistSteamId) || null;
       }
 
       shots.push({
         player_steam_id: shooterSteamId,
-        username: shooterInfo.username,
-        team_side: shooterInfo.team_side,
+        username: shooterName,
+        team_side: shooterTeamSide,
         goalkeeper_steam_id,
         goalkeeper_username,
         assist_username,
@@ -296,7 +325,7 @@ async function fetchShotsFromApi(
       });
     }
 
-    console.log(`[shots] matchId=${matchId}: ${shotEvents.length} shot events, ${shots.length} resolved shots, steamLookup size=${steamLookup.size}, playerMap size=${playerMap.size}, apiPlayerInfo size=${apiPlayerInfo.size}`);
+    console.log(`[shots] matchId=${matchId}: ${shotEvents.length} shot events, ${shots.length} resolved shots, steamLookup size=${steamLookup.size}`);
     shots.sort((a, b) => (a.minute ?? 999) - (b.minute ?? 999));
     return shots;
   } catch (err) {
@@ -344,17 +373,8 @@ export default async function MatchPage({
   // Parse player stats from API
   const playerStats = parsePlayerStatsFromApi(apiRaw);
 
-  // Build player map for shot resolution
-  const playerMap = new Map<string, PlayerInfo>(
-    playerStats.map((p) => [p.player_steam_id, {
-      username: p.username,
-      team_side: p.team_side,
-      position: p.position,
-    }])
-  );
-
   // Fetch shots from API
-  const shots = await fetchShotsFromApi(matchId, playerMap, apiRaw);
+  const shots = await fetchShotsFromApi(matchId, playerStats, apiRaw);
 
   // Determine server and POTM
   const serverName: string | null = apiRaw.server?.name ?? null;
@@ -386,7 +406,7 @@ export default async function MatchPage({
       playerStats={playerStats.map((p) => {
         const n: Record<string, unknown> = { ...p };
         for (const k of Object.keys(n)) {
-          if (k !== "player_steam_id" && k !== "profile_steam_id" && k !== "username" && k !== "position" && k !== "team_side") {
+          if (k !== "player_steam_id" && k !== "profile_steam_id" && k !== "username" && k !== "position" && k !== "team_side" && k !== "is_sub") {
             n[k] = Number(n[k]);
           }
         }

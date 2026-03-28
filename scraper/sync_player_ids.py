@@ -1,6 +1,6 @@
-"""Fetch IOSoccer player data from the hub API and update players table.
+"""Fetch IOSoccer player data from the hub API and upsert players table.
 
-Updates: iosoccer_id, rating, country, position.
+Updates/inserts: steam_id, iosoccer_id, username, rating, country, position.
 """
 import httpx
 import asyncio
@@ -55,7 +55,9 @@ async def main():
                     for p in items:
                         iosoccer_id = p.get("id")
                         steam_id = p.get("steamID")
+                        name = p.get("name")
                         rating = p.get("rating")
+                        country = p.get("country")
                         position_id = p.get("preferredPositionId")
 
                         if not steam_id or not iosoccer_id:
@@ -65,12 +67,16 @@ async def main():
 
                         try:
                             await conn.execute("""
-                                UPDATE players
-                                SET iosoccer_id = $2,
-                                    rating = COALESCE($3, rating),
-                                    position = COALESCE($4, position)
-                                WHERE steam_id = $1
-                            """, steam_id, iosoccer_id, rating, position)
+                                INSERT INTO players (steam_id, iosoccer_id, username, rating, country, position, created_at, updated_at)
+                                VALUES ($1, $2, COALESCE($3, 'Unknown'), $4, $5, $6, NOW(), NOW())
+                                ON CONFLICT (steam_id) DO UPDATE SET
+                                    iosoccer_id = COALESCE(EXCLUDED.iosoccer_id, players.iosoccer_id),
+                                    username = COALESCE(NULLIF(EXCLUDED.username, ''), players.username),
+                                    rating = COALESCE(EXCLUDED.rating, players.rating),
+                                    country = COALESCE(EXCLUDED.country, players.country),
+                                    position = COALESCE(EXCLUDED.position, players.position),
+                                    updated_at = NOW()
+                            """, steam_id, iosoccer_id, name, rating, country, position)
                             total_updated += 1
                         except Exception:
                             pass

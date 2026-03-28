@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { Prisma } from "@/generated/prisma/client";
+import { MinAppsSelect } from "./MinAppsSelect";
 
 const PAGE_SIZE = 10;
 
@@ -46,8 +47,13 @@ type PlayerRow = {
   losses: bigint;
   total_goals: bigint;
   total_assists: bigint;
+  total_second_assists: bigint;
   total_shots: bigint;
   total_shots_on_target: bigint;
+  total_key_passes: bigint;
+  total_chances_created: bigint;
+  total_offsides: bigint;
+  total_own_goals: bigint;
   total_passes: bigint;
   total_passes_completed: bigint;
   total_saves: bigint;
@@ -168,11 +174,13 @@ function buildColumns(view: StatView): ColDef[] {
         { key: "interceptions", label: "INT", title: "Interceptions", sortSql: Prisma.sql`agg.total_interceptions`, format: (r) => n(r.total_interceptions).toLocaleString() },
         { key: "intAvg", label: "INT", title: "Interceptions / App (avg)", sortSql: Prisma.sql`(agg.total_interceptions::float / NULLIF(agg.apps,0))`, format: (r) => avg(r.total_interceptions, r.apps), avg: true },
         { key: "tackles", label: "TKL", title: "Tackles", sortSql: Prisma.sql`agg.total_tackles`, format: (r) => n(r.total_tackles).toLocaleString() },
-        { key: "tacklesComp", label: "TKL%", title: "Tackles Completed", sortSql: Prisma.sql`agg.total_tackles_completed`, format: (r) => n(r.total_tackles_completed).toLocaleString() },
+        { key: "tacklesComp", label: "TKL✓", title: "Tackles Completed", sortSql: Prisma.sql`agg.total_tackles_completed`, format: (r) => n(r.total_tackles_completed).toLocaleString() },
+        { key: "tackleAcc", label: "TKL%", title: "Tackle Accuracy", sortSql: Prisma.sql`(agg.total_tackles_completed::float / NULLIF(agg.total_tackles,0))`, format: (r) => pct(n(r.total_tackles_completed), n(r.total_tackles)) },
         { key: "fouls", label: "FLS", title: "Fouls", sortSql: Prisma.sql`agg.total_fouls`, format: (r) => n(r.total_fouls).toLocaleString() },
         { key: "foulsSuffered", label: "FLS+", title: "Fouls Suffered", sortSql: Prisma.sql`agg.total_fouls_suffered`, format: (r) => n(r.total_fouls_suffered).toLocaleString() },
         { key: "yellows", label: "YEL", title: "Yellow Cards", sortSql: Prisma.sql`agg.total_yellow_cards`, format: (r) => n(r.total_yellow_cards).toLocaleString() },
         { key: "reds", label: "RED", title: "Red Cards", sortSql: Prisma.sql`agg.total_red_cards`, format: (r) => n(r.total_red_cards).toLocaleString() },
+        { key: "ownGoals", label: "OG", title: "Own Goals", sortSql: Prisma.sql`agg.total_own_goals`, format: (r) => n(r.total_own_goals).toLocaleString() },
         { key: "goalsConceded", label: "GC", title: "Goals Conceded", sortSql: Prisma.sql`agg.total_goals_conceded`, format: (r) => n(r.total_goals_conceded).toLocaleString() },
         { key: "gcAvg", label: "GC", title: "Goals Conceded / App (avg)", sortSql: Prisma.sql`(agg.total_goals_conceded::float / NULLIF(agg.apps,0))`, format: (r) => avg(r.total_goals_conceded, r.apps), avg: true },
       ];
@@ -184,9 +192,14 @@ function buildColumns(view: StatView): ColDef[] {
         { key: "goalsAvg", label: "GOALS", title: "Goals / App (avg)", sortSql: Prisma.sql`(agg.total_goals::float / NULLIF(agg.apps,0))`, format: (r) => avg(r.total_goals, r.apps), avg: true },
         { key: "assists", label: "AST", title: "Assists", sortSql: Prisma.sql`agg.total_assists`, format: (r) => n(r.total_assists).toLocaleString() },
         { key: "assistsAvg", label: "AST", title: "Assists / App (avg)", sortSql: Prisma.sql`(agg.total_assists::float / NULLIF(agg.apps,0))`, format: (r) => avg(r.total_assists, r.apps), avg: true },
+        { key: "secondAssists", label: "2ND", title: "Second Assists", sortSql: Prisma.sql`agg.total_second_assists`, format: (r) => n(r.total_second_assists).toLocaleString() },
         { key: "shots", label: "SHT", title: "Shots", sortSql: Prisma.sql`agg.total_shots`, format: (r) => n(r.total_shots).toLocaleString() },
         { key: "shotsOT", label: "SOT", title: "Shots on Target", sortSql: Prisma.sql`agg.total_shots_on_target`, format: (r) => n(r.total_shots_on_target).toLocaleString() },
         { key: "shotAcc", label: "SHOT%", title: "Shot Accuracy", sortSql: Prisma.sql`agg.shot_accuracy`, format: (r) => r.shot_accuracy.toFixed(2) + "%" },
+        { key: "shotConv", label: "CONV%", title: "Shot Conversion (Goals/Shots)", sortSql: Prisma.sql`(agg.total_goals::float / NULLIF(agg.total_shots,0))`, format: (r) => pct(n(r.total_goals), n(r.total_shots)) },
+        { key: "keyPasses", label: "KP", title: "Key Passes", sortSql: Prisma.sql`agg.total_key_passes`, format: (r) => n(r.total_key_passes).toLocaleString() },
+        { key: "chancesCreated", label: "CC", title: "Chances Created", sortSql: Prisma.sql`agg.total_chances_created`, format: (r) => n(r.total_chances_created).toLocaleString() },
+        { key: "offsides", label: "OFF", title: "Offsides", sortSql: Prisma.sql`agg.total_offsides`, format: (r) => n(r.total_offsides).toLocaleString() },
         { key: "passes", label: "PASS", title: "Passes", sortSql: Prisma.sql`agg.total_passes`, format: (r) => n(r.total_passes).toLocaleString() },
         { key: "passAcc", label: "PASS%", title: "Pass Completion", sortSql: Prisma.sql`agg.pass_accuracy`, format: (r) => r.pass_accuracy.toFixed(2) + "%" },
       ];
@@ -205,10 +218,12 @@ function colMap(view: StatView): Record<string, ColDef> {
 /*  Page component                                                    */
 /* ------------------------------------------------------------------ */
 
+const MIN_APPS_OPTIONS = [0, 10, 25, 50, 100, 250, 500, 750, 1000, 1250, 1500, 1750, 2000];
+
 export default async function PlayersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ sort?: string; dir?: string; page?: string; pos?: string; view?: string; q?: string }>;
+  searchParams: Promise<{ sort?: string; dir?: string; page?: string; pos?: string; view?: string; q?: string; minApps?: string }>;
 }) {
   const params = await searchParams;
   const view = (params.view && ["general", "gk", "defending", "attacking"].includes(params.view) ? params.view : "general") as StatView;
@@ -219,30 +234,72 @@ export default async function PlayersPage({
   const dir = params.dir === "desc" ? "DESC" : sortKey === "hubId" && !params.dir ? "ASC" : params.dir === "asc" ? "ASC" : "DESC";
   const page = Math.max(1, parseInt(params.page || "1", 10));
   const nameQuery = params.q?.trim() || "";
+  const minApps = MIN_APPS_OPTIONS.includes(parseInt(params.minApps || "0", 10)) ? parseInt(params.minApps || "0", 10) : 0;
   const offset = (page - 1) * PAGE_SIZE;
 
   const orderCol = sortKey === "hubId" ? Prisma.sql`p.iosoccer_id` : (cMap[sortKey]?.sortSql ?? Prisma.sql`agg.apps`);
 
-  // Build WHERE clause
-  const whereFragment = nameQuery
-    ? Prisma.sql`WHERE p.username ILIKE ${"%" + nameQuery + "%"}`
-    : Prisma.empty;
+  // Build WHERE clause (main query already has LEFT JOIN agg)
+  let whereFragment: Prisma.Sql;
+  if (nameQuery && minApps > 0) {
+    whereFragment = Prisma.sql`WHERE p.username ILIKE ${"%" + nameQuery + "%"} AND COALESCE(agg.apps, 0) >= ${minApps}`;
+  } else if (nameQuery) {
+    whereFragment = Prisma.sql`WHERE p.username ILIKE ${"%" + nameQuery + "%"}`;
+  } else if (minApps > 0) {
+    whereFragment = Prisma.sql`WHERE COALESCE(agg.apps, 0) >= ${minApps}`;
+  } else {
+    whereFragment = Prisma.empty;
+  }
+
+  // Count query — needs its own JOIN when filtering by minApps
+  const countJoin = minApps > 0 ? Prisma.sql`LEFT JOIN mv_player_leaderboard agg ON agg.player_steam_id = p.steam_id` : Prisma.empty;
+  let countWhere: Prisma.Sql;
+  if (nameQuery && minApps > 0) {
+    countWhere = Prisma.sql`WHERE p.username ILIKE ${"%" + nameQuery + "%"} AND COALESCE(agg.apps, 0) >= ${minApps}`;
+  } else if (nameQuery) {
+    countWhere = Prisma.sql`WHERE p.username ILIKE ${"%" + nameQuery + "%"}`;
+  } else if (minApps > 0) {
+    countWhere = Prisma.sql`WHERE COALESCE(agg.apps, 0) >= ${minApps}`;
+  } else {
+    countWhere = Prisma.empty;
+  }
 
   const players = await prisma.$queryRaw<PlayerRow[]>`
     SELECT
       p.steam_id, p.username, p.position, p.avatar, p.rating, p.country, p.iosoccer_id,
-      agg.apps, agg.as_sub, agg.wins, agg.draws, agg.losses,
-      agg.total_goals, agg.total_assists,
-      agg.total_shots, agg.total_shots_on_target,
-      agg.total_passes, agg.total_passes_completed,
-      agg.total_saves, agg.total_saves_caught, agg.total_goals_conceded,
-      agg.total_interceptions, agg.total_tackles, agg.total_tackles_completed,
-      agg.total_fouls, agg.total_fouls_suffered,
-      agg.total_yellow_cards, agg.total_red_cards,
-      agg.total_distance, agg.total_possession, agg.avg_possession_pct,
-      agg.shot_accuracy, agg.pass_accuracy
+      COALESCE(agg.apps, 0)::bigint AS apps,
+      COALESCE(agg.as_sub, 0)::bigint AS as_sub,
+      COALESCE(agg.wins, 0)::bigint AS wins,
+      COALESCE(agg.draws, 0)::bigint AS draws,
+      COALESCE(agg.losses, 0)::bigint AS losses,
+      COALESCE(agg.total_goals, 0)::bigint AS total_goals,
+      COALESCE(agg.total_assists, 0)::bigint AS total_assists,
+      COALESCE(agg.total_second_assists, 0)::bigint AS total_second_assists,
+      COALESCE(agg.total_shots, 0)::bigint AS total_shots,
+      COALESCE(agg.total_shots_on_target, 0)::bigint AS total_shots_on_target,
+      COALESCE(agg.total_key_passes, 0)::bigint AS total_key_passes,
+      COALESCE(agg.total_chances_created, 0)::bigint AS total_chances_created,
+      COALESCE(agg.total_offsides, 0)::bigint AS total_offsides,
+      COALESCE(agg.total_own_goals, 0)::bigint AS total_own_goals,
+      COALESCE(agg.total_passes, 0)::bigint AS total_passes,
+      COALESCE(agg.total_passes_completed, 0)::bigint AS total_passes_completed,
+      COALESCE(agg.total_saves, 0)::bigint AS total_saves,
+      COALESCE(agg.total_saves_caught, 0)::bigint AS total_saves_caught,
+      COALESCE(agg.total_goals_conceded, 0)::bigint AS total_goals_conceded,
+      COALESCE(agg.total_interceptions, 0)::bigint AS total_interceptions,
+      COALESCE(agg.total_tackles, 0)::bigint AS total_tackles,
+      COALESCE(agg.total_tackles_completed, 0)::bigint AS total_tackles_completed,
+      COALESCE(agg.total_fouls, 0)::bigint AS total_fouls,
+      COALESCE(agg.total_fouls_suffered, 0)::bigint AS total_fouls_suffered,
+      COALESCE(agg.total_yellow_cards, 0)::bigint AS total_yellow_cards,
+      COALESCE(agg.total_red_cards, 0)::bigint AS total_red_cards,
+      COALESCE(agg.total_distance, 0)::bigint AS total_distance,
+      COALESCE(agg.total_possession, 0)::bigint AS total_possession,
+      COALESCE(agg.avg_possession_pct, 0)::float8 AS avg_possession_pct,
+      COALESCE(agg.shot_accuracy, 0)::float8 AS shot_accuracy,
+      COALESCE(agg.pass_accuracy, 0)::float8 AS pass_accuracy
     FROM players p
-    JOIN mv_player_leaderboard agg ON agg.player_steam_id = p.steam_id
+    LEFT JOIN mv_player_leaderboard agg ON agg.player_steam_id = p.steam_id
     ${whereFragment}
     ORDER BY ${orderCol} ${Prisma.raw(dir)} NULLS LAST
     LIMIT ${PAGE_SIZE} OFFSET ${offset}
@@ -250,9 +307,9 @@ export default async function PlayersPage({
 
   const countResult = await prisma.$queryRaw<{ total: bigint }[]>`
     SELECT COUNT(*) AS total
-    FROM mv_player_leaderboard agg
-    JOIN players p ON p.steam_id = agg.player_steam_id
-    ${whereFragment}
+    FROM players p
+    ${countJoin}
+    ${countWhere}
   `;
   const totalPlayers = Number(countResult[0]?.total || 0);
   const totalPages = Math.max(1, Math.ceil(totalPlayers / PAGE_SIZE));
@@ -265,6 +322,7 @@ export default async function PlayersPage({
     sp.set("sort", sortKey);
     sp.set("dir", dir.toLowerCase());
     if (nameQuery) sp.set("q", nameQuery);
+    if (minApps > 0) sp.set("minApps", String(minApps));
     return sp;
   }
 
@@ -287,6 +345,7 @@ export default async function PlayersPage({
     const sp = new URLSearchParams();
     sp.set("view", v);
     if (nameQuery) sp.set("q", nameQuery);
+    if (minApps > 0) sp.set("minApps", String(minApps));
     return `/players?${sp.toString()}`;
   }
 
@@ -307,7 +366,7 @@ export default async function PlayersPage({
         </div>
 
         {/* Search */}
-        <form action="/players" method="GET" className="flex items-center gap-2">
+        <form action="/players" method="GET" className="flex items-center gap-2 flex-wrap">
           <input type="hidden" name="view" value={view} />
           <input
             type="text"
@@ -325,7 +384,7 @@ export default async function PlayersPage({
         </form>
       </div>
 
-      {/* Stat view tabs */}
+      {/* Stat view tabs + min apps filter */}
       <div className="flex items-center gap-2 mb-4 flex-wrap">
         {STAT_VIEWS.map((sv) => (
           <Link
@@ -340,6 +399,17 @@ export default async function PlayersPage({
             {sv.label.toUpperCase()}
           </Link>
         ))}
+
+        {/* Min appearances filter — pushed to the right */}
+        <div className="ml-auto">
+          <MinAppsSelect
+            view={view}
+            sortKey={sortKey}
+            dir={dir.toLowerCase()}
+            nameQuery={nameQuery}
+            minApps={minApps}
+          />
+        </div>
       </div>
 
       {/* Table */}

@@ -808,12 +808,12 @@ function SortablePlayerTable({
         </button>
       </div>
       <div className="rounded-lg border border-chalk-100/8 overflow-x-auto bg-pitch-900/40">
-        <table className="w-full text-xs">
+        <table className="w-full text-xs table-fixed">
           <thead>
             <tr className="border-b border-chalk-100/8">
               {cols.map((col, ci) => (
                 <th key={ci}
-                  className={`${ci === 0 ? "px-3" : "px-2"} py-2 font-mono text-chalk-400 ${col.align} ${col.key ? "cursor-pointer hover:text-chalk-200 select-none transition-colors" : ""}`}
+                  className={`${ci === 0 ? "px-3 w-[140px]" : ci === 1 ? "px-2 w-[40px]" : "px-2"} py-2 font-mono text-chalk-400 ${col.align} ${col.key ? "cursor-pointer hover:text-chalk-200 select-none transition-colors" : ""}`}
                   onClick={col.key ? () => handleSort(col.key as SortKey) : undefined}>
                   {col.label}
                   {col.key && sortKey === col.key && <span className={`ml-0.5 ${sortAsc ? "text-grass-500" : "text-red-400"}`}>{sortAsc ? "\u25B2" : "\u25BC"}</span>}
@@ -873,14 +873,19 @@ function SortablePlayerTable({
                   role="link"
                   aria-label={`Open profile for ${p.username}`}
                 >
-                  <td className="px-3 py-2">
-                    <Link
-                      href={`/players/${encodeURIComponent(p.profile_steam_id || p.player_steam_id)}`}
-                      className="font-body font-medium text-chalk-100 hover:text-[#F4119E] transition-colors"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {p.username}
-                    </Link>
+                  <td className="px-3 py-2 overflow-hidden">
+                    <div className="flex items-center gap-1 min-w-0">
+                      <Link
+                        href={`/players/${encodeURIComponent(p.profile_steam_id || p.player_steam_id)}`}
+                        className="font-body font-medium text-chalk-100 hover:text-[#F4119E] transition-colors truncate"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {p.username}
+                      </Link>
+                      {p.is_sub && (
+                        <span className="shrink-0 text-[#F4119E] text-[11px]" title="Substitute">&#x25B6;</span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-2 py-2 text-center">
                     <span className="text-[10px] font-mono text-chalk-400 bg-pitch-800 px-1.5 py-0.5 rounded">{p.position || "-"}</span>

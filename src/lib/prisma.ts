@@ -1,7 +1,7 @@
 import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 
-const connectionString = process.env.DATABASE_URL || process.env.DIRECT_URL || "";
+const connectionString = (process.env.DATABASE_URL || process.env.DIRECT_URL || "").replace(/^["']|["']$/g, "");
 
 const globalForPrisma = globalThis as unknown as { prisma: InstanceType<typeof PrismaClient> };
 

@@ -1,5 +1,5 @@
 -- Recreate materialized view with comprehensive player stats
--- Run this after adding the new columns (saves_caught, sliding_tackles, sliding_tackles_completed)
+-- Run this after schema changes
 
 -- Pre-compute total possession per match (needed for percentage calculation)
 DROP MATERIALIZED VIEW IF EXISTS mv_player_leaderboard;
@@ -12,23 +12,38 @@ WITH match_poss AS (
 )
 SELECT
   mps.player_steam_id,
-  COUNT(DISTINCT mps.match_id) AS apps,
   COUNT(DISTINCT CASE WHEN mps.is_substitute THEN mps.match_id END) AS as_sub,
-  -- Win / Draw / Loss
-  COUNT(DISTINCT CASE WHEN
+  -- Win / Draw / Loss: counted per team-side performance.
+  -- A player on both teams in the same match gets both outcomes counted.
+  COUNT(CASE WHEN
     (mps.team_side = 'home' AND m.home_score > m.away_score) OR
     (mps.team_side = 'away' AND m.away_score > m.home_score)
-  THEN mps.match_id END) AS wins,
-  COUNT(DISTINCT CASE WHEN m.home_score = m.away_score THEN mps.match_id END) AS draws,
-  COUNT(DISTINCT CASE WHEN
+  THEN 1 END) AS wins,
+  COUNT(CASE WHEN m.home_score = m.away_score THEN 1 END) AS draws,
+  COUNT(CASE WHEN
     (mps.team_side = 'home' AND m.home_score < m.away_score) OR
     (mps.team_side = 'away' AND m.away_score < m.home_score)
-  THEN mps.match_id END) AS losses,
+  THEN 1 END) AS losses,
+  -- apps = wins + draws + losses (per team-side performances, consistent with profile page)
+  COUNT(CASE WHEN
+    (mps.team_side = 'home' AND m.home_score > m.away_score) OR
+    (mps.team_side = 'away' AND m.away_score > m.home_score)
+  THEN 1 END) +
+  COUNT(CASE WHEN m.home_score = m.away_score THEN 1 END) +
+  COUNT(CASE WHEN
+    (mps.team_side = 'home' AND m.home_score < m.away_score) OR
+    (mps.team_side = 'away' AND m.away_score < m.home_score)
+  THEN 1 END) AS apps,
   -- Attacking
   SUM(mps.goals) AS total_goals,
   SUM(mps.assists) AS total_assists,
+  SUM(COALESCE(mps.second_assists, 0)) AS total_second_assists,
   SUM(mps.shots) AS total_shots,
   SUM(mps.shots_on_target) AS total_shots_on_target,
+  SUM(COALESCE(mps.key_passes, 0)) AS total_key_passes,
+  SUM(COALESCE(mps.chances_created, 0)) AS total_chances_created,
+  SUM(COALESCE(mps.offsides, 0)) AS total_offsides,
+  SUM(COALESCE(mps.own_goals, 0)) AS total_own_goals,
   -- Passing
   SUM(mps.passes) AS total_passes,
   SUM(mps.passes_completed) AS total_passes_completed,
