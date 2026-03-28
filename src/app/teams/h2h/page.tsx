@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getActiveTeams, badgeUrl } from "@/lib/iosoccer-api";
 import { proxyImg } from "@/lib/img";
 import { H2HPicker } from "./H2HPicker";
+import { H2HStatSlider, type StatPage } from "./H2HStatSlider";
 
 export const dynamic = "force-dynamic";
 
@@ -48,12 +49,29 @@ type H2HStats = {
   draws: bigint;
   team1_goals: bigint;
   team2_goals: bigint;
+};
+
+type H2HPlayerStats = {
   team1_avg_possession: number | null;
   team2_avg_possession: number | null;
   team1_avg_passes: number | null;
   team2_avg_passes: number | null;
   team1_avg_passes_completed: number | null;
   team2_avg_passes_completed: number | null;
+  team1_avg_shots: number | null;
+  team2_avg_shots: number | null;
+  team1_avg_shots_on_target: number | null;
+  team2_avg_shots_on_target: number | null;
+  team1_avg_interceptions: number | null;
+  team2_avg_interceptions: number | null;
+  team1_avg_saves: number | null;
+  team2_avg_saves: number | null;
+  team1_avg_offsides: number | null;
+  team2_avg_offsides: number | null;
+  team1_yellow_cards: bigint | null;
+  team2_yellow_cards: bigint | null;
+  team1_red_cards: bigint | null;
+  team2_red_cards: bigint | null;
 };
 
 type TopPlayer = {
@@ -73,40 +91,6 @@ type TeamRow = {
   color: string | null;
 };
 
-function StatBar({
-  label,
-  val1,
-  val2,
-  color1,
-  color2,
-  format = (x: number) => x.toFixed(0),
-}: {
-  label: string;
-  val1: number;
-  val2: number;
-  color1: string;
-  color2: string;
-  format?: (x: number) => string;
-}) {
-  const total = val1 + val2;
-  const pct1 = total > 0 ? (val1 / total) * 100 : 50;
-  const pct2 = total > 0 ? (val2 / total) * 100 : 50;
-
-  return (
-    <div className="mb-4">
-      <div className="flex items-center justify-between mb-1">
-        <span className="font-mono text-sm font-700 text-chalk-100">{format(val1)}</span>
-        <span className="text-[10px] font-mono uppercase tracking-[0.18em] text-chalk-400">{label}</span>
-        <span className="font-mono text-sm font-700 text-chalk-100">{format(val2)}</span>
-      </div>
-      <div className="flex h-2 rounded overflow-hidden">
-        <div style={{ width: `${pct1}%`, backgroundColor: color1 || "#F4119E" }} />
-        <div style={{ width: `${pct2}%`, backgroundColor: color2 || "#56a3ff" }} />
-      </div>
-    </div>
-  );
-}
-
 export default async function H2HPage({
   searchParams,
 }: {
@@ -118,16 +102,32 @@ export default async function H2HPage({
 
   // ── PICKER VIEW ────────────────────────────────────────────────────
   if (!team1Id || !team2Id || isNaN(team1Id) || isNaN(team2Id) || team1Id === team2Id) {
-    let apiTeams: { id: number; name: string; logo: string | null; color: string | null }[] = [];
+    let apiTeams: { id: number; name: string; logo: string | null; color: string | null; typeLabel: string }[] = [];
     try {
-      const raw = await getActiveTeams(1, 1);
-      raw.sort((a, b) => a.name.localeCompare(b.name));
-      apiTeams = raw.map((t) => ({
-        id: t.id,
-        name: t.name,
-        logo: badgeUrl(t.badgeImageId),
-        color: t.color ?? null,
-      }));
+      const [clubs, nationals, mixes] = await Promise.allSettled([
+        getActiveTeams(1, 1),
+        getActiveTeams(1, 2),
+        getActiveTeams(1, 3),
+      ]);
+      const map = [
+        { result: clubs,   label: "Club" },
+        { result: nationals, label: "National" },
+        { result: mixes,   label: "Mix" },
+      ];
+      for (const { result, label } of map) {
+        if (result.status === "fulfilled") {
+          for (const t of result.value) {
+            apiTeams.push({
+              id: t.id,
+              name: t.name,
+              logo: badgeUrl(t.badgeImageId),
+              color: t.color ?? null,
+              typeLabel: label,
+            });
+          }
+        }
+      }
+      apiTeams.sort((a, b) => a.name.localeCompare(b.name));
     } catch {
       // API unavailable
     }
@@ -139,7 +139,7 @@ export default async function H2HPage({
             HEAD 2 HEAD
           </h1>
           <p className="text-chalk-400 text-sm font-body mt-1">
-            Select two club teams to compare their head-to-head record
+            Select two teams to compare their head-to-head record
           </p>
         </div>
         <H2HPicker teams={apiTeams} />
@@ -180,7 +180,7 @@ export default async function H2HPage({
   const totalMatches = Number(totalRaw);
   const totalPages = Math.ceil(totalMatches / PAGE_SIZE);
 
-  // H2H aggregate stats
+  // H2H aggregate stats (wins / draws / goals)
   const [stats] = await prisma.$queryRaw<[H2HStats]>`
     SELECT
       COUNT(CASE WHEN (home_team_id = ${team1Id} AND home_score > away_score)
@@ -189,30 +189,71 @@ export default async function H2HPage({
                    OR (away_team_id = ${team2Id} AND away_score > home_score) THEN 1 END) AS team2_wins,
       COUNT(CASE WHEN home_score = away_score THEN 1 END) AS draws,
       SUM(CASE WHEN home_team_id = ${team1Id} THEN home_score ELSE away_score END) AS team1_goals,
-      SUM(CASE WHEN home_team_id = ${team2Id} THEN home_score ELSE away_score END) AS team2_goals,
-      AVG(CASE WHEN home_team_id = ${team1Id} THEN (mps_home.poss)
-               WHEN away_team_id = ${team1Id} THEN (mps_away.poss) END) AS team1_avg_possession,
-      AVG(CASE WHEN home_team_id = ${team2Id} THEN (mps_home.poss)
-               WHEN away_team_id = ${team2Id} THEN (mps_away.poss) END) AS team2_avg_possession,
-      AVG(CASE WHEN home_team_id = ${team1Id} THEN (mps_home.passes)
-               WHEN away_team_id = ${team1Id} THEN (mps_away.passes) END) AS team1_avg_passes,
-      AVG(CASE WHEN home_team_id = ${team2Id} THEN (mps_home.passes)
-               WHEN away_team_id = ${team2Id} THEN (mps_away.passes) END) AS team2_avg_passes,
-      AVG(CASE WHEN home_team_id = ${team1Id} THEN (mps_home.passes_completed)
-               WHEN away_team_id = ${team1Id} THEN (mps_away.passes_completed) END) AS team1_avg_passes_completed,
-      AVG(CASE WHEN home_team_id = ${team2Id} THEN (mps_home.passes_completed)
-               WHEN away_team_id = ${team2Id} THEN (mps_away.passes_completed) END) AS team2_avg_passes_completed
-    FROM matches m
-    LEFT JOIN LATERAL (
-      SELECT AVG(possession) AS poss, AVG(passes) AS passes, AVG(passes_completed) AS passes_completed
-      FROM match_player_stats WHERE match_id = m.id AND team_side = 'home'
-    ) mps_home ON true
-    LEFT JOIN LATERAL (
-      SELECT AVG(possession) AS poss, AVG(passes) AS passes, AVG(passes_completed) AS passes_completed
-      FROM match_player_stats WHERE match_id = m.id AND team_side = 'away'
-    ) mps_away ON true
+      SUM(CASE WHEN home_team_id = ${team2Id} THEN home_score ELSE away_score END) AS team2_goals
+    FROM matches
     WHERE (home_team_id = ${team1Id} AND away_team_id = ${team2Id})
        OR (home_team_id = ${team2Id} AND away_team_id = ${team1Id})
+  `;
+
+  // H2H player stats averages (per match, normalised)
+  const [playerStats] = await prisma.$queryRaw<[H2HPlayerStats]>`
+    WITH per_match AS (
+      SELECT
+        (m.home_team_id = ${team1Id}) AS t1_is_home,
+        SUM(CASE WHEN mps.team_side = 'home' THEN mps.possession ELSE 0 END)::float AS home_poss,
+        SUM(CASE WHEN mps.team_side = 'away' THEN mps.possession ELSE 0 END)::float AS away_poss,
+        SUM(CASE WHEN mps.team_side = 'home' THEN mps.shots ELSE 0 END) AS home_shots,
+        SUM(CASE WHEN mps.team_side = 'away' THEN mps.shots ELSE 0 END) AS away_shots,
+        SUM(CASE WHEN mps.team_side = 'home' THEN mps.shots_on_target ELSE 0 END) AS home_sot,
+        SUM(CASE WHEN mps.team_side = 'away' THEN mps.shots_on_target ELSE 0 END) AS away_sot,
+        SUM(CASE WHEN mps.team_side = 'home' THEN mps.passes ELSE 0 END) AS home_passes,
+        SUM(CASE WHEN mps.team_side = 'away' THEN mps.passes ELSE 0 END) AS away_passes,
+        SUM(CASE WHEN mps.team_side = 'home' THEN mps.passes_completed ELSE 0 END) AS home_pc,
+        SUM(CASE WHEN mps.team_side = 'away' THEN mps.passes_completed ELSE 0 END) AS away_pc,
+        SUM(CASE WHEN mps.team_side = 'home' THEN mps.interceptions ELSE 0 END) AS home_int,
+        SUM(CASE WHEN mps.team_side = 'away' THEN mps.interceptions ELSE 0 END) AS away_int,
+        SUM(CASE WHEN mps.team_side = 'home' THEN mps.saves ELSE 0 END) AS home_saves,
+        SUM(CASE WHEN mps.team_side = 'away' THEN mps.saves ELSE 0 END) AS away_saves,
+        SUM(CASE WHEN mps.team_side = 'home' THEN mps.offsides ELSE 0 END) AS home_off,
+        SUM(CASE WHEN mps.team_side = 'away' THEN mps.offsides ELSE 0 END) AS away_off,
+        SUM(CASE WHEN mps.team_side = 'home' THEN mps.yellow_cards ELSE 0 END) AS home_yc,
+        SUM(CASE WHEN mps.team_side = 'away' THEN mps.yellow_cards ELSE 0 END) AS away_yc,
+        SUM(CASE WHEN mps.team_side = 'home' THEN mps.red_cards ELSE 0 END) AS home_rc,
+        SUM(CASE WHEN mps.team_side = 'away' THEN mps.red_cards ELSE 0 END) AS away_rc
+      FROM matches m
+      JOIN match_player_stats mps ON mps.match_id = m.id
+      WHERE (m.home_team_id = ${team1Id} AND m.away_team_id = ${team2Id})
+         OR (m.home_team_id = ${team2Id} AND m.away_team_id = ${team1Id})
+      GROUP BY m.id, m.home_team_id
+    )
+    SELECT
+      AVG(CASE WHEN t1_is_home THEN
+        CASE WHEN home_poss+away_poss > 0 THEN home_poss/(home_poss+away_poss)*100 ELSE 50 END
+        ELSE CASE WHEN home_poss+away_poss > 0 THEN away_poss/(home_poss+away_poss)*100 ELSE 50 END
+      END) AS team1_avg_possession,
+      AVG(CASE WHEN t1_is_home THEN
+        CASE WHEN home_poss+away_poss > 0 THEN away_poss/(home_poss+away_poss)*100 ELSE 50 END
+        ELSE CASE WHEN home_poss+away_poss > 0 THEN home_poss/(home_poss+away_poss)*100 ELSE 50 END
+      END) AS team2_avg_possession,
+      AVG(CASE WHEN t1_is_home THEN home_shots  ELSE away_shots  END) AS team1_avg_shots,
+      AVG(CASE WHEN t1_is_home THEN away_shots  ELSE home_shots  END) AS team2_avg_shots,
+      AVG(CASE WHEN t1_is_home THEN home_sot    ELSE away_sot    END) AS team1_avg_shots_on_target,
+      AVG(CASE WHEN t1_is_home THEN away_sot    ELSE home_sot    END) AS team2_avg_shots_on_target,
+      AVG(CASE WHEN t1_is_home THEN home_passes ELSE away_passes END) AS team1_avg_passes,
+      AVG(CASE WHEN t1_is_home THEN away_passes ELSE home_passes END) AS team2_avg_passes,
+      AVG(CASE WHEN t1_is_home THEN home_pc     ELSE away_pc     END) AS team1_avg_passes_completed,
+      AVG(CASE WHEN t1_is_home THEN away_pc     ELSE home_pc     END) AS team2_avg_passes_completed,
+      AVG(CASE WHEN t1_is_home THEN home_int    ELSE away_int    END) AS team1_avg_interceptions,
+      AVG(CASE WHEN t1_is_home THEN away_int    ELSE home_int    END) AS team2_avg_interceptions,
+      AVG(CASE WHEN t1_is_home THEN home_saves  ELSE away_saves  END) AS team1_avg_saves,
+      AVG(CASE WHEN t1_is_home THEN away_saves  ELSE home_saves  END) AS team2_avg_saves,
+      AVG(CASE WHEN t1_is_home THEN home_off    ELSE away_off    END) AS team1_avg_offsides,
+      AVG(CASE WHEN t1_is_home THEN away_off    ELSE home_off    END) AS team2_avg_offsides,
+      SUM(CASE WHEN t1_is_home THEN home_yc     ELSE away_yc     END) AS team1_yellow_cards,
+      SUM(CASE WHEN t1_is_home THEN away_yc     ELSE home_yc     END) AS team2_yellow_cards,
+      SUM(CASE WHEN t1_is_home THEN home_rc     ELSE away_rc     END) AS team1_red_cards,
+      SUM(CASE WHEN t1_is_home THEN away_rc     ELSE home_rc     END) AS team2_red_cards
+    FROM per_match
   `;
 
   // Top players
@@ -315,12 +356,69 @@ export default async function H2HPage({
   const draws = Number(stats.draws);
   const t1Goals = Number(stats.team1_goals ?? 0);
   const t2Goals = Number(stats.team2_goals ?? 0);
-  const t1Poss = stats.team1_avg_possession ? Number(stats.team1_avg_possession) : 0;
-  const t2Poss = stats.team2_avg_possession ? Number(stats.team2_avg_possession) : 0;
-  const t1Passes = stats.team1_avg_passes ? Number(stats.team1_avg_passes) : 0;
-  const t2Passes = stats.team2_avg_passes ? Number(stats.team2_avg_passes) : 0;
-  const t1PC = stats.team1_avg_passes_completed ? Number(stats.team1_avg_passes_completed) : 0;
-  const t2PC = stats.team2_avg_passes_completed ? Number(stats.team2_avg_passes_completed) : 0;
+
+  const n = (v: number | null) => (v ? Number(v) : 0);
+  const t1Poss   = n(playerStats.team1_avg_possession);
+  const t2Poss   = n(playerStats.team2_avg_possession);
+  const t1Passes = n(playerStats.team1_avg_passes);
+  const t2Passes = n(playerStats.team2_avg_passes);
+  const t1PC     = n(playerStats.team1_avg_passes_completed);
+  const t2PC     = n(playerStats.team2_avg_passes_completed);
+  const t1Shots  = n(playerStats.team1_avg_shots);
+  const t2Shots  = n(playerStats.team2_avg_shots);
+  const t1SOT    = n(playerStats.team1_avg_shots_on_target);
+  const t2SOT    = n(playerStats.team2_avg_shots_on_target);
+  const t1Int    = n(playerStats.team1_avg_interceptions);
+  const t2Int    = n(playerStats.team2_avg_interceptions);
+  const t1Saves  = n(playerStats.team1_avg_saves);
+  const t2Saves  = n(playerStats.team2_avg_saves);
+  const t1Off    = n(playerStats.team1_avg_offsides);
+  const t2Off    = n(playerStats.team2_avg_offsides);
+  const t1YC     = playerStats.team1_yellow_cards ? Number(playerStats.team1_yellow_cards) : 0;
+  const t2YC     = playerStats.team2_yellow_cards ? Number(playerStats.team2_yellow_cards) : 0;
+  const t1RC     = playerStats.team1_red_cards ? Number(playerStats.team1_red_cards) : 0;
+  const t2RC     = playerStats.team2_red_cards ? Number(playerStats.team2_red_cards) : 0;
+
+  const statPages: StatPage[] = [
+    {
+      title: "Match Outcomes",
+      bars: [
+        { label: "Match Wins",  val1: t1Wins,  val2: t2Wins },
+        { label: "Total Goals", val1: t1Goals, val2: t2Goals },
+        { label: "Avg Goals",   val1: totalMatches > 0 ? t1Goals / totalMatches : 0, val2: totalMatches > 0 ? t2Goals / totalMatches : 0, format: "dec" },
+      ],
+    },
+    {
+      title: "Possession & Passing",
+      bars: [
+        { label: "Avg Possession",        val1: t1Poss,   val2: t2Poss,   format: "pct" },
+        { label: "Avg Passes",            val1: t1Passes, val2: t2Passes, format: "dec" },
+        { label: "Avg Passes Completed",  val1: t1PC,     val2: t2PC,     format: "dec" },
+      ],
+    },
+    {
+      title: "Attack",
+      bars: [
+        { label: "Avg Shots",           val1: t1Shots, val2: t2Shots, format: "dec" },
+        { label: "Avg Shots on Target", val1: t1SOT,   val2: t2SOT,   format: "dec" },
+      ],
+    },
+    {
+      title: "Defending",
+      bars: [
+        { label: "Avg Interceptions", val1: t1Int,   val2: t2Int,   format: "dec" },
+        { label: "Avg Keeper Saves",  val1: t1Saves, val2: t2Saves, format: "dec" },
+        { label: "Avg Offsides",      val1: t1Off,   val2: t2Off,   format: "dec" },
+      ],
+    },
+    {
+      title: "Discipline",
+      bars: [
+        { label: "Yellow Cards", val1: t1YC, val2: t2YC },
+        { label: "Red Cards",    val1: t1RC, val2: t2RC },
+      ],
+    },
+  ];
 
   const logo1 = proxyImg(team1Row.logo);
   const logo2 = proxyImg(team2Row.logo);
@@ -450,23 +548,8 @@ export default async function H2HPage({
         </div>
       ) : (
         <>
-          {/* Stats bars */}
-          <div className="rounded-lg border border-chalk-100/8 bg-pitch-900/40 p-5 mb-6">
-            <div className="text-[10px] font-mono uppercase tracking-[0.22em] text-chalk-400 mb-4">
-              H2H Statistics
-            </div>
-            <StatBar label="Match Wins" val1={t1Wins} val2={t2Wins} color1={color1} color2={color2} />
-            <StatBar label="Total Goals" val1={t1Goals} val2={t2Goals} color1={color1} color2={color2} />
-            {(t1Poss > 0 || t2Poss > 0) && (
-              <StatBar label="Avg Possession %" val1={t1Poss} val2={t2Poss} color1={color1} color2={color2} format={(x) => x.toFixed(1) + "%"} />
-            )}
-            {(t1Passes > 0 || t2Passes > 0) && (
-              <StatBar label="Avg Passes" val1={t1Passes} val2={t2Passes} color1={color1} color2={color2} format={(x) => x.toFixed(1)} />
-            )}
-            {(t1PC > 0 || t2PC > 0) && (
-              <StatBar label="Avg Passes Completed" val1={t1PC} val2={t2PC} color1={color1} color2={color2} format={(x) => x.toFixed(1)} />
-            )}
-          </div>
+          {/* Stats slider */}
+          <H2HStatSlider pages={statPages} color1={color1} color2={color2} />
 
           {/* Top players */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">

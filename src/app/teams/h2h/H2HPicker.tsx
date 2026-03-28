@@ -8,12 +8,21 @@ interface TeamOption {
   name: string;
   logo: string | null;
   color: string | null;
+  typeLabel: string;
 }
+
+const TYPE_FILTERS = ["All", "Club", "National", "Mix"] as const;
+type TypeFilter = (typeof TYPE_FILTERS)[number];
 
 export function H2HPicker({ teams }: { teams: TeamOption[] }) {
   const router = useRouter();
   const [team1, setTeam1] = useState<number | null>(null);
   const [team2, setTeam2] = useState<number | null>(null);
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("All");
+
+  const filteredTeams = typeFilter === "All"
+    ? teams
+    : teams.filter((t) => t.typeLabel === typeFilter);
 
   function handleCompare() {
     if (!team1 || !team2) return;
@@ -37,7 +46,7 @@ export function H2HPicker({ teams }: { teams: TeamOption[] }) {
           {label}
         </div>
         <div className="rounded-lg border border-chalk-100/8 bg-pitch-900/40 overflow-y-auto h-[480px]">
-          {teams.map((t) => {
+          {filteredTeams.map((t) => {
             const isSelected = selected === t.id;
             const isExcluded = exclude === t.id;
             return (
@@ -78,6 +87,23 @@ export function H2HPicker({ teams }: { teams: TeamOption[] }) {
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Type filter tabs */}
+      <div className="flex items-center gap-1 text-xs font-mono">
+        {TYPE_FILTERS.map((f) => (
+          <button
+            key={f}
+            onClick={() => setTypeFilter(f)}
+            className={`px-3 py-1.5 rounded border transition-colors ${
+              typeFilter === f
+                ? "border-[#F4119E] text-[#F4119E] bg-[#F4119E]/10"
+                : "border-chalk-100/10 text-chalk-400 hover:border-[#F4119E]/40 hover:text-[#F4119E]"
+            }`}
+          >
+            {f.toUpperCase()}
+          </button>
+        ))}
+      </div>
+
       <div className="flex flex-col sm:flex-row gap-4">
         <TeamList
           label="Pick Team One"
