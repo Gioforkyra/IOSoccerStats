@@ -10,8 +10,10 @@ import { PlayerAvatar } from "./PlayerAvatar";
 export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 10;
-const P1_COLOR = "#F4119E";
-const P2_COLOR = "#56a3ff";
+const P1_COLOR = "#4ade80";
+const P2_COLOR = "#f87171";
+
+type TeamColorRow = { color: string | null };
 
 const SERVER_FLAGS: Record<string, string> = {
   fr: "\u{1F1EB}\u{1F1F7}", de: "\u{1F1E9}\u{1F1EA}", uk: "\u{1F1EC}\u{1F1E7}", gb: "\u{1F1EC}\u{1F1E7}",
@@ -70,11 +72,8 @@ type H2HPlayerMatch = {
   away_logo: string | null;
   match_type: string;
   p1_side: string | null;
-  p1_goals: number;
-  p1_assists: number;
-  p2_side: string | null;
-  p2_goals: number;
-  p2_assists: number;
+  potm: string | null;
+  potm_steam_id: string | null;
   server: string | null;
 };
 
@@ -132,6 +131,8 @@ export default async function PlayerH2HPage({
     [p1Stats],
     [p2Stats],
     matches,
+    p1TeamArr,
+    p2TeamArr,
   ] = await Promise.all([
     prisma.$queryRaw<PlayerInfo[]>`
       SELECT steam_id, username, avatar, avatar_updated_at FROM players WHERE steam_id = ${p1SteamId} LIMIT 1
@@ -143,10 +144,12 @@ export default async function PlayerH2HPage({
       SELECT COUNT(DISTINCT m.id) AS total
       FROM matches m
       WHERE EXISTS (
-        SELECT 1 FROM match_player_stats WHERE match_id = m.id AND player_steam_id = ANY(${p1Ids})
-      )
-      AND EXISTS (
-        SELECT 1 FROM match_player_stats WHERE match_id = m.id AND player_steam_id = ANY(${p2Ids})
+        SELECT 1 FROM match_player_stats mps1
+        JOIN match_player_stats mps2
+          ON mps2.match_id = mps1.match_id AND mps2.team_side != mps1.team_side
+        WHERE mps1.match_id = m.id
+          AND mps1.player_steam_id = ANY(${p1Ids})
+          AND mps2.player_steam_id = ANY(${p2Ids})
       )
     `,
     prisma.$queryRaw<[PlayerH2HStats]>`
@@ -179,7 +182,9 @@ export default async function PlayerH2HPage({
       WHERE mps.player_steam_id = ANY(${p1Ids})
         AND EXISTS (
           SELECT 1 FROM match_player_stats mps2
-          WHERE mps2.match_id = mps.match_id AND mps2.player_steam_id = ANY(${p2Ids})
+          WHERE mps2.match_id = mps.match_id
+            AND mps2.player_steam_id = ANY(${p2Ids})
+            AND mps2.team_side != mps.team_side
         )
     `,
     prisma.$queryRaw<[PlayerH2HStats]>`
@@ -212,7 +217,9 @@ export default async function PlayerH2HPage({
       WHERE mps.player_steam_id = ANY(${p2Ids})
         AND EXISTS (
           SELECT 1 FROM match_player_stats mps2
-          WHERE mps2.match_id = mps.match_id AND mps2.player_steam_id = ANY(${p1Ids})
+          WHERE mps2.match_id = mps.match_id
+            AND mps2.player_steam_id = ANY(${p1Ids})
+            AND mps2.team_side != mps.team_side
         )
     `,
     prisma.$queryRaw<H2HPlayerMatch[]>`
@@ -230,28 +237,56 @@ export default async function PlayerH2HPage({
         m.match_type,
         (SELECT team_side FROM match_player_stats
          WHERE match_id = m.id AND player_steam_id = ANY(${p1Ids}) LIMIT 1) AS p1_side,
-        COALESCE((SELECT SUM(goals)::int FROM match_player_stats
-                  WHERE match_id = m.id AND player_steam_id = ANY(${p1Ids})), 0) AS p1_goals,
-        COALESCE((SELECT SUM(assists)::int FROM match_player_stats
-                  WHERE match_id = m.id AND player_steam_id = ANY(${p1Ids})), 0) AS p1_assists,
-        (SELECT team_side FROM match_player_stats
-         WHERE match_id = m.id AND player_steam_id = ANY(${p2Ids}) LIMIT 1) AS p2_side,
-        COALESCE((SELECT SUM(goals)::int FROM match_player_stats
-                  WHERE match_id = m.id AND player_steam_id = ANY(${p2Ids})), 0) AS p2_goals,
-        COALESCE((SELECT SUM(assists)::int FROM match_player_stats
-                  WHERE match_id = m.id AND player_steam_id = ANY(${p2Ids})), 0) AS p2_assists,
+        m.potm,
+        (SELECT p.steam_id FROM players p WHERE LOWER(p.username) = LOWER(m.potm) LIMIT 1) AS potm_steam_id,
         m.server
       FROM matches m
       JOIN teams th ON th.id = m.home_team_id
       JOIN teams ta ON ta.id = m.away_team_id
       WHERE EXISTS (
-        SELECT 1 FROM match_player_stats WHERE match_id = m.id AND player_steam_id = ANY(${p1Ids})
-      )
-      AND EXISTS (
-        SELECT 1 FROM match_player_stats WHERE match_id = m.id AND player_steam_id = ANY(${p2Ids})
+        SELECT 1 FROM match_player_stats mps1
+        JOIN match_player_stats mps2
+          ON mps2.match_id = mps1.match_id AND mps2.team_side != mps1.team_side
+        WHERE mps1.match_id = m.id
+          AND mps1.player_steam_id = ANY(${p1Ids})
+          AND mps2.player_steam_id = ANY(${p2Ids})
       )
       ORDER BY m.date DESC, m.id DESC
       LIMIT ${PAGE_SIZE} OFFSET ${offset}
+    `,
+    prisma.$queryRaw<TeamColorRow[]>`
+      SELECT t.color FROM transfers tr
+      JOIN teams t ON t.id = tr.to_team_id
+      WHERE tr.player_steam_id = ANY(${p1Ids})
+        AND tr.type = 'join'
+        AND t.inactive = false
+        AND t.team_type = 1
+        AND t.name NOT IN ('IOSoccer All', 'IOSoccer Overlap', 'IOSoccer Challenge', 'IOSoccer Premier')
+        AND NOT EXISTS (
+          SELECT 1 FROM transfers tr2
+          WHERE tr2.player_steam_id = tr.player_steam_id
+            AND tr2.from_team_id = tr.to_team_id
+            AND tr2.type = 'leave'
+            AND tr2.date > tr.date
+        )
+      ORDER BY tr.date DESC LIMIT 1
+    `,
+    prisma.$queryRaw<TeamColorRow[]>`
+      SELECT t.color FROM transfers tr
+      JOIN teams t ON t.id = tr.to_team_id
+      WHERE tr.player_steam_id = ANY(${p2Ids})
+        AND tr.type = 'join'
+        AND t.inactive = false
+        AND t.team_type = 1
+        AND t.name NOT IN ('IOSoccer All', 'IOSoccer Overlap', 'IOSoccer Challenge', 'IOSoccer Premier')
+        AND NOT EXISTS (
+          SELECT 1 FROM transfers tr2
+          WHERE tr2.player_steam_id = tr.player_steam_id
+            AND tr2.from_team_id = tr.to_team_id
+            AND tr2.type = 'leave'
+            AND tr2.date > tr.date
+        )
+      ORDER BY tr.date DESC LIMIT 1
     `,
   ]);
 
@@ -266,6 +301,8 @@ export default async function PlayerH2HPage({
       </div>
     );
   }
+
+  // P1/P2 colors are fixed (green/red) to ensure visual distinction even for same-team players
 
   const totalMatches = Number(totalRaw);
   const totalPages = Math.ceil(totalMatches / PAGE_SIZE);
@@ -395,38 +432,26 @@ export default async function PlayerH2HPage({
 
           {/* Match list */}
           <div className="rounded-lg border border-chalk-100/8 bg-pitch-900/40 overflow-hidden mb-4">
-            <div className="grid grid-cols-[160px_minmax(180px,320px)_60px_60px_72px_1fr_52px] gap-x-4 px-4 py-3 border-b border-chalk-100/12 text-[11px] font-mono text-chalk-400 uppercase tracking-wide">
+            <div className="grid grid-cols-[190px_1fr_95px_210px_90px] gap-2 px-4 py-3 border-b border-chalk-100/12 text-[11px] font-mono text-chalk-400 uppercase tracking-wide">
               <div>Date</div>
               <div>Match</div>
-              <div className="flex flex-col items-start leading-none" style={{ color: P1_COLOR }}>
-                <span>P1</span>
-                <span className="text-[8px] text-chalk-500 tracking-normal normal-case mt-px">G · A</span>
-              </div>
-              <div className="flex flex-col items-start leading-none" style={{ color: P2_COLOR }}>
-                <span>P2</span>
-                <span className="text-[8px] text-chalk-500 tracking-normal normal-case mt-px">G · A</span>
-              </div>
               <div>Type</div>
-              <div />
-              <div className="text-right">Srv</div>
+              <div>POTM</div>
+              <div>Location</div>
             </div>
             <div className="divide-y divide-chalk-100/20">
               {matches.map((m) => {
-                const p1Won = m.p1_side
-                  ? (m.p1_side === "home" ? m.home_score > m.away_score : m.away_score > m.home_score)
-                  : false;
                 const isDraw = m.home_score === m.away_score;
-                const rowTone = isDraw ? "bg-[#2B3443]" : p1Won ? "bg-[#1F5A42]" : "bg-[#5A2730]";
-                const rowBorder = isDraw
-                  ? "border-l-2 border-l-chalk-400"
-                  : p1Won
-                    ? "border-l-2 border-l-green-500"
-                    : "border-l-2 border-l-red-500";
+                const p1Won = !isDraw && !!m.p1_side && (m.p1_side === "home" ? m.home_score > m.away_score : m.away_score > m.home_score);
+                const p2Won = !isDraw && !p1Won;
+                const rowBg = isDraw ? "#2B3443" : p1Won ? `${P1_COLOR}35` : `${P2_COLOR}35`;
+                const rowBorderColor = isDraw ? "#666" : p1Won ? P1_COLOR : P2_COLOR;
 
                 return (
                   <div
                     key={m.match_id}
-                    className={`relative grid grid-cols-[160px_minmax(180px,320px)_60px_60px_72px_1fr_52px] items-center gap-x-4 px-4 py-2.5 hover:brightness-125 transition ${rowTone} ${rowBorder}`}
+                    className={`relative grid grid-cols-[190px_1fr_95px_210px_90px] items-center gap-2 px-4 py-2.5 hover:brightness-125 transition border-l-2`}
+                    style={{ backgroundColor: rowBg, borderLeftColor: rowBorderColor }}
                   >
                     <Link href={`/matches/${m.match_id}`} className="absolute inset-0 z-0" />
 
@@ -463,24 +488,6 @@ export default async function PlayerH2HPage({
                       </Link>
                     </div>
 
-                    {/* P1 G/A */}
-                    <div className="relative z-10 pointer-events-none text-center whitespace-nowrap">
-                      <span className="font-mono font-700 text-sm" style={{ color: P1_COLOR }}>{m.p1_goals}</span>
-                      <span className="font-mono text-[10px] text-chalk-500 ml-px">g</span>
-                      <span className="font-mono text-chalk-600 mx-1">·</span>
-                      <span className="font-mono font-700 text-sm text-chalk-300">{m.p1_assists}</span>
-                      <span className="font-mono text-[10px] text-chalk-500 ml-px">a</span>
-                    </div>
-
-                    {/* P2 G/A */}
-                    <div className="relative z-10 pointer-events-none text-center whitespace-nowrap">
-                      <span className="font-mono font-700 text-sm" style={{ color: P2_COLOR }}>{m.p2_goals}</span>
-                      <span className="font-mono text-[10px] text-chalk-500 ml-px">g</span>
-                      <span className="font-mono text-chalk-600 mx-1">·</span>
-                      <span className="font-mono font-700 text-sm text-chalk-300">{m.p2_assists}</span>
-                      <span className="font-mono text-[10px] text-chalk-500 ml-px">a</span>
-                    </div>
-
                     {/* Type */}
                     <div className="relative z-10 text-xs font-mono uppercase pointer-events-none">
                       <span className={m.match_type === "competitive" ? "text-yellow-400" : "text-chalk-300"}>
@@ -488,11 +495,21 @@ export default async function PlayerH2HPage({
                       </span>
                     </div>
 
-                    {/* Spacer */}
-                    <div />
+                    {/* POTM */}
+                    <div className="relative z-10 text-xs font-body truncate pointer-events-none">
+                      {m.potm ? (
+                        m.potm_steam_id ? (
+                          <Link href={`/players/${m.potm_steam_id}`} className="text-[#56a3ff] hover:text-[#F4119E] transition-colors pointer-events-auto">
+                            {m.potm}
+                          </Link>
+                        ) : (
+                          <span className="text-[#56a3ff]">{m.potm}</span>
+                        )
+                      ) : "-"}
+                    </div>
 
-                    {/* Server */}
-                    <div className="relative z-10 pointer-events-none text-right text-sm">
+                    {/* Location */}
+                    <div className="relative z-10 text-sm font-mono text-chalk-200 pointer-events-none">
                       {getServerFlag(m.server)}
                     </div>
                   </div>
