@@ -5,6 +5,7 @@ import { proxyImg } from "@/lib/img";
 import { getSteamAvatar } from "@/lib/steam-avatar";
 import { getRelatedSteamIds } from "@/lib/player-aliases";
 import PlayerTabs from "./PlayerTabs";
+import { ActivityHeatmap } from "@/components/ActivityHeatmap";
 
 type CurrentTeam = {
   team_id: number;
@@ -81,6 +82,20 @@ export default async function PlayerLayout({
 
   const avatarUrl = await getSteamAvatar(player.steamId, player.avatar, player.avatarUpdatedAt);
   const teamColor = currentTeam?.team_color || null;
+
+  type ActivityRow = { day: string; count: number };
+  const activityRows = await prisma.$queryRaw<ActivityRow[]>`
+    SELECT
+      TO_CHAR(m.date, 'YYYY-MM-DD') AS day,
+      COUNT(DISTINCT m.id)::int AS count
+    FROM match_player_stats mps
+    JOIN matches m ON m.id = mps.match_id
+    WHERE mps.player_steam_id = ANY(${steamIds})
+      AND m.date >= NOW() - INTERVAL '365 days'
+    GROUP BY TO_CHAR(m.date, 'YYYY-MM-DD')
+  `;
+  const activityData: Record<string, number> = {};
+  for (const row of activityRows) activityData[row.day] = row.count;
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
@@ -204,6 +219,12 @@ export default async function PlayerLayout({
             </Link>
           )}
         </div>
+      </div>
+
+      {/* Activity heatmap */}
+      <div className="rounded-xl border border-chalk-100/8 bg-pitch-900/40 px-5 py-4 mb-6">
+        <p className="text-[10px] font-mono text-chalk-400 uppercase tracking-widest mb-2">Activity — last 12 months</p>
+        <ActivityHeatmap data={activityData} color={teamColor ?? undefined} />
       </div>
 
       {/* Tabs */}
