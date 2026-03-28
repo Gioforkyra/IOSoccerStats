@@ -96,41 +96,35 @@ export default function TeamHistoryClient({ teams }: { teams: TeamHistoryEntry[]
               <Link
                 key={`${t.team_id}-${i}`}
                 href={`/teams/${t.team_id}`}
-                className="block border border-chalk-100/30 rounded-lg p-4 relative overflow-hidden transition-colors hover:border-[#F4119E]"
+                className="block border border-chalk-100/30 rounded-lg px-4 py-2 relative overflow-hidden transition-colors hover:border-[#F4119E]"
                 style={{
                   backgroundColor: t.team_color ? `${t.team_color}25` : "rgba(28,28,28,0.4)",
                 }}
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-pitch-950/60 to-transparent pointer-events-none" />
 
-                <div className="relative z-10 flex items-start gap-4">
+                <div className="relative z-10 flex items-center gap-3">
                   <div className="shrink-0">
                     {t.team_logo ? (
-                      <img src={t.team_logo} alt="" className="w-12 h-12 object-contain" />
+                      <img src={t.team_logo} alt="" className="w-8 h-8 object-contain" />
                     ) : (
-                      <div className="w-12 h-12 rounded bg-pitch-700 flex items-center justify-center text-sm font-display font-700 text-chalk-300">
+                      <div className="w-8 h-8 rounded bg-pitch-700 flex items-center justify-center text-xs font-display font-700 text-chalk-300">
                         {t.team_name.slice(0, 3).toUpperCase()}
                       </div>
                     )}
                   </div>
 
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className="font-display font-700 text-lg text-chalk-100">{t.team_name}</span>
-                      <span className="text-xs font-mono text-chalk-400">{t.join_date || "?"} - {t.leave_date || "Present"}</span>
-                      {t.is_current && (
-                        <span className="text-[10px] font-mono bg-grass-500/20 text-grass-400 px-2 py-0.5 rounded">CURRENT</span>
-                      )}
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs font-mono">
-                      <span className="text-chalk-300">APPS <span className="text-chalk-100 font-medium">{t.apps}</span></span>
-                      <span className="text-chalk-300">GOALS <span className="text-chalk-100">{t.goals}</span></span>
-                      <span className="text-chalk-300">ASSISTS <span className="text-chalk-100">{t.assists}</span></span>
-                      <span className="text-chalk-300">RECORD <span className="text-grass-500">{t.wins}W</span> <span className="text-chalk-400">{t.draws}D</span> <span className="text-red-400">{t.losses}L</span></span>
-                      <span className="text-chalk-300">WIN % <span className="text-chalk-100">{winPct}%</span></span>
-                      <span className="text-chalk-300">G/APP <span className="text-chalk-100">{t.apps > 0 ? (t.goals / t.apps).toFixed(2) : "0"}</span></span>
-                    </div>
+                  <span className="font-display font-700 text-sm text-chalk-100 min-w-[120px]">{t.team_name}</span>
+                  {t.is_current && (
+                    <span className="text-[10px] font-mono bg-grass-500/20 text-grass-400 px-2 py-0.5 rounded">CURRENT</span>
+                  )}
+                  <span className="text-xs font-mono text-chalk-400">{t.join_date || "?"} – {t.leave_date || "Present"}</span>
+                  <div className="flex items-center gap-x-4 text-xs font-mono ml-auto">
+                    <span className="text-chalk-300">APPS <span className="text-chalk-100 font-medium">{t.apps}</span></span>
+                    <span className="text-chalk-300">G <span className="text-chalk-100">{t.goals}</span></span>
+                    <span className="text-chalk-300">A <span className="text-chalk-100">{t.assists}</span></span>
+                    <span className="text-grass-500">{t.wins}W</span><span className="text-chalk-400">{t.draws}D</span><span className="text-red-400">{t.losses}L</span>
+                    <span className="text-chalk-300">WIN% <span className="text-chalk-100">{winPct}%</span></span>
                   </div>
                 </div>
               </Link>
