@@ -430,7 +430,7 @@ export default async function PlayerH2HPage({
           {/* Player 2 */}
           <Link href={`/players/${p2SteamId}`} className="flex flex-col items-center gap-2 flex-1 min-w-0 group">
             <PlayerAvatar src={avatar2} username={p2Info.username} color={P2_COLOR} />
-            <span className="text-sm font-body font-600 text-chalk-100 text-center group-hover:text-[#56a3ff] transition-colors truncate w-full px-2">
+            <span className="text-sm font-body font-600 text-chalk-100 text-center group-hover:text-[#F4119E] transition-colors truncate w-full px-2">
               {p2Info.username}
             </span>
           </Link>
