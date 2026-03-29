@@ -41,8 +41,11 @@ export default async function HomePage() {
 
   return (
     <div className="min-h-screen relative overflow-hidden bg-pitch-950">
-      {/* Scrolling background pattern */}
-      <div className="scroll-bg" />
+      {/* Background image */}
+      <div
+        className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat opacity-30"
+        style={{ backgroundImage: "url('/scarpe-da-calcio.jpg')" }}
+      />
 
       {/* Content */}
       <div className="relative z-10">

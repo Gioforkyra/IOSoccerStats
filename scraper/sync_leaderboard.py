@@ -138,6 +138,14 @@ async def run():
 
     print(f"\nTotal items: {len(all_items)}. Upserting...")
     rows = [item_to_row(item) for item in all_items]
+
+    # Reconnect — original connection may have timed out during long fetch
+    try:
+        await db.close()
+    except Exception:
+        pass
+    db = await asyncpg.connect(os.getenv('DIRECT_URL') or os.getenv('DATABASE_URL'))
+
     for i in range(0, len(rows), UPSERT_CHUNK):
         chunk = rows[i:i + UPSERT_CHUNK]
         await upsert_chunk(db, chunk)

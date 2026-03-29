@@ -317,7 +317,15 @@ async function insertMatch(raw: any): Promise<boolean> {
   }
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const secret = process.env.SYNC_SECRET;
+  if (secret) {
+    const auth = req.headers.get("authorization");
+    if (auth !== `Bearer ${secret}`) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+  }
+
   try {
     // Find the highest match ID we have
     const latest = await prisma.$queryRaw<[{ max_id: number }]>`
