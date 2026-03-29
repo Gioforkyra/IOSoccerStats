@@ -74,6 +74,24 @@ export type ApiRosterEntry = {
   teamRole: number;
 };
 
+export type ApiPlayerTeamEntry = {
+  id: number;
+  playerId: number;
+  teamId: number;
+  team: {
+    id: number;
+    name: string;
+    color: string | null;
+    teamType: number;
+    inactive: boolean;
+    badgeImage: ApiBadgeImage | null;
+  };
+  teamRole: number;
+  isCurrentTeam: boolean;
+  joinDate: string | null;
+  leaveDate: string | null;
+};
+
 export type ApiTournament = {
   id: number;
   name: string;
@@ -158,6 +176,13 @@ export async function getTeamRoster(teamId: number, includeInactive = true) {
   return apiFetch<ApiRosterEntry[]>("/player-team/team", {
     method: "POST",
     body: JSON.stringify({ id: teamId, includeInactive }),
+  });
+}
+
+export async function getPlayerTeams(playerId: number, includeInactive = true) {
+  return apiFetch<ApiPlayerTeamEntry[]>("/player-team/player", {
+    method: "POST",
+    body: JSON.stringify({ id: playerId, includeInactive }),
   });
 }
 

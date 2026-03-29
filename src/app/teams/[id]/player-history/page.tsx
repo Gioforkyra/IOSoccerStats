@@ -1,20 +1,15 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getTeamRoster } from "@/lib/iosoccer-api";
 
-type HistoryPlayer = {
+type PlayerMeta = {
   steam_id: string;
   username: string;
   position: string | null;
   apps: bigint;
   goals: bigint;
   assists: bigint;
-  first_match: Date;
-  last_match: Date;
-};
-
-type PlayerCount = {
-  total: bigint;
 };
 
 const PAGE_SIZE = 15;
@@ -34,39 +29,110 @@ export default async function TeamPlayerHistoryPage({
   const currentPage = Math.max(1, parseInt(pageParam || "1", 10) || 1);
   const offset = (currentPage - 1) * PAGE_SIZE;
 
-  const [countResult] = await prisma.$queryRaw<[PlayerCount]>`
-    SELECT COUNT(DISTINCT mps.player_steam_id) AS total
-    FROM match_player_stats mps
-    JOIN matches m ON m.id = mps.match_id
-    WHERE (
-      (mps.team_side = 'home' AND m.home_team_id = ${teamId}) OR
-      (mps.team_side = 'away' AND m.away_team_id = ${teamId})
-    )
-  `;
-  const totalPlayers = Number(countResult.total);
-  const totalPages = Math.ceil(totalPlayers / PAGE_SIZE);
+  // 1. Get full roster history from IOSoccer API
+  let rosterEntries: Awaited<ReturnType<typeof getTeamRoster>> = [];
+  try {
+    rosterEntries = await getTeamRoster(teamId, true);
+  } catch {
+    // API unavailable
+  }
 
-  const players = await prisma.$queryRaw<HistoryPlayer[]>`
-    SELECT
-      p.steam_id,
-      p.username,
-      p.position,
-      COUNT(DISTINCT mps.match_id) AS apps,
-      COALESCE(SUM(mps.goals), 0) AS goals,
-      COALESCE(SUM(mps.assists), 0) AS assists,
-      MIN(m.date) AS first_match,
-      MAX(m.date) AS last_match
-    FROM match_player_stats mps
-    JOIN players p ON p.steam_id = mps.player_steam_id
-    JOIN matches m ON m.id = mps.match_id
-    WHERE (
-      (mps.team_side = 'home' AND m.home_team_id = ${teamId}) OR
-      (mps.team_side = 'away' AND m.away_team_id = ${teamId})
-    )
-    GROUP BY p.steam_id, p.username, p.position
-    ORDER BY apps DESC
-    LIMIT ${PAGE_SIZE} OFFSET ${offset}
-  `;
+  // Deduplicate steam IDs (a player may have multiple stints)
+  const seenIds = new Set<string>();
+  const uniqueEntries = rosterEntries.filter((e) => {
+    const sid = e.player.steamID;
+    if (!sid || seenIds.has(sid)) return false;
+    seenIds.add(sid);
+    return true;
+  });
+
+  const allSteamIds = uniqueEntries.map((e) => e.player.steamID);
+
+  // Build a join/leave date map for each steam ID (most recent stint)
+  const datesMap = new Map<string, { join: string | null; leave: string | null }>();
+  for (const e of rosterEntries) {
+    if (!e.player.steamID) continue;
+    const existing = datesMap.get(e.player.steamID);
+    if (!existing) {
+      datesMap.set(e.player.steamID, { join: e.joinDate, leave: e.leaveDate });
+    } else if (e.isCurrentTeam) {
+      // Prefer the current stint's dates
+      datesMap.set(e.player.steamID, { join: e.joinDate, leave: null });
+    }
+  }
+
+  // 2. Query DB for player details + team stats for those steam IDs
+  const metaRows: PlayerMeta[] = allSteamIds.length > 0
+    ? await prisma.$queryRaw<PlayerMeta[]>`
+        SELECT
+          p.steam_id,
+          p.username,
+          p.position,
+          COALESCE(ts.apps, 0)    AS apps,
+          COALESCE(ts.goals, 0)   AS goals,
+          COALESCE(ts.assists, 0) AS assists
+        FROM players p
+        LEFT JOIN (
+          SELECT
+            mps.player_steam_id,
+            COUNT(DISTINCT mps.match_id)  AS apps,
+            COALESCE(SUM(mps.goals), 0)   AS goals,
+            COALESCE(SUM(mps.assists), 0) AS assists
+          FROM match_player_stats mps
+          JOIN matches m ON m.id = mps.match_id
+          WHERE mps.player_steam_id = ANY(${allSteamIds})
+            AND (
+              (mps.team_side = 'home' AND m.home_team_id = ${teamId}) OR
+              (mps.team_side = 'away' AND m.away_team_id = ${teamId})
+            )
+          GROUP BY mps.player_steam_id
+        ) ts ON ts.player_steam_id = p.steam_id
+        WHERE p.steam_id = ANY(${allSteamIds})
+      `
+    : [];
+
+  const metaMap = new Map(metaRows.map((r) => [r.steam_id, r]));
+
+  // 3. Build combined list, sort by apps DESC
+  type CombinedPlayer = {
+    steam_id: string;
+    username: string;
+    position: string | null;
+    apps: number;
+    goals: number;
+    assists: number;
+    join_date: string | null;
+    leave_date: string | null;
+    is_current: boolean;
+  };
+
+  const allPlayers: CombinedPlayer[] = uniqueEntries.map((entry) => {
+    const meta = metaMap.get(entry.player.steamID);
+    const dates = datesMap.get(entry.player.steamID);
+    const isCurrentTeam = rosterEntries.some(
+      (e) => e.player.steamID === entry.player.steamID && e.isCurrentTeam
+    );
+    return {
+      steam_id: entry.player.steamID,
+      username: meta?.username ?? entry.player.name,
+      position: meta?.position ?? null,
+      apps: Number(meta?.apps ?? 0),
+      goals: Number(meta?.goals ?? 0),
+      assists: Number(meta?.assists ?? 0),
+      join_date: dates?.join ?? null,
+      leave_date: isCurrentTeam ? null : (dates?.leave ?? null),
+      is_current: isCurrentTeam,
+    };
+  });
+
+  allPlayers.sort((a, b) => b.apps - a.apps);
+
+  const totalPlayers = allPlayers.length;
+  const totalPages = Math.max(1, Math.ceil(totalPlayers / PAGE_SIZE));
+  const players = allPlayers.slice(offset, offset + PAGE_SIZE);
+
+  const fmt = (d: string | null) =>
+    d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "-";
 
   return (
     <div>
@@ -86,8 +152,8 @@ export default async function TeamPlayerHistoryPage({
               <th className="text-right px-4 py-1.5 font-mono text-xs text-chalk-400">APPS</th>
               <th className="text-right px-4 py-1.5 font-mono text-xs text-chalk-400">GOALS</th>
               <th className="text-right px-4 py-1.5 font-mono text-xs text-chalk-400">ASSISTS</th>
-              <th className="text-right px-4 py-1.5 font-mono text-xs text-chalk-400 hidden md:table-cell">FIRST</th>
-              <th className="text-right px-4 py-1.5 font-mono text-xs text-chalk-400 hidden md:table-cell">LAST</th>
+              <th className="text-right px-4 py-1.5 font-mono text-xs text-chalk-400 hidden md:table-cell">JOINED</th>
+              <th className="text-right px-4 py-1.5 font-mono text-xs text-chalk-400 hidden md:table-cell">LEFT</th>
             </tr>
           </thead>
           <tbody>
@@ -130,18 +196,14 @@ export default async function TeamPlayerHistoryPage({
                     {Number(p.assists).toLocaleString()}
                   </td>
                   <td className="px-4 py-1.5 text-right font-mono text-chalk-400 text-xs hidden md:table-cell">
-                    {new Date(p.first_match).toLocaleDateString("en-GB", {
-                      day: "2-digit",
-                      month: "short",
-                      year: "numeric",
-                    })}
+                    {fmt(p.join_date)}
                   </td>
                   <td className="px-4 py-1.5 text-right font-mono text-chalk-400 text-xs hidden md:table-cell">
-                    {new Date(p.last_match).toLocaleDateString("en-GB", {
-                      day: "2-digit",
-                      month: "short",
-                      year: "numeric",
-                    })}
+                    {p.is_current ? (
+                      <span className="text-green-400">Current</span>
+                    ) : (
+                      fmt(p.leave_date)
+                    )}
                   </td>
                 </tr>
               ))
@@ -152,26 +214,73 @@ export default async function TeamPlayerHistoryPage({
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 mt-6">
-          {currentPage > 1 && (
-            <Link
-              href={`/teams/${teamId}/player-history?page=${currentPage - 1}`}
-              className="px-3 py-1.5 rounded text-sm font-mono text-chalk-300 bg-pitch-800 border border-chalk-100/8 hover:bg-pitch-700 transition-colors"
-            >
-              Prev
-            </Link>
-          )}
-          <span className="text-sm font-mono text-chalk-400">
+        <div className="flex items-center justify-between mt-4">
+          <span className="text-xs font-mono text-chalk-400">
             Page {currentPage} of {totalPages}
           </span>
-          {currentPage < totalPages && (
-            <Link
-              href={`/teams/${teamId}/player-history?page=${currentPage + 1}`}
-              className="px-3 py-1.5 rounded text-sm font-mono text-chalk-300 bg-pitch-800 border border-chalk-100/8 hover:bg-pitch-700 transition-colors"
-            >
-              Next
-            </Link>
-          )}
+          <div className="flex items-center gap-1">
+            {currentPage > 1 && (
+              <Link
+                href={`/teams/${teamId}/player-history?page=1`}
+                className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center"
+                title="First page"
+              >
+                &laquo;
+              </Link>
+            )}
+            {currentPage > 1 && (
+              <Link
+                href={`/teams/${teamId}/player-history?page=${Math.max(1, currentPage - 10)}`}
+                className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center"
+                title="Back 10 pages"
+              >
+                &lt;
+              </Link>
+            )}
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              let p: number;
+              if (totalPages <= 5) {
+                p = i + 1;
+              } else if (currentPage <= 3) {
+                p = i + 1;
+              } else if (currentPage >= totalPages - 2) {
+                p = totalPages - 4 + i;
+              } else {
+                p = currentPage - 2 + i;
+              }
+              return (
+                <Link
+                  key={p}
+                  href={`/teams/${teamId}/player-history?page=${p}`}
+                  className={`w-8 h-8 rounded text-xs font-mono transition-colors flex items-center justify-center ${
+                    p === currentPage
+                      ? "bg-[#F4119E] text-white font-700"
+                      : "text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30"
+                  }`}
+                >
+                  {p}
+                </Link>
+              );
+            })}
+            {currentPage < totalPages && (
+              <Link
+                href={`/teams/${teamId}/player-history?page=${Math.min(totalPages, currentPage + 10)}`}
+                className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center"
+                title="Forward 10 pages"
+              >
+                &gt;
+              </Link>
+            )}
+            {currentPage < totalPages && (
+              <Link
+                href={`/teams/${teamId}/player-history?page=${totalPages}`}
+                className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center"
+                title="Last page"
+              >
+                &raquo;
+              </Link>
+            )}
+          </div>
         </div>
       )}
     </div>

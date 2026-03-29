@@ -200,7 +200,6 @@ export default async function TeamLayout({
 
       {/* Activity heatmap */}
       <div className="rounded-xl border border-chalk-100/8 bg-pitch-900/40 px-5 py-4 mb-6">
-        <p className="text-[10px] font-mono text-chalk-400 uppercase tracking-widest mb-2">Activity — last 12 months</p>
         <ActivityHeatmap data={activityData} color={teamColor ?? undefined} />
       </div>
 
