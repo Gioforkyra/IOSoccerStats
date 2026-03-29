@@ -1,37 +1,38 @@
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
-import { getRelatedSteamIds } from "@/lib/player-aliases";
 
-type PlayerStats = {
+type LeaderboardRow = {
   apps: bigint;
   as_sub: bigint;
+  wins: bigint;
+  draws: bigint;
+  losses: bigint;
   total_goals: bigint;
   total_assists: bigint;
   total_second_assists: bigint;
   total_shots: bigint;
   total_shots_on_target: bigint;
-  total_passes: bigint;
-  total_passes_completed: bigint;
   total_key_passes: bigint;
   total_chances_created: bigint;
-  total_saves: bigint;
-  total_goals_conceded: bigint;
+  total_offsides: bigint;
   total_own_goals: bigint;
+  total_passes: bigint;
+  total_passes_completed: bigint;
+  total_saves: bigint;
+  total_saves_caught: bigint;
+  total_goals_conceded: bigint;
+  total_interceptions: bigint;
+  total_tackles: bigint;
+  total_tackles_completed: bigint;
   total_fouls: bigint;
   total_fouls_suffered: bigint;
   total_yellow_cards: bigint;
   total_red_cards: bigint;
-  total_interceptions: bigint;
-  total_offsides: bigint;
   total_distance: bigint;
   total_possession: bigint;
-  total_corners: bigint;
-  total_throw_ins: bigint;
-  total_free_kicks: bigint;
-  total_penalties: bigint;
-  wins: bigint;
-  losses: bigint;
-  draws: bigint;
+  avg_possession_pct: number;
+  shot_accuracy: number;
+  pass_accuracy: number;
 };
 
 export default async function PlayerStatisticsPage({
@@ -45,58 +46,41 @@ export default async function PlayerStatisticsPage({
   const player = await prisma.player.findUnique({ where: { steamId } });
   if (!player) return notFound();
 
-  const steamIds = await getRelatedSteamIds(steamId);
-
-  const [stats] = await prisma.$queryRaw<[PlayerStats]>`
+  const rows = await prisma.$queryRaw<LeaderboardRow[]>`
     SELECT
-      COUNT(DISTINCT mps.match_id) AS apps,
-      COUNT(DISTINCT CASE WHEN mps.is_substitute THEN mps.match_id END) AS as_sub,
-      COALESCE(SUM(mps.goals), 0) AS total_goals,
-      COALESCE(SUM(mps.assists), 0) AS total_assists,
-      COALESCE(SUM(COALESCE(mps.second_assists, 0)), 0) AS total_second_assists,
-      COALESCE(SUM(mps.shots), 0) AS total_shots,
-      COALESCE(SUM(mps.shots_on_target), 0) AS total_shots_on_target,
-      COALESCE(SUM(mps.passes), 0) AS total_passes,
-      COALESCE(SUM(mps.passes_completed), 0) AS total_passes_completed,
-      COALESCE(SUM(COALESCE(mps.key_passes, 0)), 0) AS total_key_passes,
-      COALESCE(SUM(COALESCE(mps.chances_created, 0)), 0) AS total_chances_created,
-      COALESCE(SUM(mps.saves), 0) AS total_saves,
-      COALESCE(SUM(mps.goals_conceded), 0) AS total_goals_conceded,
-      COALESCE(SUM(COALESCE(mps.own_goals, 0)), 0) AS total_own_goals,
-      COALESCE(SUM(mps.fouls), 0) AS total_fouls,
-      COALESCE(SUM(mps.fouls_suffered), 0) AS total_fouls_suffered,
-      COALESCE(SUM(mps.yellow_cards), 0) AS total_yellow_cards,
-      COALESCE(SUM(mps.red_cards), 0) AS total_red_cards,
-      COALESCE(SUM(mps.interceptions), 0) AS total_interceptions,
-      COALESCE(SUM(COALESCE(mps.offsides, 0)), 0) AS total_offsides,
-      COALESCE(SUM(mps.distance_run), 0) AS total_distance,
-      COALESCE(SUM(mps.possession), 0) AS total_possession,
-      COALESCE(SUM(COALESCE(mps.corners, 0)), 0) AS total_corners,
-      COALESCE(SUM(COALESCE(mps.throw_ins, 0)), 0) AS total_throw_ins,
-      COALESCE(SUM(COALESCE(mps.free_kicks, 0)), 0) AS total_free_kicks,
-      COALESCE(SUM(COALESCE(mps.penalties, 0)), 0) AS total_penalties,
-      COUNT(CASE WHEN
-        (mps.team_side = 'home' AND m.home_score > m.away_score) OR
-        (mps.team_side = 'away' AND m.away_score > m.home_score)
-      THEN 1 END) AS wins,
-      COUNT(CASE WHEN
-        (mps.team_side = 'home' AND m.home_score < m.away_score) OR
-        (mps.team_side = 'away' AND m.away_score < m.home_score)
-      THEN 1 END) AS losses,
-      COUNT(CASE WHEN m.home_score = m.away_score THEN 1 END) AS draws
-    FROM match_player_stats mps
-    JOIN matches m ON m.id = mps.match_id
-    WHERE mps.player_steam_id = ANY(${steamIds})
+      apps, as_sub, wins, draws, losses,
+      total_goals, total_assists, total_second_assists,
+      total_shots, total_shots_on_target,
+      total_key_passes, total_chances_created, total_offsides, total_own_goals,
+      total_passes, total_passes_completed,
+      total_saves, total_saves_caught, total_goals_conceded,
+      total_interceptions, total_tackles, total_tackles_completed,
+      total_fouls, total_fouls_suffered,
+      total_yellow_cards, total_red_cards,
+      total_distance, total_possession,
+      avg_possession_pct, shot_accuracy, pass_accuracy
+    FROM mv_player_leaderboard
+    WHERE player_steam_id = ${steamId}
   `;
 
+  const raw = rows[0];
+  if (!raw) {
+    return (
+      <div className="text-center py-16 text-chalk-400 font-body">
+        No statistics available for this player.
+      </div>
+    );
+  }
+  const stats = raw;
+
+  const apps = Number(stats.apps);
   const asSub = Number(stats.as_sub);
+  const wins = Number(stats.wins);
+  const draws = Number(stats.draws);
+  const losses = Number(stats.losses);
   const goals = Number(stats.total_goals);
   const assists = Number(stats.total_assists);
   const secondAssists = Number(stats.total_second_assists);
-  const wins = Number(stats.wins);
-  const losses = Number(stats.losses);
-  const draws = Number(stats.draws);
-  const apps = wins + draws + losses;
   const shots = Number(stats.total_shots);
   const shotsOnTarget = Number(stats.total_shots_on_target);
   const passes = Number(stats.total_passes);
@@ -104,6 +88,7 @@ export default async function PlayerStatisticsPage({
   const keyPasses = Number(stats.total_key_passes);
   const chancesCreated = Number(stats.total_chances_created);
   const saves = Number(stats.total_saves);
+  const savesCaught = Number(stats.total_saves_caught);
   const goalsConceded = Number(stats.total_goals_conceded);
   const ownGoals = Number(stats.total_own_goals);
   const fouls = Number(stats.total_fouls);
@@ -111,17 +96,16 @@ export default async function PlayerStatisticsPage({
   const yellows = Number(stats.total_yellow_cards);
   const reds = Number(stats.total_red_cards);
   const interceptions = Number(stats.total_interceptions);
+  const tackles = Number(stats.total_tackles);
+  const tacklesCompleted = Number(stats.total_tackles_completed);
   const offsides = Number(stats.total_offsides);
   const distance = Number(stats.total_distance);
-  const corners = Number(stats.total_corners);
-  const throwIns = Number(stats.total_throw_ins);
-  const freeKicks = Number(stats.total_free_kicks);
-  const penalties = Number(stats.total_penalties);
 
   const winPct = apps > 0 ? ((wins / apps) * 100).toFixed(1) : "0";
-  const shotAcc = shots > 0 ? ((shotsOnTarget / shots) * 100).toFixed(1) : "0";
-  const passAcc = passes > 0 ? ((passesCompleted / passes) * 100).toFixed(1) : "0";
+  const shotAcc = stats.shot_accuracy > 0 ? stats.shot_accuracy.toFixed(1) : "0";
+  const passAcc = stats.pass_accuracy > 0 ? stats.pass_accuracy.toFixed(1) : "0";
   const savePct = saves + goalsConceded > 0 ? ((saves / (saves + goalsConceded)) * 100).toFixed(1) : "0";
+  const tackleAcc = tackles > 0 ? ((tacklesCompleted / tackles) * 100).toFixed(1) : "0";
   const perApp = (v: number) => apps > 0 ? (v / apps).toFixed(2) : "0.00";
   const avgDistance = apps > 0 ? (distance / apps / 1000).toFixed(2) : "0";
 
@@ -212,6 +196,7 @@ export default async function PlayerStatisticsPage({
         {/* Goalkeeping */}
         <StatCard title="Goalkeeping" rows={[
           { label: "Saves", value: `${saves.toLocaleString()} (${perApp(saves)})` },
+          { label: "Saves Caught", value: `${savesCaught.toLocaleString()} (${perApp(savesCaught)})` },
           { label: "Save Percentage", value: `${savePct}%` },
           { label: "Goals Conceded", value: `${goalsConceded.toLocaleString()} (${perApp(goalsConceded)})` },
           { label: "Own Goals", value: ownGoals.toLocaleString() },
@@ -220,9 +205,9 @@ export default async function PlayerStatisticsPage({
         {/* Defending */}
         <StatCard title="Defending" rows={[
           { label: "Interceptions", value: `${interceptions.toLocaleString()} (${perApp(interceptions)})` },
-          { label: "Corners", value: `${corners.toLocaleString()} (${perApp(corners)})` },
-          { label: "Free Kicks", value: `${freeKicks.toLocaleString()} (${perApp(freeKicks)})` },
-          { label: "Throw Ins", value: `${throwIns.toLocaleString()} (${perApp(throwIns)})` },
+          { label: "Tackles", value: `${tackles.toLocaleString()} (${perApp(tackles)})` },
+          { label: "Tackles Completed", value: `${tacklesCompleted.toLocaleString()} (${perApp(tacklesCompleted)})` },
+          { label: "Tackle Accuracy", value: `${tackleAcc}%` },
           { label: "Avg Distance", value: `${avgDistance} km` },
         ]} />
 
@@ -232,7 +217,7 @@ export default async function PlayerStatisticsPage({
           { label: "Shots", value: `${shots.toLocaleString()} (${perApp(shots)})` },
           { label: "Shots on Target", value: `${shotsOnTarget.toLocaleString()} (${perApp(shotsOnTarget)})` },
           { label: "Shot Accuracy", value: `${shotAcc}%` },
-          { label: "Penalties", value: penalties.toLocaleString() },
+          { label: "Offsides", value: `${offsides.toLocaleString()} (${perApp(offsides)})` },
         ]} />
       </div>
     </>

@@ -75,7 +75,7 @@ async def insert_match(pool: asyncpg.Pool, match: dict):
                 map = EXCLUDED.map, server = EXCLUDED.server, potm = EXCLUDED.potm
             """,
             match["id"],
-            match["date"],
+            match.get("kick_off") or match.get("date"),
             match["home_team_id"],
             match["away_team_id"],
             match["home_score"],
@@ -84,7 +84,7 @@ async def insert_match(pool: asyncpg.Pool, match: dict):
             match["status"],
             match.get("map"),
             match.get("server"),
-            match.get("potm"),
+            match.get("potm_name") or match.get("potm"),
             match.get("field_min_x"),
             match.get("field_min_y"),
             match.get("field_max_x"),
@@ -106,8 +106,10 @@ async def insert_player_stats(pool: asyncpg.Pool, stats: list[dict]):
                 interceptions, saves, offsides, fouls, fouls_suffered,
                 yellow_cards, red_cards, own_goals, goals_conceded,
                 corners, throw_ins, free_kicks, goal_kicks, penalties,
-                distance_run, possession
-            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29)
+                distance_run, possession,
+                minutes_played, is_substitute, is_potm,
+                saves_caught, sliding_tackles, sliding_tackles_completed
+            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35)
             ON CONFLICT (match_id, player_steam_id, team_side) DO UPDATE SET
                 goals = EXCLUDED.goals, assists = EXCLUDED.assists,
                 second_assists = EXCLUDED.second_assists,
@@ -122,7 +124,13 @@ async def insert_player_stats(pool: asyncpg.Pool, stats: list[dict]):
                 corners = EXCLUDED.corners, throw_ins = EXCLUDED.throw_ins,
                 free_kicks = EXCLUDED.free_kicks, goal_kicks = EXCLUDED.goal_kicks,
                 penalties = EXCLUDED.penalties,
-                distance_run = EXCLUDED.distance_run, possession = EXCLUDED.possession
+                distance_run = EXCLUDED.distance_run, possession = EXCLUDED.possession,
+                minutes_played = EXCLUDED.minutes_played,
+                is_substitute = EXCLUDED.is_substitute,
+                is_potm = EXCLUDED.is_potm,
+                saves_caught = EXCLUDED.saves_caught,
+                sliding_tackles = EXCLUDED.sliding_tackles,
+                sliding_tackles_completed = EXCLUDED.sliding_tackles_completed
             """,
             [
                 (
@@ -136,6 +144,8 @@ async def insert_player_stats(pool: asyncpg.Pool, stats: list[dict]):
                     s["own_goals"], s["goals_conceded"],
                     s["corners"], s["throw_ins"], s["free_kicks"], s["goal_kicks"], s["penalties"],
                     s["distance_run"], s["possession"],
+                    s.get("minutes_played", 0), s.get("is_substitute", False), s.get("is_potm", False),
+                    s.get("saves_caught", 0), s.get("sliding_tackles", 0), s.get("sliding_tackles_completed", 0),
                 )
                 for s in stats
             ],

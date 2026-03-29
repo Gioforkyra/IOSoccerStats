@@ -18,7 +18,7 @@ import sys
 import time
 import httpx
 
-from scraper import fetch_match, parse_match
+from scraper import scrape_match as api_scrape_match
 from db import (
     get_pool, upsert_team, upsert_player, insert_match,
     insert_player_stats, get_scraper_state,
@@ -36,11 +36,7 @@ MAX_EMPTY_BATCHES = 200
 
 async def scrape_match(client: httpx.AsyncClient, pool, match_id: int) -> bool:
     """Scrape a single match. Returns True if successful."""
-    raw = await fetch_match(client, match_id)
-    if raw is None:
-        return False
-
-    parsed = parse_match(raw)
+    parsed = await api_scrape_match(client, match_id)
     if parsed is None:
         return False
 
