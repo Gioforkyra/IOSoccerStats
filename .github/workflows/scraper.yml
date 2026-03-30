@@ -46,3 +46,9 @@ jobs:
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
         working-directory: scraper
         run: python update_team_ratings.py
+
+      - name: Backfill match scores
+        env:
+          DATABASE_URL: ${{ secrets.DIRECT_URL }}
+        working-directory: scraper
+        run: python backfill_scores.py

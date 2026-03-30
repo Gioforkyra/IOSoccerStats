@@ -224,7 +224,7 @@ export default function Navbar() {
 
         {/* Right side */}
         <div className="ml-auto flex items-center gap-3">
-          {searchBox("hidden sm:block w-44 md:w-56")}
+          {searchBox("hidden sm:block w-36 md:w-44 mr-2.5")}
 
           {/* Mobile hamburger */}
           <button
