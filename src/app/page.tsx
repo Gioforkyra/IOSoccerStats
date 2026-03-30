@@ -7,16 +7,11 @@ import {
   getCurrentTournaments,
   getPlayers,
   badgeSmallUrl,
+  badgeUrl,
 } from "@/lib/iosoccer-api";
+import { prisma } from "@/lib/prisma";
+import ParticlesBackground from "@/components/ParticlesBackground";
 
-function formatMatchTime(date: string) {
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(date));
-}
 
 export default async function HomePage() {
   const [
@@ -39,13 +34,25 @@ export default async function HomePage() {
   const tournamentsCount = pastTournaments.length + currentTournaments.length;
   const recentMatches = matchData.items;
 
+  // Top teams by avg rating
+  const activeIds = activeTeams.map((t) => t.id);
+  const topTeamsDb = activeIds.length > 0
+    ? await prisma.$queryRaw<{ id: number; avg_rating: number | null }[]>`
+        SELECT id, avg_rating FROM teams WHERE id = ANY(${activeIds}) AND avg_rating IS NOT NULL
+        ORDER BY avg_rating DESC LIMIT 4
+      `
+    : [];
+  const topTeams = topTeamsDb
+    .map((r) => {
+      const team = activeTeams.find((t) => t.id === r.id);
+      if (!team) return null;
+      return { ...team, avgRating: r.avg_rating };
+    })
+    .filter(Boolean) as (typeof activeTeams[0] & { avgRating: number | null })[];
+
   return (
     <div className="min-h-screen relative overflow-hidden bg-pitch-950">
-      {/* Background image */}
-      <div
-        className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat opacity-50"
-        style={{ backgroundImage: "url('/wallhaven-vpo228.jpg')" }}
-      />
+      <ParticlesBackground />
 
       {/* Content */}
       <div className="relative z-10">
@@ -68,49 +75,51 @@ export default async function HomePage() {
               </p>
             </div>
 
-            {/* Search + Database row */}
+            {/* Search + Best Teams row */}
             <div className="grid gap-3 lg:grid-cols-[1.6fr_1fr]">
               <HomeSearchPanel playersCount={playersCount} teamsCount={teamsCount} />
 
-              {/* Database stats card */}
+              {/* Best Teams card */}
               <div className="rounded-xl border border-chalk-100/8 bg-pitch-900/50 p-4 hover:border-[#F4119E]/30 transition-colors">
-                <div className="text-[10px] font-mono uppercase tracking-[0.22em] text-chalk-400 mb-4">
-                  Database
+                <div className="text-[10px] font-mono uppercase tracking-[0.22em] text-chalk-400 mb-3">
+                  Best Teams
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <div className="font-display text-2xl font-800 text-chalk-100">
-                      {playersCount.toLocaleString("en-GB")}
-                    </div>
-                    <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-chalk-400">
-                      Players
-                    </div>
-                  </div>
-                  <div>
-                    <div className="font-display text-2xl font-800 text-chalk-100">
-                      {teamsCount.toLocaleString("en-GB")}
-                    </div>
-                    <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-chalk-400">
-                      Active Teams
-                    </div>
-                  </div>
-                  <div>
-                    <div className="font-display text-2xl font-800 text-chalk-100">
-                      {matchesCount.toLocaleString("en-GB")}
-                    </div>
-                    <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-chalk-400">
-                      Matches
-                    </div>
-                  </div>
-                  <div>
-                    <div className="font-display text-2xl font-800 text-chalk-100">
-                      {tournamentsCount.toLocaleString("en-GB")}
-                    </div>
-                    <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-chalk-400">
-                      Tournaments
-                    </div>
-                  </div>
+                <div className="space-y-1.5">
+                  {topTeams.map((team, i) => {
+                    const logo = badgeUrl(team.badgeImageId);
+                    return (
+                      <Link
+                        key={team.id}
+                        href={`/teams/${team.id}`}
+                        className="flex items-center gap-2.5 rounded-md bg-pitch-800/40 px-2.5 py-2 pink-hover"
+                      >
+                        <span className="w-4 text-[10px] font-mono text-chalk-400 text-center shrink-0">
+                          {i + 1}
+                        </span>
+                        {logo ? (
+                          <img src={logo} alt="" className="h-5 w-5 shrink-0 object-contain" />
+                        ) : (
+                          <div className="h-5 w-5 shrink-0 rounded-full bg-pitch-700" />
+                        )}
+                        <span className="min-w-0 flex-1 truncate font-body text-sm text-chalk-100">
+                          {team.name}
+                        </span>
+                        <span className="text-[11px] font-mono text-[#F4119E] shrink-0">
+                          {team.avgRating?.toFixed(2)}
+                        </span>
+                      </Link>
+                    );
+                  })}
+                  {topTeams.length === 0 && (
+                    <div className="text-xs text-chalk-400 font-mono py-2">No rating data</div>
+                  )}
                 </div>
+                <Link
+                  href="/ratings"
+                  className="mt-3 inline-block text-xs font-mono text-[#F4119E] hover:text-[#F4119E]/70 transition-colors"
+                >
+                  Full Rankings {"->"}
+                </Link>
               </div>
             </div>
 
@@ -167,32 +176,27 @@ export default async function HomePage() {
                       <Link
                         key={match.id}
                         href={`/matches/${match.id}`}
-                        className="block rounded-md bg-pitch-800/40 px-2.5 py-2 pink-hover"
+                        className="flex items-center gap-1.5 rounded-md bg-pitch-800/40 px-2.5 py-2 pink-hover"
                       >
-                        <div className="text-[10px] font-mono text-chalk-400 mb-1">
-                          {formatMatchTime(match.kickOff)}
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="truncate text-xs font-body text-chalk-100">
-                            {match.teamHome.name}
-                          </span>
-                          {homeLogo ? (
-                            <img src={homeLogo} alt="" className="h-4 w-4 shrink-0 object-contain" />
-                          ) : (
-                            <div className="h-4 w-4 shrink-0 rounded-full bg-pitch-700" />
-                          )}
-                          <span className="font-display text-sm font-700 text-chalk-100 mx-0.5">
-                            {match.matchStatistics?.matchGoalsHome ?? "?"}-{match.matchStatistics?.matchGoalsAway ?? "?"}
-                          </span>
-                          {awayLogo ? (
-                            <img src={awayLogo} alt="" className="h-4 w-4 shrink-0 object-contain" />
-                          ) : (
-                            <div className="h-4 w-4 shrink-0 rounded-full bg-pitch-700" />
-                          )}
-                          <span className="truncate text-xs font-body text-chalk-100">
-                            {match.teamAway.name}
-                          </span>
-                        </div>
+                        <span className="truncate text-xs font-body text-chalk-100 flex-1 text-right">
+                          {match.teamHome.name}
+                        </span>
+                        {homeLogo ? (
+                          <img src={homeLogo} alt="" className="h-4 w-4 shrink-0 object-contain" />
+                        ) : (
+                          <div className="h-4 w-4 shrink-0 rounded-full bg-pitch-700" />
+                        )}
+                        <span className="font-display text-sm font-700 text-chalk-100 shrink-0 w-8 text-center">
+                          {match.matchStatistics?.matchGoalsHome ?? "?"}-{match.matchStatistics?.matchGoalsAway ?? "?"}
+                        </span>
+                        {awayLogo ? (
+                          <img src={awayLogo} alt="" className="h-4 w-4 shrink-0 object-contain" />
+                        ) : (
+                          <div className="h-4 w-4 shrink-0 rounded-full bg-pitch-700" />
+                        )}
+                        <span className="truncate text-xs font-body text-chalk-100 flex-1">
+                          {match.teamAway.name}
+                        </span>
                       </Link>
                     );
                   })}
@@ -225,17 +229,17 @@ export default async function HomePage() {
                 </span>
               </Link>
 
-              {/* Teams + Tournaments */}
+              {/* Players + Tournaments + DB Stats */}
               <div className="space-y-3">
                 <Link
-                  href="/teams"
+                  href="/players"
                   className="group block rounded-xl border border-chalk-100/8 bg-pitch-900/50 p-4 hover:border-[#F4119E]/30 transition-colors"
                 >
                   <div className="text-[10px] font-mono uppercase tracking-[0.22em] text-chalk-400 mb-1">
-                    Teams
+                    Players
                   </div>
                   <div className="font-display text-base font-700 text-chalk-100">
-                    {teamsCount.toLocaleString("en-GB")} Teams
+                    {playersCount.toLocaleString("en-GB")} Players
                   </div>
                   <span className="mt-1.5 inline-block text-xs font-mono text-[#F4119E] group-hover:text-[#F4119E]/70 transition-colors">
                     Browse {"->"}
@@ -255,6 +259,38 @@ export default async function HomePage() {
                     Browse {"->"}
                   </span>
                 </Link>
+                {/* DB Stats */}
+                <div className="rounded-xl border border-chalk-100/8 bg-pitch-900/50 px-4 py-3">
+                  <div className="text-[10px] font-mono uppercase tracking-[0.22em] text-chalk-400 mb-2">
+                    Database
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+                    <div>
+                      <div className="font-display text-base font-800 text-chalk-100">
+                        {playersCount.toLocaleString("en-GB")}
+                      </div>
+                      <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-chalk-400">Players</div>
+                    </div>
+                    <div>
+                      <div className="font-display text-base font-800 text-chalk-100">
+                        {teamsCount.toLocaleString("en-GB")}
+                      </div>
+                      <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-chalk-400">Teams</div>
+                    </div>
+                    <div>
+                      <div className="font-display text-base font-800 text-chalk-100">
+                        {matchesCount.toLocaleString("en-GB")}
+                      </div>
+                      <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-chalk-400">Matches</div>
+                    </div>
+                    <div>
+                      <div className="font-display text-base font-800 text-chalk-100">
+                        {tournamentsCount.toLocaleString("en-GB")}
+                      </div>
+                      <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-chalk-400">Tournaments</div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

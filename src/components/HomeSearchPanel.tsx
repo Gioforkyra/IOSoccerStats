@@ -162,9 +162,11 @@ export default function HomeSearchPanel({
           { href: "/matches", label: "Matches" },
           { href: "/matches/live", label: "Live" },
           { href: "/tournaments", label: "Tournaments" },
+          { href: "/ratings", label: "Ratings" },
+          { href: "/teams?view=list", label: "Team List" },
         ].map((link) => (
           <Link
-            key={link.href}
+            key={link.label}
             href={link.href}
             className="rounded border border-chalk-100/8 bg-pitch-800/40 px-2.5 py-1.5 text-[10px] font-mono uppercase tracking-wider text-chalk-300 hover:border-[#F4119E]/30 hover:text-chalk-100 transition-colors"
           >
