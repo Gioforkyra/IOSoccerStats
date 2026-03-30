@@ -444,11 +444,11 @@ export default async function PlayersPage({
           </thead>
           <tbody>
             {players.map((p, i) => (
-              <tr key={p.steam_id} className={`stat-row group ${i % 2 === 0 ? "bg-[#1c1c1c]" : "bg-[#181818]"}`}>
+              <tr key={p.steam_id} className={`stat-row group ${i % 2 === 0 ? "trow-odd" : "trow-even"}`}>
                 <td className="px-3 py-1.5 font-display font-700 text-chalk-100/20 text-base">
                   {offset + i + 1}
                 </td>
-                <td className={`px-3 py-1.5 sticky left-0 z-10 ${i % 2 === 0 ? "bg-[#1c1c1c]" : "bg-[#181818]"}`}>
+                <td className={`px-3 py-1.5 sticky left-0 z-10 ${i % 2 === 0 ? "trow-odd" : "trow-even"}`}>
                   <Link
                     href={`/players/${encodeURIComponent(p.steam_id)}`}
                     className="flex items-center gap-2 hover:text-[#F4119E] transition-colors"

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useRef, useEffect, useCallback } from "react";
 import clsx from "clsx";
+import ThemeToggle from "@/components/ThemeToggle";
 
 type NavItem = {
   label: string;
@@ -224,7 +225,8 @@ export default function Navbar() {
 
         {/* Right side */}
         <div className="ml-auto flex items-center gap-3">
-          {searchBox("hidden sm:block w-36 md:w-44 mr-2.5")}
+          <ThemeToggle />
+          {searchBox("hidden sm:block w-36 md:w-44")}
 
           {/* Mobile hamburger */}
           <button
