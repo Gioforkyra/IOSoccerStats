@@ -206,7 +206,9 @@ export async function getMatches(opts: {
       sortBy: "KickOff",
       sortOrder: opts.includePast === false ? "ASC" : "DESC",
       filters: {
+        timePeriod: 0,
         includePast: opts.includePast ?? true,
+        includeUpcoming: opts.includePast === false ? true : undefined,
         ...(opts.matchType ? { matchType: opts.matchType } : {}),
         ...(opts.tournamentId ? { tournamentId: opts.tournamentId } : {}),
         ...(opts.regionId ? { regionId: opts.regionId } : {}),

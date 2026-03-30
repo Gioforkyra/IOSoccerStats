@@ -3,7 +3,7 @@ import { getMatches, badgeSmallUrl } from "@/lib/iosoccer-api";
 
 export const revalidate = 60;
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 10;
 
 const SERVER_FLAGS: Record<string, string> = {
   fr: "🇫🇷", de: "🇩🇪", uk: "🇬🇧", gb: "🇬🇧", us: "🇺🇸", br: "🇧🇷",
@@ -96,11 +96,11 @@ export default async function FixturesPage({
                 const isComp = m.matchType === 2;
                 return (
                   <tr key={m.id} className={`border-b border-chalk-100/4 last:border-0 ${i % 2 === 0 ? "bg-pitch-600/15" : "bg-transparent"}`}>
-                    <td className="px-4 py-2.5 font-mono text-xs text-chalk-400 whitespace-nowrap">
+                    <td className="px-4 py-1.5 font-mono text-xs text-chalk-400 whitespace-nowrap">
                       <div className="text-chalk-300">{fmtDate(m.kickOff)}</div>
                       <div className="text-chalk-500">{fmtTime(m.kickOff)} UTC</div>
                     </td>
-                    <td className="px-4 py-2.5">
+                    <td className="px-4 py-1.5">
                       <Link href={`/matches/${m.id}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
                           {homeLogo && <img src={homeLogo} alt="" className="w-4 h-4 object-contain" />}
@@ -113,20 +113,20 @@ export default async function FixturesPage({
                         </div>
                       </Link>
                     </td>
-                    <td className="px-4 py-2.5 text-xs whitespace-nowrap">
+                    <td className="px-4 py-1.5 text-xs whitespace-nowrap">
                       {tournamentName ? (
                         <span className="font-body text-[#F4119E]">{tournamentName}</span>
                       ) : (
                         <span className={`font-mono ${isComp ? "text-[#F4119E]" : "text-chalk-400"}`}>{isComp ? "COMP" : "FRIENDLY"}</span>
                       )}
                     </td>
-                    <td className="px-4 py-2.5 font-mono text-xs text-chalk-400 whitespace-nowrap">
+                    <td className="px-4 py-1.5 font-mono text-xs text-chalk-400 whitespace-nowrap">
                       {format}
                     </td>
-                    <td className="px-4 py-2.5 font-mono text-xs text-chalk-500 max-w-[200px]">
+                    <td className="px-4 py-1.5 font-mono text-xs text-chalk-500 max-w-[200px]">
                       {serverName ?? "-"}
                     </td>
-                    <td className="px-4 py-2.5 font-mono text-sm text-center">
+                    <td className="px-4 py-1.5 font-mono text-sm text-center">
                       {flag}
                     </td>
                   </tr>
@@ -139,10 +139,57 @@ export default async function FixturesPage({
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 mt-6 font-mono text-xs">
-          {page > 1 && <Link href={pageUrl(page - 1)} className="px-3 py-1.5 rounded border border-chalk-100/10 text-chalk-400 hover:text-chalk-100 transition-colors">←</Link>}
-          <span className="text-chalk-400">Page {page} / {totalPages}</span>
-          {page < totalPages && <Link href={pageUrl(page + 1)} className="px-3 py-1.5 rounded border border-chalk-100/10 text-chalk-400 hover:text-chalk-100 transition-colors">→</Link>}
+        <div className="flex items-center justify-between mt-4">
+          <span className="text-xs font-mono text-chalk-400">
+            Page {page} of {totalPages}
+          </span>
+          <div className="flex items-center gap-1">
+            {page > 1 && (
+              <Link href={pageUrl(1)} className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center" title="First page">
+                &laquo;
+              </Link>
+            )}
+            {page > 1 && (
+              <Link href={pageUrl(Math.max(1, page - 10))} className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center" title="Back 10 pages">
+                &lt;
+              </Link>
+            )}
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              let p: number;
+              if (totalPages <= 5) {
+                p = i + 1;
+              } else if (page <= 3) {
+                p = i + 1;
+              } else if (page >= totalPages - 2) {
+                p = totalPages - 4 + i;
+              } else {
+                p = page - 2 + i;
+              }
+              return (
+                <Link
+                  key={p}
+                  href={pageUrl(p)}
+                  className={`w-8 h-8 rounded text-xs font-mono transition-colors flex items-center justify-center ${
+                    p === page
+                      ? "bg-[#F4119E] text-white font-700"
+                      : "text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30"
+                  }`}
+                >
+                  {p}
+                </Link>
+              );
+            })}
+            {page < totalPages && (
+              <Link href={pageUrl(Math.min(totalPages, page + 10))} className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center" title="Forward 10 pages">
+                &gt;
+              </Link>
+            )}
+            {page < totalPages && (
+              <Link href={pageUrl(totalPages)} className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center" title="Last page">
+                &raquo;
+              </Link>
+            )}
+          </div>
         </div>
       )}
     </div>
