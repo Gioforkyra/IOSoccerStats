@@ -1,25 +1,29 @@
 import Link from "next/link";
 import { getPastTournaments, getCurrentTournaments, badgeSmallUrl, type ApiTournament } from "@/lib/iosoccer-api";
 
+export const revalidate = 300;
+
 const TEAM_TYPES: Record<number, string> = { 1: "Club", 2: "National", 3: "Mix", 4: "Draft" };
 const FORMAT_LABELS: Record<number, string> = {
-  1: "League",
-  2: "Knockout",
-  3: "Group + Knockout",
-  4: "Custom",
-  5: "Swiss",
-  6: "Round Robin",
-  7: "Double Elimination",
-  8: "League",
+  1: "League", 2: "Knockout", 3: "Group+KO", 4: "Custom",
+  5: "Swiss", 6: "Round Robin", 7: "Double Elim", 8: "League",
 };
+
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function fmtDate(iso: string | null) {
+  if (!iso) return "?";
+  const d = new Date(iso);
+  return `${String(d.getUTCDate()).padStart(2,"0")} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+}
 
 export default async function TournamentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; type?: string }>;
 }) {
   const params = await searchParams;
   const statusFilter = params.status || "all";
+  const typeFilter = params.type || "all";
 
   const [current, past] = await Promise.all([
     getCurrentTournaments(),
@@ -31,7 +35,6 @@ export default async function TournamentsPage({
     ...past.map((t) => ({ ...t, _active: false })),
   ];
 
-  // Sort: active first, then by start date descending
   all.sort((a, b) => {
     if (a._active !== b._active) return a._active ? -1 : 1;
     const da = a.startDate ? new Date(a.startDate).getTime() : 0;
@@ -39,118 +42,111 @@ export default async function TournamentsPage({
     return db - da;
   });
 
-  const display =
-    statusFilter === "active" ? all.filter((t) => t._active) :
-    statusFilter === "completed" ? all.filter((t) => !t._active) :
-    all;
+  let display = all;
+  if (statusFilter === "active") display = all.filter((t) => t._active);
+  else if (statusFilter === "completed") display = all.filter((t) => !t._active);
+  if (typeFilter !== "all") {
+    const typeInt = parseInt(typeFilter);
+    display = display.filter((t) => t.teamType === typeInt);
+  }
 
-  function filterUrl(status: string) {
-    return status === "all" ? "/tournaments" : `/tournaments?status=${status}`;
+  function filterUrl(overrides: Record<string, string>) {
+    const sp = new URLSearchParams({ status: statusFilter, type: typeFilter, ...overrides });
+    return `/tournaments?${sp.toString()}`;
   }
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
-        <div>
-          <h1 className="font-display font-800 text-4xl tracking-tight text-chalk-100">
-            TOURNAMENTS
-          </h1>
-          <p className="text-chalk-400 text-sm font-body mt-1">
-            {current.length} active · {past.length} completed
-          </p>
-        </div>
+      <div className="mb-6">
+        <h1 className="font-display font-800 text-4xl tracking-tight text-chalk-100">TOURNAMENTS</h1>
+        <p className="text-chalk-400 text-sm font-body mt-1">
+          {current.length} active · {past.length} completed
+        </p>
       </div>
 
-      {/* Status filter */}
-      <div className="flex items-center gap-3 mb-6">
-        {[
-          { key: "all", label: "ALL" },
-          { key: "active", label: "ACTIVE" },
-          { key: "completed", label: "COMPLETED" },
-        ].map((s) => (
-          <Link
-            key={s.key}
-            href={filterUrl(s.key)}
-            className={`text-sm font-display font-700 tracking-wider uppercase transition-colors pb-1 border-b-2 ${
-              statusFilter === s.key
-                ? "text-chalk-100 border-[#F4119E]"
-                : "text-chalk-400 hover:text-chalk-200 border-transparent"
-            }`}
-          >
-            {s.label}
-          </Link>
-        ))}
+      {/* Filters */}
+      <div className="flex items-center gap-3 mb-6 flex-wrap">
+        <div className="flex items-center gap-1 text-xs font-mono">
+          {[{ v: "all", l: "ALL" }, { v: "active", l: "ACTIVE" }, { v: "completed", l: "COMPLETED" }].map(({ v, l }) => (
+            <Link key={v} href={filterUrl({ status: v })}
+              className={`px-3 py-1.5 rounded border transition-colors ${statusFilter === v ? "border-[#F4119E] text-[#F4119E] bg-[#F4119E]/10" : "border-chalk-100/10 text-chalk-400 hover:border-[#F4119E]/40 hover:text-[#F4119E]"}`}>
+              {l}
+            </Link>
+          ))}
+        </div>
+        <div className="flex items-center gap-1 text-xs font-mono">
+          {[{ v: "all", l: "ALL" }, { v: "1", l: "CLUB" }, { v: "2", l: "NATIONAL" }, { v: "3", l: "MIX" }, { v: "4", l: "DRAFT" }].map(({ v, l }) => (
+            <Link key={v} href={filterUrl({ type: v })}
+              className={`px-3 py-1.5 rounded border transition-colors ${typeFilter === v ? "border-[#F4119E] text-[#F4119E] bg-[#F4119E]/10" : "border-chalk-100/10 text-chalk-400 hover:border-[#F4119E]/40 hover:text-[#F4119E]"}`}>
+              {l}
+            </Link>
+          ))}
+        </div>
       </div>
 
       {display.length === 0 ? (
-        <div className="text-center py-16 text-chalk-400 font-body">
-          No tournaments found.
-        </div>
+        <div className="text-center py-16 text-chalk-400 font-body">No tournaments found.</div>
       ) : (
-        <div className="space-y-3">
-          {display.map((t) => {
-            const isActive = t._active;
-            const startStr = t.startDate
-              ? new Date(t.startDate).toLocaleDateString("en-GB", { month: "short", year: "numeric" })
-              : "?";
-            const endStr = t.endDate
-              ? new Date(t.endDate).toLocaleDateString("en-GB", { month: "short", year: "numeric" })
-              : isActive ? "Ongoing" : "?";
-
-            const winnerLogo = badgeSmallUrl(t.winningTeam?.badgeImage ?? null);
-            const org = t.tournamentSeries?.organisation?.acronym ?? null;
-
-            return (
-              <div
-                key={t.id}
-                className="bg-pitch-900/40 border border-chalk-100/8 rounded-lg p-5 hover:border-[#F4119E]/20 transition-colors"
-              >
-                <div className="flex items-center gap-3 mb-1 flex-wrap">
-                  {winnerLogo ? (
-                    <Link href={`/teams/${t.winningTeamId}`} className="shrink-0">
-                      <img src={winnerLogo} alt="" className="w-8 h-8 object-contain" />
-                    </Link>
-                  ) : (
-                    <span className="text-lg shrink-0">
-                      {isActive ? "\u26BD" : "\u{1F3C6}"}
-                    </span>
-                  )}
-                  <h3 className="font-display font-700 text-lg text-chalk-100">
-                    {t.name}
-                  </h3>
-                  {t.winningTeam?.name && (
-                    <Link
-                      href={`/teams/${t.winningTeamId}`}
-                      className="flex items-center gap-1.5 hover:opacity-80 transition-opacity"
-                    >
-                      <span className="text-[10px] font-mono text-[#F4119E] uppercase tracking-wider">{"\u{1F3C6}"}</span>
-                      <span className="font-display font-700 text-sm text-[#F4119E]">{t.winningTeam.name}</span>
-                    </Link>
-                  )}
-                  {isActive && (
-                    <span className="text-[10px] font-mono bg-grass-500/20 text-grass-400 px-2 py-0.5 rounded">
-                      ACTIVE
-                    </span>
-                  )}
-                  {org && (
-                    <span className="text-[10px] font-mono bg-[#F4119E]/15 text-[#F4119E] px-2 py-0.5 rounded">
-                      {org}
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-mono text-chalk-400 ml-0">
-                  <span>{startStr} — {endStr}</span>
-                  {t.format > 0 && (
-                    <span>{FORMAT_LABELS[t.format] || `Format ${t.format}`}</span>
-                  )}
-                  {t.teamType > 0 && (
-                    <span>{TEAM_TYPES[t.teamType] || "Unknown"}</span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+        <div className="rounded-lg border border-chalk-100/8 overflow-x-auto bg-pitch-900/40">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-chalk-100/8">
+                <th className="text-left px-4 py-3 font-mono text-[10px] text-chalk-400">STATUS</th>
+                <th className="text-left px-4 py-3 font-mono text-[10px] text-chalk-400">TOURNAMENT</th>
+                <th className="text-left px-4 py-3 font-mono text-[10px] text-chalk-400">FORMAT</th>
+                <th className="text-left px-4 py-3 font-mono text-[10px] text-chalk-400">TYPE</th>
+                <th className="text-left px-4 py-3 font-mono text-[10px] text-chalk-400">WINNER</th>
+                <th className="text-left px-4 py-3 font-mono text-[10px] text-chalk-400">DATES</th>
+              </tr>
+            </thead>
+            <tbody>
+              {display.map((t, i) => {
+                const isActive = t._active;
+                const winnerLogo = badgeSmallUrl(t.winningTeam?.badgeImage ?? null);
+                const org = t.tournamentSeries?.organisation?.acronym ?? null;
+                return (
+                  <tr key={t.id} className={`border-b border-chalk-100/4 last:border-0 ${i % 2 === 0 ? "bg-pitch-600/15" : "bg-transparent"}`}>
+                    <td className="px-4 py-2.5">
+                      {isActive ? (
+                        <span className="text-[10px] font-mono bg-grass-500/20 text-grass-400 px-2 py-0.5 rounded">ACTIVE</span>
+                      ) : (
+                        <span className="text-[10px] font-mono text-chalk-500">DONE</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <div className="flex items-center gap-2">
+                        <span className="font-body text-chalk-100">{t.name}</span>
+                        {org && (
+                          <span className="text-[10px] font-mono bg-[#F4119E]/15 text-[#F4119E] px-1.5 py-0.5 rounded shrink-0">{org}</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-2.5 font-mono text-xs text-chalk-400 whitespace-nowrap">
+                      {t.format > 0 ? FORMAT_LABELS[t.format] || `Format ${t.format}` : "-"}
+                    </td>
+                    <td className="px-4 py-2.5 font-mono text-xs text-chalk-400 whitespace-nowrap">
+                      {t.teamType > 0 ? TEAM_TYPES[t.teamType] || "-" : "-"}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      {t.winningTeam ? (
+                        <Link href={`/teams/${t.winningTeamId}`} className="flex items-center gap-1.5 hover:opacity-80 transition-opacity">
+                          {winnerLogo && <img src={winnerLogo} alt="" className="w-4 h-4 object-contain" />}
+                          <span className="font-body text-sm text-[#F4119E]">{t.winningTeam.name}</span>
+                        </Link>
+                      ) : (
+                        <span className="text-chalk-500 font-mono text-xs">-</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5 font-mono text-xs text-chalk-400 whitespace-nowrap">
+                      {fmtDate(t.startDate)}
+                      {t.endDate && !isActive && <span className="text-chalk-500"> → {fmtDate(t.endDate)}</span>}
+                      {isActive && <span className="text-grass-400"> → ongoing</span>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
     </div>

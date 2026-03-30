@@ -25,8 +25,32 @@ from db import (
     update_scraper_state, match_exists,
 )
 
-# Max known match ID (discovered via binary search)
-MAX_MATCH_ID = 231325
+API_BASE = "https://iosoccer.com:44380/api"
+HEADERS = {
+    "Content-Type": "application/json",
+    "Accept": "application/json",
+    "Origin": "https://www.iosoccer.com",
+    "Referer": "https://www.iosoccer.com/",
+}
+
+
+async def fetch_max_match_id(client: httpx.AsyncClient) -> int:
+    """Fetch the latest match ID from the API."""
+    try:
+        resp = await client.post(
+            f"{API_BASE}/match",
+            json={"page": 1, "pageSize": 1, "sortBy": "KickOff", "sortOrder": "DESC", "filters": {"includePast": True}},
+            headers=HEADERS,
+            timeout=15,
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            items = data.get("items", [])
+            if items and items[0].get("id"):
+                return int(items[0]["id"]) + 50  # small buffer
+    except Exception as e:
+        print(f"  Warning: could not fetch max match ID from API: {e}")
+    return 240000  # fallback
 # Delay between batches (seconds)
 BATCH_DELAY = 0.3
 # How many consecutive empty batches before we stop
@@ -102,7 +126,7 @@ async def run(args):
             start_id += 1
         print(f"Resuming from match ID {start_id}")
 
-    end_id = start_id + 5 if args.test else MAX_MATCH_ID
+    end_id = start_id + 5 if args.test else 0  # overridden below for non-test
 
     print(f"Scraping matches {start_id} -> {end_id} ({end_id - start_id + 1} IDs)")
     print(f"Concurrent workers: {workers}")
@@ -120,6 +144,11 @@ async def run(args):
         timeout=15,
         limits=httpx.Limits(max_connections=workers + 5, max_keepalive_connections=workers),
     ) as client:
+        if not args.test:
+            max_match_id = await fetch_max_match_id(client)
+            print(f"Latest match ID from API: {max_match_id}")
+            end_id = max_match_id
+
         current_id = start_id
         while current_id <= end_id:
             # Build batch of IDs

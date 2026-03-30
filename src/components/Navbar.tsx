@@ -35,7 +35,15 @@ const NAV: NavItem[] = [
       { label: "Head2Head", href: "/teams/h2h" },
     ],
   },
-  { label: "Tournaments", href: "/tournaments", exact: false },
+  {
+    label: "Tournaments",
+    href: "/tournaments",
+    exact: false,
+    dropdown: [
+      { label: "Tournaments", href: "/tournaments" },
+      { label: "Fixtures", href: "/fixtures" },
+    ],
+  },
   { label: "Ratings", href: "/ratings", exact: false },
 ];
 

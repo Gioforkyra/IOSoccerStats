@@ -33,6 +33,7 @@ model Team {
   region         String?
   color          String?
   inactive       Boolean              @default(false)
+  avgRating      Float?               @map("avg_rating")
   createdAt      DateTime             @default(now()) @map("created_at")
   regionId       Int?                 @map("region_id")
   teamType       Int?                 @map("team_type")

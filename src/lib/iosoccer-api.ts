@@ -196,6 +196,7 @@ export async function getMatches(opts: {
   matchType?: number;
   tournamentId?: number;
   regionId?: number;
+  includePast?: boolean;
 }) {
   return apiFetch<Paginated<ApiMatchListItem>>("/match", {
     method: "POST",
@@ -203,9 +204,9 @@ export async function getMatches(opts: {
       page: opts.page ?? 1,
       pageSize: opts.pageSize ?? 15,
       sortBy: "KickOff",
-      sortOrder: "DESC",
+      sortOrder: opts.includePast === false ? "ASC" : "DESC",
       filters: {
-        includePast: true,
+        includePast: opts.includePast ?? true,
         ...(opts.matchType ? { matchType: opts.matchType } : {}),
         ...(opts.tournamentId ? { tournamentId: opts.tournamentId } : {}),
         ...(opts.regionId ? { regionId: opts.regionId } : {}),

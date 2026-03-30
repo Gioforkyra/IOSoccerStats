@@ -26,8 +26,12 @@ export default async function TeamLayout({
   const teamId = parseInt(id, 10);
   if (isNaN(teamId)) return notFound();
 
-  const team = await prisma.team.findUnique({ where: { id: teamId } });
-  if (!team) return notFound();
+  const teamRows = await prisma.$queryRaw<{ id: number; name: string; slug: string; logo: string | null; region: string | null; color: string | null; inactive: boolean; avg_rating: number | null }[]>`
+    SELECT id, name, slug, logo, region, color, inactive, avg_rating FROM teams WHERE id = ${teamId} LIMIT 1
+  `;
+  if (!teamRows.length) return notFound();
+  const teamRaw = teamRows[0];
+  const team = { ...teamRaw, avgRating: teamRaw.avg_rating };
 
   const [stats] = await prisma.$queryRaw<[TeamStats]>`
     SELECT
@@ -78,6 +82,8 @@ export default async function TeamLayout({
   const activityData: Record<string, number> = {};
   for (const row of activityRows) activityData[row.day] = row.count;
 
+  const teamRatingAvg = team.avgRating ?? null;
+
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
       {/* Breadcrumb */}
@@ -110,9 +116,14 @@ export default async function TeamLayout({
           )}
 
           <div className="flex-1 min-w-0">
-            <h1 className="font-display font-900 text-3xl md:text-3xl tracking-tight text-chalk-100 uppercase">
-              {team.name}
-            </h1>
+            <div className="flex items-baseline gap-3 flex-wrap">
+              <h1 className="font-display font-900 text-3xl md:text-3xl tracking-tight text-chalk-100 uppercase">
+                {team.name}
+              </h1>
+              {teamRatingAvg != null && (
+                <span className="font-display font-900 text-3xl text-[#F4119E]">{teamRatingAvg.toFixed(2)}</span>
+              )}
+            </div>
             <div className="flex items-center gap-3 mt-2 text-sm font-mono text-chalk-400">
               <span className="bg-pitch-800/60 px-2 py-0.5 rounded text-chalk-300">
                 {team.slug}

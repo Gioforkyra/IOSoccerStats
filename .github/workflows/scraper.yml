@@ -34,3 +34,15 @@ jobs:
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
         working-directory: scraper
         run: python sync_leaderboard.py
+
+      - name: Fetch player ratings
+        env:
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+        working-directory: scraper
+        run: python fetch_ratings.py
+
+      - name: Update team avg ratings
+        env:
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+        working-directory: scraper
+        run: python update_team_ratings.py
