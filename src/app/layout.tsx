@@ -3,7 +3,7 @@ import "./globals.css";
 import Navbar from "@/components/Navbar";
 
 export const metadata: Metadata = {
-  title: "IOSoccer-Stats | Advanced IOSoccer Statistics",
+  title: "IOSHUBv2 | Advanced IOSoccer Statistics",
   description:
     "The most advanced statistics hub for IOSoccer. Player profiles, match analytics, shot maps, xG and more.",
 };

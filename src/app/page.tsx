@@ -43,8 +43,8 @@ export default async function HomePage() {
     <div className="min-h-screen relative overflow-hidden bg-pitch-950">
       {/* Background image */}
       <div
-        className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat opacity-30"
-        style={{ backgroundImage: "url('/scarpe-da-calcio.jpg')" }}
+        className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat opacity-50"
+        style={{ backgroundImage: "url('/wallhaven-vpo228.jpg')" }}
       />
 
       {/* Content */}
@@ -54,9 +54,8 @@ export default async function HomePage() {
             {/* Header */}
             <div className="mb-8">
               <div className="flex items-center flex-wrap">
-                <h1 className="font-display text-5xl font-900 leading-[0.95] tracking-tight text-chalk-100 md:text-7xl">
-                  IOSoccer-
-                  <span className="pink-gradient-text">Stats</span>
+                <h1 className="font-display text-5xl font-black uppercase leading-[0.95] tracking-tight text-chalk-100 md:text-7xl">
+                  IOS<span className="text-[#F4119E]">HUB</span>v2
                 </h1>
                 <div className="ml-auto inline-flex items-center gap-2 rounded-full border border-[#F4119E]/30 bg-[#F4119E]/8 px-3 py-1 text-[11px] font-mono uppercase tracking-[0.22em] text-[#F4119E]">
                   <span className="live-dot inline-block h-2 w-2 rounded-full bg-[#F4119E]" />
