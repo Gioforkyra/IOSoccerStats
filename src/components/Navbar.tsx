@@ -36,6 +36,7 @@ const NAV: NavItem[] = [
     ],
   },
   { label: "Tournaments", href: "/tournaments", exact: false },
+  { label: "Ratings", href: "/ratings", exact: false },
 ];
 
 type SearchResult = {

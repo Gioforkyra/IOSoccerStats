@@ -62,6 +62,7 @@ async def main():
 
     updated = 0
     not_found = 0
+    history_rows = []
     for row in our_players:
         sid = row["steam_id"]
         if sid in rating_map:
@@ -70,9 +71,18 @@ async def main():
                 rating_map[sid],
                 sid,
             )
+            history_rows.append((sid, rating_map[sid]))
             updated += 1
         else:
             not_found += 1
+
+    # Insert rating snapshots for history chart
+    if history_rows:
+        await conn.executemany(
+            "INSERT INTO player_rating_history (steam_id, rating) VALUES ($1, $2)",
+            history_rows,
+        )
+        print(f"  Inserted {len(history_rows)} rating snapshots into history")
 
     await conn.close()
     print(f"\nDone! Updated: {updated}, Not in API: {not_found}")

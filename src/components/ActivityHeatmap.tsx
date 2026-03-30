@@ -1,3 +1,5 @@
+"use client";
+
 const CELL = 12;
 const GAP = 3;
 const STRIDE = CELL + GAP;
@@ -18,6 +20,15 @@ function hexToRgb(hex: string): string {
 // Deterministic formatter — no locale dependency, avoids hydration mismatch
 function fmtDate(d: Date): string {
   return `${String(d.getUTCDate()).padStart(2,"0")} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+}
+
+let hoverAudio: HTMLAudioElement | null = null;
+function playHover() {
+  if (typeof window === "undefined") return;
+  if (!hoverAudio) hoverAudio = new Audio("/hover.mp3");
+  hoverAudio.currentTime = 0;
+  hoverAudio.volume = 0.35;
+  hoverAudio.play().catch(() => {});
 }
 
 export function ActivityHeatmap({ data, color = "#F4119E" }: Props) {
@@ -74,6 +85,17 @@ export function ActivityHeatmap({ data, color = "#F4119E" }: Props) {
         width="100%"
         style={{ display: "block", height: "auto" }}
       >
+        <style>{`
+          .hm-cell {
+            transform-box: fill-box;
+            transform-origin: center;
+            transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+            cursor: pointer;
+          }
+          .hm-cell:hover {
+            transform: scale(1.55);
+          }
+        `}</style>
         {/* Month labels */}
         {monthLabels.map((m, i) => (
           <text key={i} x={LEFT_PAD + m.wi * STRIDE} y={11} fontSize={9} fill="#9ca3af" fontFamily="monospace">
@@ -110,6 +132,8 @@ export function ActivityHeatmap({ data, color = "#F4119E" }: Props) {
                 rx={2}
                 ry={2}
                 fill={isFuture ? "transparent" : getColor(day.count)}
+                className={isFuture ? undefined : "hm-cell"}
+                onMouseEnter={isFuture ? undefined : playHover}
               >
                 {!isFuture && (
                   <title>

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getRelatedSteamIds } from "@/lib/player-aliases";
 import { getPastTournaments, badgeSmallUrl } from "@/lib/iosoccer-api";
+import RatingChart from "@/components/RatingChart";
 
 export const revalidate = 0;
 
@@ -72,8 +73,23 @@ export default async function PlayerOverallPage({
     return db - da;
   });
 
+  // Rating history — only if player has rating
+  const ratingHistory = player.rating != null
+    ? await prisma.$queryRaw<{ date: string; rating: number }[]>`
+        SELECT recorded_at::date::text AS date, AVG(rating) AS rating
+        FROM player_rating_history
+        WHERE steam_id = ${steamId}
+        GROUP BY recorded_at::date
+        ORDER BY recorded_at::date ASC
+      `
+    : [];
+
   return (
     <>
+      {ratingHistory.length > 0 && (
+        <RatingChart points={ratingHistory.map((p) => ({ date: p.date, rating: Number(p.rating) }))} />
+      )}
+
       <h3 className="font-display font-700 text-lg tracking-wider text-chalk-100 uppercase mb-4">
         Titles <span className="text-chalk-400">[{titles.length}]</span>
       </h3>
