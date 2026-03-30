@@ -149,6 +149,9 @@ def parse_match_info(raw: dict) -> Optional[dict]:
     steam_lookup = {}
     # (name.lower, side) → steamId64 lookup (per POST stats that lack steamID)
     name_side_lookup: dict[tuple[str, str], str] = {}
+    # (steamId64, side) → position lookup (from matchPeriodData, longest period wins)
+    position_lookup: dict[tuple[str, str], str] = {}
+    position_dur: dict[tuple[str, str], int] = {}
     for rp in (md.get("players") or []):
         pi = rp.get("info") or {}
         sid64 = pi.get("steamId64", "")
@@ -156,9 +159,16 @@ def parse_match_info(raw: dict) -> Optional[dict]:
         if pi.get("steamId") and sid64:
             steam_lookup[pi["steamId"]] = sid64
         for period in (rp.get("matchPeriodData") or []):
-            side = (period.get("info") or {}).get("team", "")
+            pinfo = period.get("info") or {}
+            side = pinfo.get("team", "")
             if name and sid64 and side:
                 name_side_lookup[(name, side)] = sid64
+            pos = pinfo.get("position")
+            if sid64 and side and pos:
+                dur = (pinfo.get("endSecond") or 0) - (pinfo.get("startSecond") or 0)
+                if dur > position_dur.get((sid64, side), -1):
+                    position_dur[(sid64, side)] = dur
+                    position_lookup[(sid64, side)] = pos
 
     return {
         "id":           raw["id"],
@@ -176,10 +186,11 @@ def parse_match_info(raw: dict) -> Optional[dict]:
         "events":       events,
         "steam_lookup": steam_lookup,
         "name_side_lookup": name_side_lookup,
+        "position_lookup": position_lookup,
     }
 
 
-def parse_player_stats(items: list, match_id: int, potm_steam_id: Optional[str], name_side_lookup: dict) -> tuple[list, list]:
+def parse_player_stats(items: list, match_id: int, potm_steam_id: Optional[str], name_side_lookup: dict, position_lookup: dict | None = None) -> tuple[list, list]:
     """
     Converte gli item di POST /api/player-statistics/matches
     nei record per players e match_player_stats.
@@ -198,11 +209,20 @@ def parse_player_stats(items: list, match_id: int, potm_steam_id: Optional[str],
         if not steam_id64:
             continue
 
+        # Position: from matchPeriodData lookup (reliable) or fallback to stats field
+        pos_raw = item.get("position")
+        position = (
+            (position_lookup or {}).get((steam_id64, side))
+            or (pos_raw.get("name") if isinstance(pos_raw, dict) else None)
+            or (pos_raw if isinstance(pos_raw, str) and pos_raw else None)
+            or item.get("positionName")
+        )
+
         # Player base
         players.append({
             "steam_id":  steam_id64,
             "username":  item.get("nickname") or item.get("name") or "Unknown",
-            "position":  item.get("position", {}).get("name") if isinstance(item.get("position"), dict) else item.get("positionName"),
+            "position":  position,
         })
 
         # Minuti giocati
@@ -218,7 +238,7 @@ def parse_player_stats(items: list, match_id: int, potm_steam_id: Optional[str],
             "match_id":                  match_id,
             "player_steam_id":           steam_id64,
             "team_side":                 side,
-            "position":                  (item.get("position") or {}).get("name") if isinstance(item.get("position"), dict) else (item.get("position") if isinstance(item.get("position"), str) else item.get("positionName")),
+            "position":                  position,
             "minutes_played":            minutes,
             "is_substitute":             item.get("substitute", False),
             "is_potm":                   is_potm,
@@ -330,6 +350,7 @@ async def scrape_match(client: httpx.AsyncClient, match_id: int) -> Optional[dic
 
     # Mapping (name.lower, side) → steamId64 costruito dal GET endpoint
     name_side_lookup = match_info.pop("name_side_lookup")
+    position_lookup = match_info.pop("position_lookup")
 
     # Trova steamID del POTM dai stat_items tramite name lookup
     if potm:
@@ -341,7 +362,7 @@ async def scrape_match(client: httpx.AsyncClient, match_id: int) -> Optional[dic
                 potm_steam_id = name_side_lookup.get((nick, side))
                 break
 
-    players, player_stats = parse_player_stats(stat_items, match_id, potm_steam_id, name_side_lookup)
+    players, player_stats = parse_player_stats(stat_items, match_id, potm_steam_id, name_side_lookup, position_lookup)
 
     # 4. Shot map events (da GET /api/match/{id})
     shots = parse_shots(

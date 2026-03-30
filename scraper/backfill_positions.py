@@ -1,6 +1,6 @@
 """
-Backfill position in match_player_stats by re-fetching player stats from the API
-for matches where position is null.
+Backfill position in match_player_stats by reading matchPeriodData from GET /api/match/{id}.
+Position lives in matchData.players[].matchPeriodData[].info.position, not in player-statistics.
 """
 import asyncio
 import asyncpg
@@ -21,81 +21,72 @@ HEADERS = {
 CONCURRENCY = 20
 
 
-async def fetch_player_stats(client: httpx.AsyncClient, match_id: int) -> list:
-    try:
-        resp = await client.post(
-            f"{API_BASE}/player-statistics/matches",
-            json={"matchId": match_id},
-            headers=HEADERS,
-            timeout=15,
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            return data if isinstance(data, list) else data.get("items", [])
-    except Exception:
-        pass
-    return []
+def extract_positions_from_match(raw: dict) -> dict[tuple[str, str], str]:
+    """
+    Returns {(steamId64, side): position} from GET /api/match/{id} response.
+    Uses the period with the longest playtime as the player's primary position.
+    """
+    ms = raw.get("matchStatistics") or {}
+    md = ms.get("matchData") or {}
+    result: dict[tuple[str, str], str] = {}
 
+    for rp in (md.get("players") or []):
+        pi = rp.get("info") or {}
+        sid64 = pi.get("steamId64")
+        if not sid64:
+            continue
 
-async def fetch_name_lookup(client: httpx.AsyncClient, match_id: int) -> dict:
-    """Build (name.lower, side) -> steamId64 lookup from match detail."""
-    try:
-        resp = await client.get(f"{API_BASE}/match/{match_id}", headers=HEADERS, timeout=15)
-        if resp.status_code == 200:
-            raw = resp.json()
-            ms = raw.get("matchStatistics") or {}
-            md = ms.get("matchData") or {}
-            lookup = {}
-            for rp in (md.get("players") or []):
-                pi = rp.get("info") or {}
-                sid64 = pi.get("steamId64", "")
-                name = (pi.get("name") or "").lower()
-                for period in (rp.get("matchPeriodData") or []):
-                    side = (period.get("info") or {}).get("team", "")
-                    if name and sid64 and side:
-                        lookup[(name, side)] = sid64
-            return lookup
-    except Exception:
-        pass
-    return {}
+        best_pos: dict[str, str] = {}  # side -> position (longest period)
+        best_dur: dict[str, int] = {}  # side -> duration
 
-
-def extract_position(item: dict) -> str | None:
-    pos = item.get("position")
-    if isinstance(pos, dict):
-        return pos.get("name")
-    if isinstance(pos, str) and pos:
-        return pos
-    return item.get("positionName")
-
-
-async def process_match(client: httpx.AsyncClient, pool: asyncpg.Pool, match_id: int, sem: asyncio.Semaphore):
-    async with sem:
-        stat_items = await fetch_player_stats(client, match_id)
-        if not stat_items:
-            return 0
-
-        lookup = await fetch_name_lookup(client, match_id)
-        if not lookup:
-            return 0
-
-        updates = []
-        for item in stat_items:
-            side = "home" if item.get("matchTeamType") == 1 else "away"
-            nick = (item.get("nickname") or "").lower()
-            steam_id64 = lookup.get((nick, side), "")
-            if not steam_id64:
+        for period in (rp.get("matchPeriodData") or []):
+            pinfo = period.get("info") or {}
+            pos = pinfo.get("position")
+            side = pinfo.get("team")
+            if not pos or not side:
                 continue
-            pos = extract_position(item)
-            if pos:
-                updates.append((pos, match_id, steam_id64, side))
+            duration = (pinfo.get("endSecond") or 0) - (pinfo.get("startSecond") or 0)
+            if duration > best_dur.get(side, -1):
+                best_dur[side] = duration
+                best_pos[side] = pos
 
-        if not updates:
+        for side, pos in best_pos.items():
+            result[(sid64, side)] = pos
+
+    return result
+
+
+async def process_match(
+    client: httpx.AsyncClient,
+    pool: asyncpg.Pool,
+    match_id: int,
+    sem: asyncio.Semaphore,
+) -> int:
+    async with sem:
+        try:
+            resp = await client.get(
+                f"{API_BASE}/match/{match_id}", headers=HEADERS, timeout=15
+            )
+            if resp.status_code != 200:
+                return 0
+            pos_lookup = extract_positions_from_match(resp.json())
+        except Exception:
             return 0
+
+        if not pos_lookup:
+            return 0
+
+        updates = [
+            (pos, match_id, sid64, side)
+            for (sid64, side), pos in pos_lookup.items()
+        ]
 
         async with pool.acquire() as conn:
             await conn.executemany(
-                "UPDATE match_player_stats SET position = $1 WHERE match_id = $2 AND player_steam_id = $3 AND team_side = $4",
+                """UPDATE match_player_stats
+                   SET position = $1
+                   WHERE match_id = $2 AND player_steam_id = $3 AND team_side = $4
+                     AND position IS NULL""",
                 updates,
             )
         return len(updates)
@@ -104,7 +95,6 @@ async def process_match(client: httpx.AsyncClient, pool: asyncpg.Pool, match_id:
 async def main():
     pool = await asyncpg.create_pool(DATABASE_URL, min_size=2, max_size=10)
 
-    # Get all match IDs with at least one null position
     rows = await pool.fetch(
         """SELECT DISTINCT match_id FROM match_player_stats
            WHERE position IS NULL
@@ -113,14 +103,25 @@ async def main():
     match_ids = [r["match_id"] for r in rows]
     print(f"Matches with null positions: {len(match_ids)}")
 
+    if not match_ids:
+        print("Nothing to do.")
+        await pool.close()
+        return
+
     sem = asyncio.Semaphore(CONCURRENCY)
     total_updated = 0
-    async with httpx.AsyncClient() as client:
+
+    async with httpx.AsyncClient(timeout=15) as client:
         tasks = [process_match(client, pool, mid, sem) for mid in match_ids]
         results = await asyncio.gather(*tasks)
         total_updated = sum(results)
 
+    # Report remaining nulls
+    remaining = await pool.fetchval(
+        "SELECT COUNT(*) FROM match_player_stats WHERE position IS NULL"
+    )
     print(f"Total positions updated: {total_updated}")
+    print(f"Remaining null positions: {remaining}")
     await pool.close()
 
 

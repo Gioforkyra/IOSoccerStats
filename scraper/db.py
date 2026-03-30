@@ -111,6 +111,7 @@ async def insert_player_stats(pool: asyncpg.Pool, stats: list[dict]):
                 saves_caught, sliding_tackles, sliding_tackles_completed
             ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35)
             ON CONFLICT (match_id, player_steam_id, team_side) DO UPDATE SET
+                position = COALESCE(EXCLUDED.position, match_player_stats.position),
                 goals = EXCLUDED.goals, assists = EXCLUDED.assists,
                 second_assists = EXCLUDED.second_assists,
                 shots = EXCLUDED.shots, shots_on_target = EXCLUDED.shots_on_target,
