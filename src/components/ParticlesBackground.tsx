@@ -21,37 +21,34 @@ export default function ParticlesBackground() {
       className="absolute inset-0 z-0"
       options={{
         fpsLimit: 60,
+        smooth: true,
         particles: {
-          number: { value: 80, density: { enable: true, width: 800, height: 800 } },
+          number: { value: 60, density: { enable: true, width: 800, height: 800 } },
           color: { value: "#f414e8" },
           shape: { type: "circle" },
-          opacity: { value: 0.5 },
-          size: { value: { min: 1, max: 3 } },
+          opacity: { value: 0.45 },
+          size: { value: { min: 1, max: 2.5 } },
           links: {
             enable: true,
-            distance: 150,
+            distance: 120,
             color: "#ffffff",
-            opacity: 0.4,
+            opacity: 0.3,
             width: 1,
           },
           move: {
             enable: true,
-            speed: 2,
+            speed: 1.8,
             direction: "none",
             outModes: { default: "out" },
           },
         },
         interactivity: {
           events: {
-            onHover: { enable: true, mode: "repulse" },
-            onClick: { enable: true, mode: "push" },
-          },
-          modes: {
-            repulse: { distance: 200, duration: 0.4 },
-            push: { quantity: 4 },
+            onHover: { enable: false },
+            onClick: { enable: false },
           },
         },
-        detectRetina: true,
+        detectRetina: false,
       }}
     />
   );
