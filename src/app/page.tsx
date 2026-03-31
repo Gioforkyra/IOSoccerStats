@@ -21,7 +21,7 @@ export default async function HomePage() {
     pastTournaments,
     currentTournaments,
   ] = await Promise.all([
-    getMatches({ page: 1, pageSize: 4, matchType: 1 }),
+    getMatches({ page: 1, pageSize: 7, matchType: 1, regionId: 1 }),
     getPlayers({ page: 1, pageSize: 1 }),
     getActiveTeams(1, 1),
     getPastTournaments(),
@@ -49,6 +49,21 @@ export default async function HomePage() {
       return { ...team, avgRating: r.avg_rating };
     })
     .filter(Boolean) as (typeof activeTeams[0] & { avgRating: number | null })[];
+
+  // Top rated players (latest period)
+  const topPlayers = await prisma.$queryRaw<{ steam_id: string; username: string; rating: number }[]>`
+    SELECT prh.steam_id, p.username, AVG(prh.rating)::float AS rating
+    FROM player_rating_history prh
+    JOIN players p ON p.steam_id = prh.steam_id
+    WHERE TO_CHAR(DATE_TRUNC('month', prh.recorded_at), 'YYYY-MM') = (
+      SELECT TO_CHAR(DATE_TRUNC('month', MAX(recorded_at)), 'YYYY-MM') FROM player_rating_history
+    )
+    AND prh.rating > 0
+    GROUP BY prh.steam_id, p.username
+    HAVING AVG(prh.rating) > 0
+    ORDER BY rating DESC
+    LIMIT 5
+  `;
 
   return (
     <div className="min-h-screen relative overflow-hidden bg-pitch-950">
@@ -224,40 +239,56 @@ export default async function HomePage() {
                 </Link>
               </div>
 
-              {/* Live Scores */}
-              <Link
-                href="/matches/live"
-                className="group rounded-xl border border-chalk-100/8 bg-pitch-900/50 p-4 hover:border-[#F4119E]/30 transition-colors"
-              >
-                <div className="text-[10px] font-mono uppercase tracking-[0.22em] text-chalk-400 mb-2">
-                  Live
+              {/* Top Rated Players */}
+              <div className="rounded-xl border border-chalk-100/8 bg-pitch-900/50 p-4 hover:border-[#F4119E]/30 transition-colors">
+                <div className="text-[10px] font-mono uppercase tracking-[0.22em] text-chalk-400 mb-3">
+                  Top Rated Players
                 </div>
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="live-dot inline-block h-2 w-2 rounded-full bg-grass-500" />
-                  <span className="font-display text-lg font-700 text-chalk-100">Live Scores</span>
+                <div className="space-y-1.5">
+                  {topPlayers.map((player, i) => (
+                    <Link
+                      key={player.steam_id}
+                      href={`/players/${player.steam_id}`}
+                      className="flex items-center gap-2.5 rounded-md bg-pitch-800/40 px-2.5 py-2 pink-hover"
+                    >
+                      <span className="w-4 text-[10px] font-mono text-chalk-400 text-center shrink-0">
+                        {i + 1}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate font-body text-sm text-chalk-100">
+                        {player.username}
+                      </span>
+                      <span className="text-[11px] font-mono text-[#F4119E] shrink-0">
+                        {player.rating.toFixed(2)}
+                      </span>
+                    </Link>
+                  ))}
+                  {topPlayers.length === 0 && (
+                    <div className="text-xs text-chalk-400 font-mono py-2">No rating data</div>
+                  )}
                 </div>
-                <p className="text-xs font-body text-chalk-300 leading-5 mb-3">
-                  Follow active matches in real time with scorelines, events and server info.
-                </p>
-                <span className="text-xs font-mono text-[#F4119E] group-hover:text-[#F4119E]/70 transition-colors">
-                  Open Live {"->"}
-                </span>
-              </Link>
+                <Link
+                  href="/ratings"
+                  className="mt-3 inline-block text-xs font-mono text-[#F4119E] hover:text-[#F4119E]/70 transition-colors"
+                >
+                  View Ratings {"->"}
+                </Link>
+              </div>
 
-              {/* Players + Tournaments + DB Stats */}
+              {/* Live Scores + Tournaments + DB Stats */}
               <div className="space-y-3">
                 <Link
-                  href="/players"
+                  href="/matches/live"
                   className="group block rounded-xl border border-chalk-100/8 bg-pitch-900/50 p-4 hover:border-[#F4119E]/30 transition-colors"
                 >
                   <div className="text-[10px] font-mono uppercase tracking-[0.22em] text-chalk-400 mb-1">
-                    Players
+                    Live
                   </div>
-                  <div className="font-display text-base font-700 text-chalk-100">
-                    {playersCount.toLocaleString("en-GB")} Players
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="live-dot inline-block h-2 w-2 rounded-full bg-grass-500" />
+                    <span className="font-display text-base font-700 text-chalk-100">Live Scores</span>
                   </div>
                   <span className="mt-1.5 inline-block text-xs font-mono text-[#F4119E] group-hover:text-[#F4119E]/70 transition-colors">
-                    Browse {"->"}
+                    Open Live {"->"}
                   </span>
                 </Link>
                 <Link
