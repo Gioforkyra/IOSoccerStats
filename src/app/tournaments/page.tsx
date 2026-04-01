@@ -91,12 +91,12 @@ export default async function TournamentsPage({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-chalk-100/8">
-                <th className="text-left px-4 py-3 font-mono text-[10px] text-chalk-400">STATUS</th>
-                <th className="text-left px-4 py-3 font-mono text-[10px] text-chalk-400">TOURNAMENT</th>
-                <th className="text-left px-4 py-3 font-mono text-[10px] text-chalk-400">FORMAT</th>
-                <th className="text-left px-4 py-3 font-mono text-[10px] text-chalk-400">TYPE</th>
-                <th className="text-left px-4 py-3 font-mono text-[10px] text-chalk-400">WINNER</th>
-                <th className="text-left px-4 py-3 font-mono text-[10px] text-chalk-400">DATES</th>
+                <th className="text-left px-4 py-1.5 font-mono text-[10px] text-chalk-400">STATUS</th>
+                <th className="text-left px-4 py-1.5 font-mono text-[10px] text-chalk-400">TOURNAMENT</th>
+                <th className="text-left px-4 py-1.5 font-mono text-[10px] text-chalk-400">FORMAT</th>
+                <th className="text-left px-4 py-1.5 font-mono text-[10px] text-chalk-400">TYPE</th>
+                <th className="text-left px-4 py-1.5 font-mono text-[10px] text-chalk-400">WINNER</th>
+                <th className="text-left px-4 py-1.5 font-mono text-[10px] text-chalk-400">DATES</th>
               </tr>
             </thead>
             <tbody>
@@ -106,14 +106,14 @@ export default async function TournamentsPage({
                 const org = t.tournamentSeries?.organisation?.acronym ?? null;
                 return (
                   <tr key={t.id} className={`border-b border-chalk-100/4 last:border-0 ${i % 2 === 0 ? "bg-pitch-600/15" : "bg-transparent"}`}>
-                    <td className="px-4 py-2.5">
+                    <td className="px-4 py-1">
                       {isActive ? (
                         <span className="text-[10px] font-mono bg-grass-500/20 text-grass-400 px-2 py-0.5 rounded">ACTIVE</span>
                       ) : (
                         <span className="text-[10px] font-mono text-chalk-500">DONE</span>
                       )}
                     </td>
-                    <td className="px-4 py-2.5">
+                    <td className="px-4 py-1">
                       <div className="flex items-center gap-2">
                         <Link href={`/tournaments/${t.id}`} className="font-body text-chalk-100 hover:text-[#F4119E] transition-colors">
                           {t.name}
@@ -123,13 +123,13 @@ export default async function TournamentsPage({
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-2.5 font-mono text-xs text-chalk-400 whitespace-nowrap">
+                    <td className="px-4 py-1 font-mono text-xs text-chalk-400 whitespace-nowrap">
                       {t.format > 0 ? FORMAT_LABELS[t.format] || `Format ${t.format}` : "-"}
                     </td>
-                    <td className="px-4 py-2.5 font-mono text-xs text-chalk-400 whitespace-nowrap">
+                    <td className="px-4 py-1 font-mono text-xs text-chalk-400 whitespace-nowrap">
                       {t.teamType > 0 ? TEAM_TYPES[t.teamType] || "-" : "-"}
                     </td>
-                    <td className="px-4 py-2.5">
+                    <td className="px-4 py-1">
                       {t.winningTeam ? (
                         <Link href={`/teams/${t.winningTeamId}`} className="flex items-center gap-1.5 hover:opacity-80 transition-opacity">
                           {winnerLogo && <img src={winnerLogo} alt="" className="w-4 h-4 object-contain" />}
@@ -139,7 +139,7 @@ export default async function TournamentsPage({
                         <span className="text-chalk-500 font-mono text-xs">-</span>
                       )}
                     </td>
-                    <td className="px-4 py-2.5 font-mono text-xs text-chalk-400 whitespace-nowrap">
+                    <td className="px-4 py-1 font-mono text-xs text-chalk-400 whitespace-nowrap">
                       {fmtDate(t.startDate)}
                       {t.endDate && !isActive && <span className="text-chalk-500"> → {fmtDate(t.endDate)}</span>}
                       {isActive && <span className="text-grass-400"> → ongoing</span>}

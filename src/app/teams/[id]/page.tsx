@@ -138,7 +138,7 @@ export default async function TeamStatsPage({
                     idx % 2 === 0 ? "bg-pitch-600/15" : "bg-transparent"
                   }`}
                 >
-                  <span className="w-6 text-xs font-mono text-chalk-400 shrink-0">
+                  <span className={`w-6 text-xs font-mono shrink-0 ${idx === 0 ? "text-[#FFD700]" : idx === 1 ? "text-[#C0C0C0]" : idx === 2 ? "text-[#CD7F32]" : "text-chalk-400"}`}>
                     {idx + 1}.
                   </span>
                   <Link

@@ -15,8 +15,14 @@ type TournamentRow = {
   winning_team_id: number | null;
   winning_team_name: string | null;
   winning_team_logo: string | null;
-  matches_played: bigint;
+  standing_position: number | null;
 };
+
+function ordinal(n: number): string {
+  const v = n % 100;
+  const s = ["th", "st", "nd", "rd"];
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
 
 export default async function TeamTournamentsPage({
   params,
@@ -43,8 +49,33 @@ export default async function TeamTournamentsPage({
       t.winning_team_id,
       wt.name AS winning_team_name,
       wt.logo AS winning_team_logo,
-      (SELECT COUNT(*) FROM matches m WHERE m.tournament_id = t.id
-        AND (m.home_team_id = ${teamId} OR m.away_team_id = ${teamId})) AS matches_played
+      CASE WHEN (SELECT COUNT(*) FROM matches WHERE tournament_id = t.id) = 0 THEN NULL
+      ELSE (
+        SELECT COUNT(*) + 1
+        FROM tournament_standings ts2
+        WHERE ts2.tournament_id = t.id
+          AND (
+            SELECT COALESCE(SUM(
+              CASE WHEN m.home_team_id = ts2.team_id AND m.home_score > m.away_score THEN 3
+                   WHEN m.home_team_id = ts2.team_id AND m.home_score = m.away_score THEN 1
+                   WHEN m.away_team_id = ts2.team_id AND m.away_score > m.home_score THEN 3
+                   WHEN m.away_team_id = ts2.team_id AND m.away_score = m.home_score THEN 1
+                   ELSE 0 END), 0)
+            FROM matches m
+            WHERE m.tournament_id = t.id
+              AND (m.home_team_id = ts2.team_id OR m.away_team_id = ts2.team_id)
+          ) > (
+            SELECT COALESCE(SUM(
+              CASE WHEN m.home_team_id = ${teamId} AND m.home_score > m.away_score THEN 3
+                   WHEN m.home_team_id = ${teamId} AND m.home_score = m.away_score THEN 1
+                   WHEN m.away_team_id = ${teamId} AND m.away_score > m.home_score THEN 3
+                   WHEN m.away_team_id = ${teamId} AND m.away_score = m.home_score THEN 1
+                   ELSE 0 END), 0)
+            FROM matches m
+            WHERE m.tournament_id = t.id
+              AND (m.home_team_id = ${teamId} OR m.away_team_id = ${teamId})
+          )
+      ) END AS standing_position
     FROM tournament_standings ts
     JOIN tournaments t ON t.id = ts.tournament_id
     LEFT JOIN teams wt ON wt.id = t.winning_team_id
@@ -53,7 +84,7 @@ export default async function TeamTournamentsPage({
   `;
 
   const formatLabels: Record<string, string> = {
-    league: "League", knockout: "Knockout", group_knockout: "Group Knockout", custom: "Custom"
+    league: "League", knockout: "Knockout", group_knockout: "Group+KO", custom: "Custom"
   };
   const teamTypes: Record<number, string> = { 1: "Club", 2: "National", 3: "Mix", 4: "Draft" };
 
@@ -75,8 +106,8 @@ export default async function TeamTournamentsPage({
                 <th className="text-left px-4 py-3 font-mono text-[10px] text-chalk-400">ORG</th>
                 <th className="text-left px-4 py-3 font-mono text-[10px] text-chalk-400">TOURNAMENT</th>
                 <th className="text-left px-4 py-3 font-mono text-[10px] text-chalk-400">FORMAT</th>
-                <th className="text-left px-4 py-3 font-mono text-[10px] text-chalk-400">TEAM TYPE</th>
-                <th className="text-center px-4 py-3 font-mono text-[10px] text-chalk-400">MATCHES</th>
+                <th className="text-left px-4 py-3 font-mono text-[10px] text-chalk-400">TYPE</th>
+                <th className="text-center px-4 py-3 font-mono text-[10px] text-chalk-400">POS</th>
                 <th className="text-left px-4 py-3 font-mono text-[10px] text-chalk-400">START</th>
                 <th className="text-left px-4 py-3 font-mono text-[10px] text-chalk-400">END</th>
                 <th className="text-left px-4 py-3 font-mono text-[10px] text-chalk-400">WINNER</th>
@@ -85,6 +116,7 @@ export default async function TeamTournamentsPage({
             <tbody>
               {tournaments.map((t, i) => {
                 const isWinner = t.winning_team_id === teamId;
+                const pos = t.standing_position ? Number(t.standing_position) : null;
                 return (
                   <tr
                     key={t.tournament_id}
@@ -104,8 +136,14 @@ export default async function TeamTournamentsPage({
                     <td className="px-4 py-0.5 font-mono text-xs text-chalk-400">
                       {t.team_type_id ? teamTypes[t.team_type_id] || "-" : "-"}
                     </td>
-                    <td className="px-4 py-0.5 text-center font-mono text-xs text-chalk-300">
-                      {Number(t.matches_played)}
+                    <td className="px-4 py-0.5 text-center font-mono text-xs">
+                      {pos != null ? (
+                        <span className={pos === 1 ? "medal-shine text-[#FFD700] font-700" : pos === 2 ? "medal-shine text-[#C0C0C0]" : pos === 3 ? "medal-shine text-[#CD7F32]" : "text-chalk-300"}>
+                          {ordinal(pos)}
+                        </span>
+                      ) : (
+                        <span className="text-chalk-500">-</span>
+                      )}
                     </td>
                     <td className="px-4 py-0.5 font-mono text-xs text-chalk-400">
                       {t.start_date

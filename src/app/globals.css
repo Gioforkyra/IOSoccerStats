@@ -295,3 +295,31 @@ html.light .trow-odd  { background-color: #ffffff !important; }
 html.light .trow-even { background-color: #f2f2f2 !important; }
 html.light tr:hover .trow-odd,
 html.light tr:hover .trow-even { background-color: rgba(244,17,158,0.10) !important; }
+
+/* ── Navbar dropdown hover in light mode ── */
+html.light .nav-dropdown-item:hover {
+  background-color: rgba(0, 0, 0, 0.07) !important;
+  color: #111 !important;
+}
+
+/* ── Hang animation for nav dropdown chevron ── */
+@keyframes hang {
+  0%   { transform: translateY(0px) rotate(0deg); }
+  20%  { transform: translateY(-3px) rotate(-4deg); }
+  50%  { transform: translateY(2px) rotate(3deg); }
+  75%  { transform: translateY(-1px) rotate(-2deg); }
+  100% { transform: translateY(0px) rotate(0deg); }
+}
+.group:hover .icon-hang {
+  animation: hang 1.6s ease-in-out infinite;
+}
+
+/* ── Medal sparkle for 1st/2nd/3rd ── */
+@keyframes medal-sparkle {
+  0%, 100% { filter: brightness(1); text-shadow: none; }
+  40%  { filter: brightness(1.5); text-shadow: 0 0 8px currentColor, 0 0 16px currentColor; }
+  60%  { filter: brightness(1.2); text-shadow: 0 0 4px currentColor; }
+}
+.medal-shine {
+  animation: medal-sparkle 2s ease-in-out infinite;
+}

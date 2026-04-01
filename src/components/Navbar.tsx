@@ -182,7 +182,7 @@ export default function Navbar() {
                   )}
                 >
                   {item.label}
-                  <svg className="w-3 h-3 ml-0.5 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                  <svg className="icon-hang w-3 h-3 ml-0.5 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                 </Link>
                 <div className="absolute top-full left-0 pt-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150">
                   <div className="min-w-[140px] bg-pitch-900 border border-chalk-100/10 rounded-lg shadow-xl overflow-hidden">
@@ -191,7 +191,7 @@ export default function Navbar() {
                         key={sub.href}
                         href={sub.href}
                         className={clsx(
-                          "block px-4 py-2 text-sm font-body transition-colors",
+                          "nav-dropdown-item block px-4 py-2 text-sm font-body transition-colors",
                           path === sub.href
                             ? "text-chalk-100 bg-[#F4119E]/10"
                             : "text-chalk-400 hover:text-chalk-100 hover:bg-pitch-700/50"

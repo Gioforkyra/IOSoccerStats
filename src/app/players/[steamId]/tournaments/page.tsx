@@ -18,8 +18,14 @@ type TournamentRow = {
   winning_team_logo: string | null;
   team_name: string;
   team_id: number;
-  matches_played: bigint;
+  standing_position: number | null;
 };
+
+function ordinal(n: number): string {
+  const v = n % 100;
+  const s = ["th", "st", "nd", "rd"];
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
 
 export default async function PlayerTournamentsPage({
   params,
@@ -66,13 +72,33 @@ export default async function PlayerTournamentsPage({
       wt.logo AS winning_team_logo,
       team.name AS team_name,
       team.id AS team_id,
-      (
-        SELECT COUNT(DISTINCT mps.match_id)
-        FROM match_player_stats mps
-        JOIN matches m ON m.id = mps.match_id
-        WHERE mps.player_steam_id = ANY(${steamIds})
-          AND m.tournament_id = t.id
-      ) AS matches_played
+      CASE WHEN (SELECT COUNT(*) FROM matches WHERE tournament_id = t.id) = 0 THEN NULL
+      ELSE (
+        SELECT COUNT(*) + 1
+        FROM tournament_standings ts2
+        WHERE ts2.tournament_id = t.id
+          AND (
+            SELECT COALESCE(SUM(
+              CASE WHEN m.home_team_id = ts2.team_id AND m.home_score > m.away_score THEN 3
+                   WHEN m.home_team_id = ts2.team_id AND m.home_score = m.away_score THEN 1
+                   WHEN m.away_team_id = ts2.team_id AND m.away_score > m.home_score THEN 3
+                   WHEN m.away_team_id = ts2.team_id AND m.away_score = m.home_score THEN 1
+                   ELSE 0 END), 0)
+            FROM matches m
+            WHERE m.tournament_id = t.id
+              AND (m.home_team_id = ts2.team_id OR m.away_team_id = ts2.team_id)
+          ) > (
+            SELECT COALESCE(SUM(
+              CASE WHEN m.home_team_id = pt.team_id AND m.home_score > m.away_score THEN 3
+                   WHEN m.home_team_id = pt.team_id AND m.home_score = m.away_score THEN 1
+                   WHEN m.away_team_id = pt.team_id AND m.away_score > m.home_score THEN 3
+                   WHEN m.away_team_id = pt.team_id AND m.away_score = m.home_score THEN 1
+                   ELSE 0 END), 0)
+            FROM matches m
+            WHERE m.tournament_id = t.id
+              AND (m.home_team_id = pt.team_id OR m.away_team_id = pt.team_id)
+          )
+      ) END AS standing_position
     FROM player_teams pt
     JOIN tournament_standings ts ON ts.team_id = pt.team_id
     JOIN tournaments t ON t.id = ts.tournament_id
@@ -84,7 +110,7 @@ export default async function PlayerTournamentsPage({
   `;
 
   const formatLabels: Record<string, string> = {
-    league: "League", knockout: "Knockout", group_knockout: "Group Knockout", custom: "Custom",
+    league: "League", knockout: "Knockout", group_knockout: "Group+KO", custom: "Custom",
   };
   const teamTypes: Record<number, string> = { 1: "Club", 2: "National", 3: "Mix", 4: "Draft" };
 
@@ -106,8 +132,8 @@ export default async function PlayerTournamentsPage({
                 <th className="text-left px-4 py-3 font-mono text-[10px] text-chalk-400">ORG</th>
                 <th className="text-left px-4 py-3 font-mono text-[10px] text-chalk-400">TOURNAMENT</th>
                 <th className="text-left px-4 py-3 font-mono text-[10px] text-chalk-400">FORMAT</th>
-                <th className="text-left px-4 py-3 font-mono text-[10px] text-chalk-400">TEAM TYPE</th>
-                <th className="text-center px-4 py-3 font-mono text-[10px] text-chalk-400">MATCHES</th>
+                <th className="text-left px-4 py-3 font-mono text-[10px] text-chalk-400">TYPE</th>
+                <th className="text-center px-4 py-3 font-mono text-[10px] text-chalk-400">POS</th>
                 <th className="text-left px-4 py-3 font-mono text-[10px] text-chalk-400">TEAM</th>
                 <th className="text-left px-4 py-3 font-mono text-[10px] text-chalk-400">START</th>
                 <th className="text-left px-4 py-3 font-mono text-[10px] text-chalk-400">END</th>
@@ -115,59 +141,68 @@ export default async function PlayerTournamentsPage({
               </tr>
             </thead>
             <tbody>
-              {tournaments.map((t, i) => (
-                <tr
-                  key={`${t.tournament_id}-${t.team_id}`}
-                  className={`stat-row ${i % 2 === 0 ? "bg-pitch-600/15" : "bg-transparent"}`}
-                >
-                  <td className="px-4 py-0.5 font-mono text-xs text-chalk-400">
-                    {t.organisation || "-"}
-                  </td>
-                  <td className="px-4 py-0.5 font-body text-chalk-200">
-                    <Link href={`/tournaments/${t.tournament_id}`} className="hover:text-[#F4119E] transition-colors">
-                      {t.tournament_name}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-0.5 font-mono text-xs text-chalk-400">
-                    {t.tournament_format ? formatLabels[t.tournament_format] || t.tournament_format : "-"}
-                  </td>
-                  <td className="px-4 py-0.5 font-mono text-xs text-chalk-400">
-                    {t.team_type_id ? teamTypes[t.team_type_id] || "-" : "-"}
-                  </td>
-                  <td className="px-4 py-0.5 text-center font-mono text-xs text-chalk-300">
-                    {Number(t.matches_played)}
-                  </td>
-                  <td className="px-4 py-0.5">
-                    <Link href={`/teams/${t.team_id}`} className="font-body text-xs text-chalk-200 hover:text-[#F4119E] transition-colors">
-                      {t.team_name}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-0.5 font-mono text-xs text-chalk-400">
-                    {t.start_date
-                      ? new Date(t.start_date).toLocaleDateString("en-GB", { month: "short", day: "numeric", year: "numeric" })
-                      : "-"}
-                  </td>
-                  <td className="px-4 py-0.5 font-mono text-xs text-chalk-400">
-                    {t.end_date
-                      ? new Date(t.end_date).toLocaleDateString("en-GB", { month: "short", day: "numeric", year: "numeric" })
-                      : "-"}
-                  </td>
-                  <td className="px-4 py-0.5">
-                    {t.winning_team_name ? (
-                      <Link href={`/teams/${t.winning_team_id}`} className="flex items-center gap-1.5 hover:text-grass-400 transition-colors">
-                        {t.winning_team_logo && (
-                          <img src={proxyImg(t.winning_team_logo)!} alt="" className="w-4 h-4 object-contain" />
-                        )}
-                        <span className={`font-body text-xs ${t.winning_team_id === t.team_id ? "text-grass-400 font-medium" : "text-chalk-200"}`}>
-                          {t.winning_team_name}
-                        </span>
+              {tournaments.map((t, i) => {
+                const pos = t.standing_position ? Number(t.standing_position) : null;
+                return (
+                  <tr
+                    key={`${t.tournament_id}-${t.team_id}`}
+                    className={`stat-row ${i % 2 === 0 ? "bg-pitch-600/15" : "bg-transparent"}`}
+                  >
+                    <td className="px-4 py-0 font-mono text-xs text-chalk-400">
+                      {t.organisation || "-"}
+                    </td>
+                    <td className="px-4 py-0 font-body text-chalk-200">
+                      <Link href={`/tournaments/${t.tournament_id}`} className="hover:text-[#F4119E] transition-colors">
+                        {t.tournament_name}
                       </Link>
-                    ) : (
-                      <span className="text-xs font-mono text-chalk-400">TBD</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-4 py-0 font-mono text-xs text-chalk-400">
+                      {t.tournament_format ? formatLabels[t.tournament_format] || t.tournament_format : "-"}
+                    </td>
+                    <td className="px-4 py-0 font-mono text-xs text-chalk-400">
+                      {t.team_type_id ? teamTypes[t.team_type_id] || "-" : "-"}
+                    </td>
+                    <td className="px-4 py-0 text-center font-mono text-xs">
+                      {pos != null ? (
+                        <span className={pos === 1 ? "medal-shine text-[#FFD700] font-700" : pos === 2 ? "medal-shine text-[#C0C0C0]" : pos === 3 ? "medal-shine text-[#CD7F32]" : "text-chalk-300"}>
+                          {ordinal(pos)}
+                        </span>
+                      ) : (
+                        <span className="text-chalk-500">-</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-0">
+                      <Link href={`/teams/${t.team_id}`} className="font-body text-xs text-chalk-200 hover:text-[#F4119E] transition-colors">
+                        {t.team_name}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-0 font-mono text-xs text-chalk-400 whitespace-nowrap">
+                      {t.start_date
+                        ? new Date(t.start_date).toLocaleDateString("en-GB", { month: "short", day: "numeric", year: "numeric" })
+                        : "-"}
+                    </td>
+                    <td className="px-4 py-0 font-mono text-xs text-chalk-400 whitespace-nowrap">
+                      {t.end_date
+                        ? new Date(t.end_date).toLocaleDateString("en-GB", { month: "short", day: "numeric", year: "numeric" })
+                        : "-"}
+                    </td>
+                    <td className="px-4 py-0">
+                      {t.winning_team_name ? (
+                        <Link href={`/teams/${t.winning_team_id}`} className="flex items-center gap-1.5 hover:text-grass-400 transition-colors">
+                          {t.winning_team_logo && (
+                            <img src={proxyImg(t.winning_team_logo)!} alt="" className="w-4 h-4 object-contain" />
+                          )}
+                          <span className={`font-body text-xs ${t.winning_team_id === t.team_id ? "text-grass-400 font-medium" : "text-chalk-200"}`}>
+                            {t.winning_team_name}
+                          </span>
+                        </Link>
+                      ) : (
+                        <span className="text-xs font-mono text-chalk-400">TBD</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

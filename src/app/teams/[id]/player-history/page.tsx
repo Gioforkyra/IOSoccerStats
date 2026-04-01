@@ -19,10 +19,11 @@ export default async function TeamPlayerHistoryPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; q?: string }>;
 }) {
   const { id } = await params;
-  const { page: pageParam } = await searchParams;
+  const { page: pageParam, q: queryParam } = await searchParams;
+  const query = (queryParam ?? "").trim().toLowerCase();
   const teamId = parseInt(id, 10);
   if (isNaN(teamId)) return notFound();
 
@@ -127,9 +128,13 @@ export default async function TeamPlayerHistoryPage({
 
   allPlayers.sort((a, b) => b.apps - a.apps);
 
+  const filteredPlayers = query
+    ? allPlayers.filter((p) => p.username.toLowerCase().includes(query))
+    : allPlayers;
+
   const totalPlayers = allPlayers.length;
-  const totalPages = Math.max(1, Math.ceil(totalPlayers / PAGE_SIZE));
-  const players = allPlayers.slice(offset, offset + PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(filteredPlayers.length / PAGE_SIZE));
+  const players = filteredPlayers.slice(offset, offset + PAGE_SIZE);
 
   const fmt = (d: string | null) =>
     d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "-";
@@ -139,9 +144,31 @@ export default async function TeamPlayerHistoryPage({
       <h3 className="font-display font-700 text-lg tracking-wider text-chalk-100 uppercase mb-4">
         All-Time Player History
       </h3>
-      <p className="text-xs font-mono text-chalk-400 mb-4">
-        {totalPlayers.toLocaleString()} players have represented this team.
-      </p>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-xs font-mono text-chalk-400">
+          {totalPlayers.toLocaleString()} players have represented this team.
+        </p>
+        {/* Search */}
+        <form method="GET" className="flex items-center gap-2">
+        <input
+          type="text"
+          name="q"
+          defaultValue={queryParam ?? ""}
+          placeholder="Search player…"
+          className="bg-pitch-800 border border-chalk-100/10 rounded px-3 py-1.5 text-sm text-chalk-100 placeholder:text-chalk-400/50 font-body focus:outline-none focus:border-[#F4119E]/50 w-52"
+        />
+        {query && (
+          <a href={`/teams/${teamId}/player-history`} className="text-xs font-mono text-chalk-400 hover:text-[#F4119E] transition-colors">
+            clear
+          </a>
+        )}
+        {query && (
+          <span className="text-xs font-mono text-chalk-400">
+            {filteredPlayers.length} result{filteredPlayers.length !== 1 ? "s" : ""}
+          </span>
+        )}
+        </form>
+      </div>
 
       <div className="rounded-lg border border-chalk-100/8 overflow-x-auto bg-pitch-900/40">
         <table className="w-full text-sm">
@@ -221,7 +248,7 @@ export default async function TeamPlayerHistoryPage({
           <div className="flex items-center gap-1">
             {currentPage > 1 && (
               <Link
-                href={`/teams/${teamId}/player-history?page=1`}
+                href={`/teams/${teamId}/player-history?${query ? `q=${encodeURIComponent(query)}&` : ""}page=1`}
                 className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center"
                 title="First page"
               >
@@ -230,7 +257,7 @@ export default async function TeamPlayerHistoryPage({
             )}
             {currentPage > 1 && (
               <Link
-                href={`/teams/${teamId}/player-history?page=${Math.max(1, currentPage - 10)}`}
+                href={`/teams/${teamId}/player-history?${query ? `q=${encodeURIComponent(query)}&` : ""}page=${Math.max(1, currentPage - 10)}`}
                 className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center"
                 title="Back 10 pages"
               >
@@ -251,7 +278,7 @@ export default async function TeamPlayerHistoryPage({
               return (
                 <Link
                   key={p}
-                  href={`/teams/${teamId}/player-history?page=${p}`}
+                  href={`/teams/${teamId}/player-history?${query ? `q=${encodeURIComponent(query)}&` : ""}page=${p}`}
                   className={`w-8 h-8 rounded text-xs font-mono transition-colors flex items-center justify-center ${
                     p === currentPage
                       ? "bg-[#F4119E] text-white font-700"
@@ -264,7 +291,7 @@ export default async function TeamPlayerHistoryPage({
             })}
             {currentPage < totalPages && (
               <Link
-                href={`/teams/${teamId}/player-history?page=${Math.min(totalPages, currentPage + 10)}`}
+                href={`/teams/${teamId}/player-history?${query ? `q=${encodeURIComponent(query)}&` : ""}page=${Math.min(totalPages, currentPage + 10)}`}
                 className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center"
                 title="Forward 10 pages"
               >
@@ -273,7 +300,7 @@ export default async function TeamPlayerHistoryPage({
             )}
             {currentPage < totalPages && (
               <Link
-                href={`/teams/${teamId}/player-history?page=${totalPages}`}
+                href={`/teams/${teamId}/player-history?${query ? `q=${encodeURIComponent(query)}&` : ""}page=${totalPages}`}
                 className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center"
                 title="Last page"
               >
