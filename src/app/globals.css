@@ -113,8 +113,20 @@ body {
   border-bottom: 1px solid rgba(138, 157, 196, 0.08);
 }
 .stat-row:hover {
-  background: rgba(244, 17, 158, 0.06);
+  background: rgba(244, 17, 158, 0.10);
 }
+/* Sticky cells inside stat-row must also change on hover */
+.stat-row:hover .trow-odd,
+.stat-row:hover .trow-even {
+  background-color: rgba(244, 17, 158, 0.10) !important;
+}
+
+/* Player matches table — uniform zebra + hover across ALL tds */
+.matches-table tbody tr:nth-child(even) td { background-color: rgba(0,0,0,0.05); }
+.matches-table tbody tr:hover td           { background-color: rgba(244,17,158,0.10) !important; }
+html.light .matches-table tbody tr:nth-child(odd)  td { background-color: #ffffff !important; }
+html.light .matches-table tbody tr:nth-child(even) td { background-color: #f2f2f2 !important; }
+html.light .matches-table tbody tr:hover   td { background-color: rgba(244,17,158,0.10) !important; }
 
 /* Scrolling square grid background */
 @keyframes scrollBg {
@@ -269,13 +281,17 @@ html.light [class*="text-chalk-400"] { color: #777; }
 /* Zebra tables */
 html.light .stat-row:nth-child(odd)  { background-color: #ffffff !important; }
 html.light .stat-row:nth-child(even) { background-color: #f2f2f2 !important; }
+html.light .stat-row:hover           { background-color: rgba(244,17,158,0.10) !important; }
 
 /* Every table in light mode: zebra on tr */
 html.light table tbody tr:nth-child(odd)  { background-color: #ffffff !important; }
 html.light table tbody tr:nth-child(even) { background-color: #f2f2f2 !important; }
+html.light table tbody tr:hover           { background-color: rgba(244,17,158,0.10) !important; }
 
 /* Named row background classes for sticky columns */
 .trow-odd  { background-color: #1c1c1c; }
 .trow-even { background-color: #181818; }
 html.light .trow-odd  { background-color: #ffffff !important; }
 html.light .trow-even { background-color: #f2f2f2 !important; }
+html.light tr:hover .trow-odd,
+html.light tr:hover .trow-even { background-color: rgba(244,17,158,0.10) !important; }

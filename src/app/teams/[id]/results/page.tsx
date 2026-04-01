@@ -95,9 +95,10 @@ export default async function TeamResultsPage({
   return (
     <div>
       <div className="rounded-lg border border-chalk-100/8 bg-pitch-900/40 overflow-hidden">
-        <div className="grid grid-cols-[190px_1fr_95px_210px_90px] gap-2 px-4 py-3 border-b border-chalk-100/12 text-[11px] font-mono text-chalk-400 uppercase tracking-wide">
+        <div className="grid grid-cols-[190px_1fr_55px_95px_210px_90px] gap-2 px-4 py-3 border-b border-chalk-100/12 text-[11px] font-mono text-chalk-400 uppercase tracking-wide">
           <div>Date</div>
           <div>Match</div>
+          <div>Res</div>
           <div>Type</div>
           <div>POTM</div>
           <div>Location</div>
@@ -108,28 +109,19 @@ export default async function TeamResultsPage({
               No matches found.
             </div>
           ) : (
-            matches.map((m) => {
+            matches.map((m, rowIdx) => {
               const isHome = m.home_team_id === teamId;
               const won = isHome
                 ? m.home_score > m.away_score
                 : m.away_score > m.home_score;
               const draw = m.home_score === m.away_score;
-              const rowTone = draw
-                ? "bg-[#2B3443]"
-                : won
-                  ? "bg-[#1F5A42]"
-                  : "bg-[#5A2730]";
+              const rowTone = rowIdx % 2 === 0 ? "bg-black/[0.04]" : "";
 
-              const rowBorder = draw
-                ? "border-l-2 border-l-chalk-400"
-                : won
-                  ? "border-l-2 border-l-green-500"
-                  : "border-l-2 border-l-red-500";
 
               return (
                 <div
                   key={m.match_id}
-                  className={`relative grid grid-cols-[190px_1fr_95px_210px_90px] items-center gap-2 px-4 py-2.5 hover:brightness-125 transition ${rowTone} ${rowBorder}`}
+                  className={`relative grid grid-cols-[190px_1fr_55px_95px_210px_90px] items-center gap-2 px-4 py-2.5 transition-colors hover:bg-[#F4119E]/10 ${rowTone}`}
                 >
                   <Link href={`/matches/${m.match_id}`} className="absolute inset-0 z-0" />
 
@@ -162,6 +154,14 @@ export default async function TeamResultsPage({
                       )}
                       <span>{m.away_team}</span>
                     </Link>
+                  </div>
+
+                  <div className="relative z-10 pointer-events-none">
+                    <span className={`inline-flex items-center justify-center w-6 h-6 rounded text-[10px] font-mono font-700 ${
+                      won ? "bg-green-500/20 text-green-400" : draw ? "bg-chalk-400/20 text-chalk-400" : "bg-red-500/20 text-red-400"
+                    }`}>
+                      {won ? "W" : draw ? "D" : "L"}
+                    </span>
                   </div>
 
                   <div className="relative z-10 text-xs font-mono uppercase pointer-events-none">

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
+import { useTheme } from "@/contexts/ThemeContext";
 
 export type TeamHistoryEntry = {
   team_id: number;
@@ -28,6 +29,7 @@ const FILTERS = [
 ] as const;
 
 export default function TeamHistoryClient({ teams }: { teams: TeamHistoryEntry[] }) {
+  const { theme } = useTheme();
   const [filter, setFilter] = useState("all");
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -118,7 +120,7 @@ export default function TeamHistoryClient({ teams }: { teams: TeamHistoryEntry[]
                   {t.is_current && (
                     <span className="text-[10px] font-mono bg-grass-500/20 text-grass-400 px-2 py-0.5 rounded">CURRENT</span>
                   )}
-                  <span className="text-xs font-mono text-chalk-400">{t.join_date || "?"} – {t.leave_date || "Present"}</span>
+                  <span className={`text-xs font-mono ${theme === "light" ? "text-gray-800" : "text-chalk-400"}`}>{t.join_date || "?"} – {t.leave_date || "Present"}</span>
                   <div className="flex items-center gap-x-4 text-xs font-mono ml-auto">
                     <span className="text-chalk-300">APPS <span className="text-chalk-100 font-medium">{t.apps}</span></span>
                     <span className="text-chalk-300">G <span className="text-chalk-100">{t.goals}</span></span>

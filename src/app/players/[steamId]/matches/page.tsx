@@ -149,7 +149,7 @@ export default async function PlayerMatchesPage({
       </div>
 
       <div className="rounded-lg border border-chalk-100/8 overflow-x-auto bg-pitch-900/40">
-        <table className="w-full text-sm whitespace-nowrap">
+        <table className="matches-table w-full text-sm whitespace-nowrap">
           <thead>
             <tr className="border-b border-chalk-100/8 bg-pitch-900">
               <th className="text-left px-3 py-3 font-mono text-[10px] text-chalk-400 sticky left-0 bg-pitch-900 z-10" title="Date">DATE</th>
@@ -164,28 +164,16 @@ export default async function PlayerMatchesPage({
             </tr>
           </thead>
           <tbody>
-            {matches.map((m) => {
+            {matches.map((m, rowIdx) => {
               const isHome = m.team_side === "home";
               const won = isHome ? m.home_score > m.away_score : m.away_score > m.home_score;
               const draw = m.home_score === m.away_score;
-              const rowTone = won
-                ? "bg-[#1F5A42]"
-                : draw
-                  ? "bg-[#2B3443]"
-                  : "bg-[#5A2730]";
-
-              const rowBorder = won
-                ? "border-l-2 border-l-green-500"
-                : draw
-                  ? "border-l-2 border-l-chalk-400"
-                  : "border-l-2 border-l-red-500";
-
               const passAcc = m.passes > 0 ? ((m.passes_completed / m.passes) * 100).toFixed(0) : "0";
               const dist = (m.distance_run / 1000).toFixed(2);
 
               return (
-                <tr key={`${m.match_id}-${m.team_side}`} className={`${rowTone} ${rowBorder} transition-colors hover:brightness-125`}>
-                  <td className={`px-3 py-2.5 font-mono text-[11px] text-chalk-400 sticky left-0 z-10 ${rowTone}`}>
+                <tr key={`${m.match_id}-${m.team_side}`}>
+                  <td className="px-3 py-2.5 font-mono text-[11px] text-chalk-400 sticky left-0 z-10">
                     {new Date(m.date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
                     <span className="text-[11px] text-chalk-100 font-700 ml-5">
                       {new Date(m.date).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}

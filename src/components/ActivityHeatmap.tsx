@@ -1,5 +1,7 @@
 "use client";
 
+import { useTheme } from "@/contexts/ThemeContext";
+
 const CELL = 12;
 const GAP = 3;
 const STRIDE = CELL + GAP;
@@ -22,16 +24,15 @@ function fmtDate(d: Date): string {
   return `${String(d.getUTCDate()).padStart(2,"0")} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 
-let hoverAudio: HTMLAudioElement | null = null;
 function playHover() {
   if (typeof window === "undefined") return;
-  if (!hoverAudio) hoverAudio = new Audio("/hover.mp3");
-  hoverAudio.currentTime = 0;
-  hoverAudio.volume = 0.35;
-  hoverAudio.play().catch(() => {});
+  const audio = new Audio("/hover.mp3");
+  audio.volume = 0.35;
+  audio.play().catch(() => {});
 }
 
 export function ActivityHeatmap({ data, color = "#F4119E" }: Props) {
+  const { theme } = useTheme();
   // All date math in UTC so server/client produce identical output
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
@@ -64,8 +65,9 @@ export function ActivityHeatmap({ data, color = "#F4119E" }: Props) {
 
   const safeColor = /^#[0-9a-fA-F]{6}$/.test(color) ? color : "#F4119E";
   const rgb = hexToRgb(safeColor);
+  const emptyColor = theme === "light" ? "#d1d5db" : "#1a1d2b";
   const getColor = (count: number): string => {
-    if (count === 0) return "#1a1d2b";
+    if (count === 0) return emptyColor;
     if (count === 1) return `rgba(${rgb},0.25)`;
     if (count <= 3) return `rgba(${rgb},0.5)`;
     if (count <= 6) return `rgba(${rgb},0.75)`;
