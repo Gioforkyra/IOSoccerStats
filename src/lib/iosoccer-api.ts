@@ -241,6 +241,27 @@ export async function getTournamentTeams(id: number) {
   return apiFetch<{ teamId?: number; id?: number }[]>(`/tournaments/${id}/teams`);
 }
 
+export type ApiTournamentStanding = {
+  position: number | null;
+  teamId: number;
+  teamName: string;
+  teamCode: string | null;
+  badgeImageUrl: string | null;
+  matchesPlayed: number | null;
+  wins: number | null;
+  draws: number | null;
+  losses: number | null;
+  goalsScored: number | null;
+  goalsConceded: number | null;
+  goalDifference: number | null;
+  points: number | null;
+  form: number[] | null;
+};
+
+export async function getTournamentStandings(id: number) {
+  return apiFetch<ApiTournamentStanding[]>(`/tournaments/${id}/standings`);
+}
+
 /* ------------------------------------------------------------------ */
 /*  Single team detail                                                 */
 /* ------------------------------------------------------------------ */

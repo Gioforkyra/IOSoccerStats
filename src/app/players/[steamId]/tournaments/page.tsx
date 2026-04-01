@@ -124,7 +124,9 @@ export default async function PlayerTournamentsPage({
                     {t.organisation || "-"}
                   </td>
                   <td className="px-4 py-0.5 font-body text-chalk-200">
-                    {t.tournament_name}
+                    <Link href={`/tournaments/${t.tournament_id}`} className="hover:text-[#F4119E] transition-colors">
+                      {t.tournament_name}
+                    </Link>
                   </td>
                   <td className="px-4 py-0.5 font-mono text-xs text-chalk-400">
                     {t.tournament_format ? formatLabels[t.tournament_format] || t.tournament_format : "-"}

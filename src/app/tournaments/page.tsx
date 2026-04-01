@@ -115,7 +115,9 @@ export default async function TournamentsPage({
                     </td>
                     <td className="px-4 py-2.5">
                       <div className="flex items-center gap-2">
-                        <span className="font-body text-chalk-100">{t.name}</span>
+                        <Link href={`/tournaments/${t.id}`} className="font-body text-chalk-100 hover:text-[#F4119E] transition-colors">
+                          {t.name}
+                        </Link>
                         {org && (
                           <span className="text-[10px] font-mono bg-[#F4119E]/15 text-[#F4119E] px-1.5 py-0.5 rounded shrink-0">{org}</span>
                         )}
