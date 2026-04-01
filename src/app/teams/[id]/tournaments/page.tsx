@@ -90,34 +90,34 @@ export default async function TeamTournamentsPage({
                     key={t.tournament_id}
                     className={`stat-row ${i % 2 === 0 ? "bg-pitch-600/15" : "bg-transparent"}`}
                   >
-                    <td className="px-4 py-1.5 font-mono text-xs text-chalk-400">
+                    <td className="px-4 py-0.5 font-mono text-xs text-chalk-400">
                       {t.organisation || "-"}
                     </td>
-                    <td className="px-4 py-1.5 font-body text-chalk-200">
+                    <td className="px-4 py-0.5 font-body text-chalk-200">
                       <Link href={`/tournaments/${t.tournament_id}`} className="hover:text-[#F4119E] transition-colors">
                         {t.tournament_name}
                       </Link>
                     </td>
-                    <td className="px-4 py-1.5 font-mono text-xs text-chalk-400">
+                    <td className="px-4 py-0.5 font-mono text-xs text-chalk-400">
                       {t.tournament_format ? formatLabels[t.tournament_format] || t.tournament_format : "-"}
                     </td>
-                    <td className="px-4 py-1.5 font-mono text-xs text-chalk-400">
+                    <td className="px-4 py-0.5 font-mono text-xs text-chalk-400">
                       {t.team_type_id ? teamTypes[t.team_type_id] || "-" : "-"}
                     </td>
-                    <td className="px-4 py-1.5 text-center font-mono text-xs text-chalk-300">
+                    <td className="px-4 py-0.5 text-center font-mono text-xs text-chalk-300">
                       {Number(t.matches_played)}
                     </td>
-                    <td className="px-4 py-1.5 font-mono text-xs text-chalk-400">
+                    <td className="px-4 py-0.5 font-mono text-xs text-chalk-400">
                       {t.start_date
                         ? new Date(t.start_date).toLocaleDateString("en-GB", { month: "short", day: "numeric", year: "numeric" })
                         : "-"}
                     </td>
-                    <td className="px-4 py-1.5 font-mono text-xs text-chalk-400">
+                    <td className="px-4 py-0.5 font-mono text-xs text-chalk-400">
                       {t.end_date
                         ? new Date(t.end_date).toLocaleDateString("en-GB", { month: "short", day: "numeric", year: "numeric" })
                         : "-"}
                     </td>
-                    <td className="px-4 py-1.5">
+                    <td className="px-4 py-0.5">
                       {t.winning_team_name ? (
                         <Link href={`/teams/${t.winning_team_id}`} className="flex items-center gap-1.5 hover:text-grass-400 transition-colors">
                           {t.winning_team_logo && (

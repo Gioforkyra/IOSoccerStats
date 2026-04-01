@@ -71,6 +71,7 @@ def parse_match(raw: dict) -> dict | None:
         "map": (raw.get("map") or {}).get("name") or mi.get("mapName"),
         "server": (raw.get("server") or {}).get("name"),
         "potm": potm.get("name"),
+        "tournament_id": raw.get("tournamentId"),
         "field_min_x": field_min.get("x"),
         "field_min_y": field_min.get("y"),
         "field_max_x": field_max.get("x"),
@@ -147,17 +148,18 @@ async def upsert_matches_batch(conn: asyncpg.Connection, matches: list[dict]):
             await conn.execute(
                 """
                 INSERT INTO matches (id, date, home_team_id, away_team_id, home_score, away_score,
-                                     match_type, status, map, server, potm,
+                                     match_type, status, map, server, potm, tournament_id,
                                      field_min_x, field_min_y, field_max_x, field_max_y)
-                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
                 ON CONFLICT (id) DO UPDATE SET
                     map = COALESCE(EXCLUDED.map, matches.map),
                     server = COALESCE(EXCLUDED.server, matches.server),
-                    potm = COALESCE(EXCLUDED.potm, matches.potm)
+                    potm = COALESCE(EXCLUDED.potm, matches.potm),
+                    tournament_id = COALESCE(EXCLUDED.tournament_id, matches.tournament_id)
                 """,
                 m["id"], m["date"], m["home_team_id"], m["away_team_id"],
                 m["home_score"], m["away_score"], m["match_type"], m["status"],
-                m.get("map"), m.get("server"), m.get("potm"),
+                m.get("map"), m.get("server"), m.get("potm"), m.get("tournament_id"),
                 m.get("field_min_x"), m.get("field_min_y"),
                 m.get("field_max_x"), m.get("field_max_y"),
             )

@@ -68,11 +68,12 @@ async def insert_match(pool: asyncpg.Pool, match: dict):
         await conn.execute(
             """
             INSERT INTO matches (id, date, home_team_id, away_team_id, home_score, away_score,
-                                 match_type, status, map, server, potm,
+                                 match_type, status, map, server, potm, tournament_id,
                                  field_min_x, field_min_y, field_max_x, field_max_y)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
             ON CONFLICT (id) DO UPDATE SET
-                map = EXCLUDED.map, server = EXCLUDED.server, potm = EXCLUDED.potm
+                map = EXCLUDED.map, server = EXCLUDED.server, potm = EXCLUDED.potm,
+                tournament_id = COALESCE(EXCLUDED.tournament_id, matches.tournament_id)
             """,
             match["id"],
             match.get("kick_off") or match.get("date"),
@@ -85,6 +86,7 @@ async def insert_match(pool: asyncpg.Pool, match: dict):
             match.get("map"),
             match.get("server"),
             match.get("potm_name") or match.get("potm"),
+            match.get("tournament_id"),
             match.get("field_min_x"),
             match.get("field_min_y"),
             match.get("field_max_x"),
