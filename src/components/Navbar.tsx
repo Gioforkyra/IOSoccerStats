@@ -154,9 +154,6 @@ export default function Navbar() {
     </div>
   );
 
-  // Hide navbar on home page (also handles null before hydration)
-  if (!path || path === "/") return null;
-
   return (
     <nav className="sticky top-0 z-50 border-b border-chalk-100/5 bg-pitch-950/90 backdrop-blur-md">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 flex items-center h-11 gap-4 md:gap-8">

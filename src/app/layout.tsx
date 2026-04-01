@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import Navbar from "@/components/Navbar";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 
 export const metadata: Metadata = {
@@ -14,8 +13,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className="min-h-screen bg-pitch-950 text-chalk-100">
         <ThemeProvider>
-          <Navbar />
-          <main>{children}</main>
+          {children}
         </ThemeProvider>
       </body>
     </html>
