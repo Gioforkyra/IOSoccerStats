@@ -82,6 +82,88 @@ async def scrape_single_safe(client: httpx.AsyncClient, pool, match_id: int) -> 
         return False
 
 
+async def fetch_ids_from_api_list(client: httpx.AsyncClient, pages: int = 5) -> list[int]:
+    """Fetch recent match IDs from the API list endpoint (multiple pages)."""
+    all_ids: set[int] = set()
+    for page in range(1, pages + 1):
+        try:
+            resp = await client.post(
+                f"{API_BASE}/match",
+                headers=HEADERS,
+                json={
+                    "page": page,
+                    "pageSize": 100,
+                    "sortBy": "KickOff",
+                    "sortOrder": "DESC",
+                    "filters": {"includePast": True},
+                },
+            )
+            if not resp.is_success:
+                break
+            data = resp.json()
+            items = data.get("items", [])
+            if not items:
+                break
+            for item in items:
+                if isinstance(item.get("id"), int):
+                    all_ids.add(item["id"])
+        except Exception as e:
+            print(f"  [WARN] API list page {page}: {e}")
+            break
+    # Also fetch competitive matches
+    try:
+        resp = await client.post(
+            f"{API_BASE}/match",
+            headers=HEADERS,
+            json={
+                "page": 1,
+                "pageSize": 100,
+                "sortBy": "KickOff",
+                "sortOrder": "DESC",
+                "filters": {"includePast": True, "matchType": 2},
+            },
+        )
+        if resp.is_success:
+            for item in resp.json().get("items", []):
+                if isinstance(item.get("id"), int):
+                    all_ids.add(item["id"])
+    except Exception:
+        pass
+    return sorted(all_ids, reverse=True)
+
+
+async def run_from_api(args, pool, client: httpx.AsyncClient):
+    """Fetch recent match IDs from API list and insert any that are missing from DB."""
+    print("Fetching recent match IDs from API list...")
+    ids = await fetch_ids_from_api_list(client, pages=args.pages)
+    print(f"  Found {len(ids)} match IDs from API")
+
+    missing = [mid for mid in ids if not await match_exists(pool, mid)]
+    print(f"  Missing from DB: {len(missing)}")
+
+    if not missing:
+        print("Nothing to scrape.")
+        return
+
+    if args.dry_run:
+        print(f"[dry-run] Would scrape: {missing}")
+        return
+
+    total_scraped = total_failed = 0
+    for i in range(0, len(missing), args.workers):
+        batch = missing[i:i + args.workers]
+        tasks = [scrape_single_safe(client, pool, mid) for mid in batch]
+        results = await asyncio.gather(*tasks)
+        scraped = sum(1 for r in results if r is True)
+        failed = sum(1 for r in results if r is False)
+        total_scraped += scraped
+        total_failed += failed
+        print(f"  batch {batch[0]}..{batch[-1]}: {scraped} new, {failed} fail")
+        await asyncio.sleep(BATCH_DELAY)
+
+    print(f"\nDone. New: {total_scraped}, Failed: {total_failed}")
+
+
 async def run(args):
     pool = await get_pool()
     print("Connected to database.")
@@ -90,6 +172,12 @@ async def run(args):
         timeout=15,
         limits=httpx.Limits(max_connections=args.workers + 5, max_keepalive_connections=args.workers),
     ) as client:
+
+        if args.from_api:
+            await run_from_api(args, pool, client)
+            await pool.close()
+            return
+
         print("Discovering latest match ID from API...")
         latest_api_id = await get_latest_api_match_id(client)
         print(f"  Latest API match ID: {latest_api_id}")
@@ -167,6 +255,8 @@ def main():
     parser = argparse.ArgumentParser(description="Sync new IOSoccer matches from API")
     parser.add_argument("--workers", type=int, default=15, help="Concurrent requests (default: 15)")
     parser.add_argument("--dry-run", action="store_true", help="Show what would be scraped without writing")
+    parser.add_argument("--from-api", action="store_true", help="Fetch missing matches from API list instead of sequential ID probe")
+    parser.add_argument("--pages", type=int, default=5, help="Number of API list pages to fetch in --from-api mode (default: 5)")
     args = parser.parse_args()
     asyncio.run(run(args))
 

@@ -4,7 +4,7 @@ import Navbar from "@/components/Navbar";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 
 export const metadata: Metadata = {
-  title: "IOSHUBv2 | Advanced IOSoccer Statistics",
+  title: "IOSHUBv2",
   description:
     "The most advanced statistics hub for IOSoccer. Player profiles, match analytics, shot maps, xG and more.",
 };

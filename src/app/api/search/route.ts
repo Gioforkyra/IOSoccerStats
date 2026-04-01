@@ -8,9 +8,28 @@ type SearchRow = {
   extra: string | null;
 };
 
+// Simple in-memory rate limiter: max 30 requests per IP per minute
+const rateLimitMap = new Map<string, { count: number; reset: number }>();
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+  if (!entry || now > entry.reset) {
+    rateLimitMap.set(ip, { count: 1, reset: now + 60_000 });
+    return false;
+  }
+  entry.count++;
+  return entry.count > 30;
+}
+
 export async function GET(req: NextRequest) {
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  if (isRateLimited(ip)) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
   const q = req.nextUrl.searchParams.get("q")?.trim() || "";
-  if (q.length < 2) return NextResponse.json([]);
+  if (q.length < 2 || q.length > 50) return NextResponse.json([]);
 
   const containsPattern = `%${q}%`;
 
