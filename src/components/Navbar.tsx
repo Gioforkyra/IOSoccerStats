@@ -159,6 +159,7 @@ export default function Navbar() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 flex items-center h-11 gap-4 md:gap-8">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 shrink-0">
+          <img src="/favicon/favicon-96x96.png" alt="IOSHUBv2" className="w-6 h-6 object-contain" />
           <span className="font-display font-black uppercase text-lg tracking-wide text-chalk-100 sm:text-xl">
             IOS<span className="text-[#F4119E]">HUB</span>v2
           </span>

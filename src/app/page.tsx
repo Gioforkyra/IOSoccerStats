@@ -77,8 +77,9 @@ export default async function HomePage() {
             <div className="mb-8 flex items-start justify-between gap-6">
               {/* Left: title + description */}
               <div>
-                <h1 className="font-display text-5xl font-black uppercase leading-[0.95] tracking-tight text-chalk-100 md:text-7xl">
-                  IOS<span className="text-[#F4119E]">HUB</span>v2
+                <h1 className="flex items-center gap-3 font-display text-5xl font-black uppercase leading-[0.95] tracking-tight text-chalk-100 md:text-7xl">
+                  <img src="/favicon/favicon-96x96.png" alt="IOSHUBv2" className="w-12 h-12 md:w-16 md:h-16 object-contain" />
+                  <span>IOS<span className="text-[#F4119E]">HUB</span>V2</span>
                 </h1>
                 <p className="mt-4 max-w-xl text-sm font-body leading-6 text-chalk-300">
                   A personal fan project, not affiliated with the official IOSoccer website. Players, teams, live scores, match breakdowns and tournament tracking from one hub.
@@ -145,7 +146,7 @@ export default async function HomePage() {
                   )}
                 </div>
                 <Link
-                  href="/ratings"
+                  href="/teams"
                   className="mt-3 inline-block text-xs font-mono text-[#F4119E] hover:text-[#F4119E]/70 transition-colors"
                 >
                   Full Rankings {"->"}
