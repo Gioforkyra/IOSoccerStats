@@ -40,7 +40,7 @@ export default async function PlayerOverallPage({
       tr.date AS join_date,
       COALESCE(
         (SELECT MIN(tr2.date) FROM transfers tr2
-         WHERE tr2.player_steam_id = tr.player_steam_id
+         WHERE tr2.player_steam_id = ANY(${steamIds})
            AND tr2.from_team_id = tr.to_team_id
            AND tr2.type = 'leave'
            AND tr2.date > tr.date),

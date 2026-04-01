@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { proxyImg } from "@/lib/img";
 import { getSteamAvatar } from "@/lib/steam-avatar";
 import { getRelatedSteamIds } from "@/lib/player-aliases";
+import { getPlayerTeams } from "@/lib/iosoccer-api";
 import PlayerTabs from "./PlayerTabs";
 import { ActivityHeatmap } from "@/components/ActivityHeatmap";
 
@@ -38,31 +39,59 @@ export default async function PlayerLayout({
 
   const steamIds = await getRelatedSteamIds(steamId);
 
-  // Current team from transfer data — only active club teams
-  const currentTeams = await prisma.$queryRaw<CurrentTeam[]>`
-    SELECT
-      t.id AS team_id,
-      t.name AS team_name,
-      t.logo AS team_logo,
-      t.color AS team_color
-    FROM transfers tr
-    JOIN teams t ON t.id = tr.to_team_id
-    WHERE tr.player_steam_id = ANY(${steamIds})
-      AND tr.type = 'join'
-      AND t.inactive = false
-      AND t.team_type = 1
-      AND t.name NOT IN ('IOSoccer All', 'IOSoccer Overlap', 'IOSoccer Challenge', 'IOSoccer Premier')
-      AND NOT EXISTS (
-        SELECT 1 FROM transfers tr2
-        WHERE tr2.player_steam_id = tr.player_steam_id
-          AND tr2.from_team_id = tr.to_team_id
-          AND tr2.type = 'leave'
-          AND tr2.date > tr.date
-      )
-    ORDER BY tr.date DESC
-    LIMIT 1
-  `;
-  const currentTeam = currentTeams[0] || null;
+  // Current team — prefer live API if player has iosoccerId
+  let currentTeam: CurrentTeam | null = null;
+
+  if (player.iosoccerId != null) {
+    try {
+      const apiTeams = await getPlayerTeams(player.iosoccerId, true);
+      const EXCLUDED = ["IOSoccer All", "IOSoccer Overlap", "IOSoccer Challenge", "IOSoccer Premier"];
+      const apiCurrent = apiTeams.find(
+        (e) => e.isCurrentTeam && e.team.teamType === 1 && !e.team.inactive && !EXCLUDED.includes(e.team.name)
+      );
+      if (apiCurrent) {
+        // Look up logo/color from DB (API badge may be null)
+        const dbTeam = await prisma.team.findUnique({ where: { id: apiCurrent.teamId } });
+        currentTeam = {
+          team_id: apiCurrent.teamId,
+          team_name: apiCurrent.team.name,
+          team_logo: dbTeam?.logo ?? null,
+          team_color: dbTeam?.color ?? apiCurrent.team.color ?? null,
+        };
+      }
+      // If apiCurrent is undefined → player has no current team → currentTeam stays null
+    } catch {
+      // API failed, fall through to DB query
+    }
+  }
+
+  // DB fallback (no iosoccerId or API failed)
+  if (currentTeam === null && player.iosoccerId == null) {
+    const currentTeams = await prisma.$queryRaw<CurrentTeam[]>`
+      SELECT
+        t.id AS team_id,
+        t.name AS team_name,
+        t.logo AS team_logo,
+        t.color AS team_color
+      FROM transfers tr
+      JOIN teams t ON t.id = tr.to_team_id
+      WHERE tr.player_steam_id = ANY(${steamIds})
+        AND tr.type = 'join'
+        AND t.inactive = false
+        AND t.team_type = 1
+        AND t.name NOT IN ('IOSoccer All', 'IOSoccer Overlap', 'IOSoccer Challenge', 'IOSoccer Premier')
+        AND NOT EXISTS (
+          SELECT 1 FROM transfers tr2
+          WHERE tr2.player_steam_id = ANY(${steamIds})
+            AND tr2.from_team_id = tr.to_team_id
+            AND tr2.type = 'leave'
+            AND tr2.date > tr.date
+        )
+      ORDER BY tr.date DESC
+      LIMIT 1
+    `;
+    currentTeam = currentTeams[0] || null;
+  }
 
   // Form (last 5)
   const formResults = await prisma.$queryRaw<FormResult[]>`
