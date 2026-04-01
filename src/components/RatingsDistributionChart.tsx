@@ -58,6 +58,7 @@ const StaticChart = memo(function StaticChart({
   data: Point[];
   min: number; max: number; mean: number; xPad: number; maxY: number;
   binsArray: [number, PlayerWithMeta[]][];
+  containerRef?: React.RefObject<HTMLDivElement | null>;
 }) {
   return (
     <ResponsiveContainer width="100%" height={580}>
