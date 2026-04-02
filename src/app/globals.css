@@ -19,6 +19,21 @@
   --pink-end: #4A313E;
 }
 
+@keyframes wr-elite-loop {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.wr-elite {
+  background: linear-gradient(90deg, hsla(323, 91%, 51%, 1), hsla(329, 20%, 24%, 1), hsla(323, 91%, 51%, 1));
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: wr-elite-loop 3s ease infinite;
+}
+
 * { box-sizing: border-box; }
 
 html {

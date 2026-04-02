@@ -140,13 +140,21 @@ export default async function TeamLayout({
       {/* Key stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-4">
         {[
-          { label: "Played", value: matches.toLocaleString() },
-          { label: "Wins", value: wins.toLocaleString() },
-          { label: "Draws", value: draws.toLocaleString() },
-          { label: "Losses", value: losses.toLocaleString() },
-          { label: "Win%", value: `${winPct}%`, highlight: true },
-          { label: "GF", value: gf.toLocaleString() },
-          { label: "GD", value: `${gd > 0 ? "+" : ""}${gd.toLocaleString()}`, highlight: gd > 0 },
+          { label: "Played", value: matches.toLocaleString(), colorClass: "text-chalk-100" },
+          { label: "Wins", value: wins.toLocaleString(), colorClass: "text-chalk-100" },
+          { label: "Draws", value: draws.toLocaleString(), colorClass: "text-chalk-100" },
+          { label: "Losses", value: losses.toLocaleString(), colorClass: "text-chalk-100" },
+          {
+            label: "Win%",
+            value: `${winPct}%`,
+            colorClass: Number(winPct) > 51 ? "wr-elite" : Number(winPct) >= 45 ? "text-green-400" : "text-red-400",
+          },
+          { label: "GF", value: gf.toLocaleString(), colorClass: "text-chalk-100" },
+          {
+            label: "GD",
+            value: `${gd > 0 ? "+" : ""}${gd.toLocaleString()}`,
+            colorClass: gd > 0 ? "text-green-400" : gd < 0 ? "text-red-400" : "text-chalk-100",
+          },
         ].map((s) => (
           <div
             key={s.label}
@@ -155,11 +163,7 @@ export default async function TeamLayout({
             <div className="text-[10px] font-mono text-chalk-400 uppercase mb-1">
               {s.label}
             </div>
-            <div
-              className={`text-2xl font-display font-800 ${
-                s.highlight ? "text-grass-500" : "text-chalk-100"
-              }`}
-            >
+            <div className={`text-2xl font-display font-800 ${s.colorClass}`}>
               {s.value}
             </div>
           </div>

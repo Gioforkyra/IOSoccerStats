@@ -125,7 +125,7 @@ export default function Navbar() {
         value={query}
         onChange={(e) => handleInput(e.target.value)}
         onFocus={() => query.length >= 2 && setShowResults(true)}
-        className="w-full bg-pitch-800 border border-chalk-100/10 rounded px-3 py-1.5 text-sm font-body text-chalk-200 placeholder-chalk-400 focus:outline-none focus:border-[#F4119E]/50"
+        className="w-full h-7 bg-pitch-800 border border-chalk-100/10 rounded px-3 py-0 text-sm font-body text-chalk-200 placeholder-chalk-400 focus:outline-none focus:border-[#F4119E]/50"
       />
       {showResults && (results.length > 0 || loading) && (
         <div className="absolute top-full left-0 right-0 mt-1 bg-pitch-900 border border-chalk-100/10 rounded-lg shadow-xl overflow-hidden z-50 max-h-80 overflow-y-auto">
@@ -224,7 +224,7 @@ export default function Navbar() {
         {/* Right side */}
         <div className="ml-auto flex items-center gap-3">
           <ThemeToggle />
-          {searchBox("hidden sm:block w-36 md:w-44")}
+          {searchBox("hidden sm:block w-28 md:w-32")}
 
           {/* Mobile hamburger */}
           <button

@@ -197,6 +197,7 @@ export async function getMatches(opts: {
   tournamentId?: number;
   regionId?: number;
   includePast?: boolean;
+  noCache?: boolean;
 }) {
   return apiFetch<Paginated<ApiMatchListItem>>("/match", {
     method: "POST",
@@ -214,6 +215,7 @@ export async function getMatches(opts: {
         ...(opts.regionId ? { regionId: opts.regionId } : {}),
       },
     }),
+    ...(opts.noCache ? { cache: "no-store" as const } : {}),
   });
 }
 

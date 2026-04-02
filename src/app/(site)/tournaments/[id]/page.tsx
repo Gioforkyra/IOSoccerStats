@@ -126,7 +126,7 @@ export default async function TournamentDetailPage({
   // If on standings tab and API returned nothing, compute from all matches
   let computedStandings: ComputedStanding[] | null = null;
   if (tab === "standings" && apiStandings.length === 0) {
-    const allMatches = await getMatches({ tournamentId, pageSize: 500 }).catch(() => null);
+    const allMatches = await getMatches({ tournamentId, pageSize: 500, noCache: true }).catch(() => null);
     if (allMatches) computedStandings = computeStandings(allMatches.items);
   }
 

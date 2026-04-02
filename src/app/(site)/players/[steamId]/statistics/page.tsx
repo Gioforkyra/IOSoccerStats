@@ -114,16 +114,19 @@ export default async function PlayerStatisticsPage({
       {/* Key Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-8">
         {[
-          { label: "Appearances", value: apps.toLocaleString() },
-          { label: "Goals", value: goals.toLocaleString() },
-          { label: "Assists", value: assists.toLocaleString() },
-          { label: "Win Rate", value: `${winPct}%` },
-          { label: "Goals/App", value: perApp(goals) },
-          { label: "Shot Accuracy", value: `${shotAcc}%` },
+          { label: "Appearances", value: apps.toLocaleString(), colorClass: "text-chalk-100" },
+          { label: "Goals", value: goals.toLocaleString(), colorClass: "text-chalk-100" },
+          { label: "Assists", value: assists.toLocaleString(), colorClass: "text-chalk-100" },
+          {
+            label: "Win Rate", value: `${winPct}%`,
+            colorClass: Number(winPct) > 51 ? "wr-elite" : Number(winPct) >= 45 ? "text-green-400" : "text-red-400",
+          },
+          { label: "Goals/App", value: perApp(goals), colorClass: "text-chalk-100" },
+          { label: "Shot Accuracy", value: `${shotAcc}%`, colorClass: "text-chalk-100" },
         ].map((s) => (
           <div key={s.label} className="bg-pitch-900/60 border border-chalk-100/8 rounded-lg p-4">
             <div className="text-[10px] font-mono text-chalk-400 uppercase mb-1">{s.label}</div>
-            <div className="text-2xl font-display font-800 text-chalk-100">
+            <div className={`text-2xl font-display font-800 ${s.colorClass}`}>
               {s.value}
             </div>
           </div>
