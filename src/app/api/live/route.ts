@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 30;
 
 export async function GET() {
   try {
@@ -12,7 +12,6 @@ export async function GET() {
           Accept: "application/json",
           Origin: "https://www.iosoccer.com",
         },
-        next: { revalidate: 0 },
       },
     );
 

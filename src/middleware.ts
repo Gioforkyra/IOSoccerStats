@@ -2,10 +2,34 @@ import { NextRequest, NextResponse } from "next/server";
 
 const PRODUCTION_ORIGIN = process.env.NEXT_PUBLIC_SITE_URL || "";
 
+// User-Agent patterns for aggressive crawlers/scrapers to block
+const BLOCKED_UA_PATTERNS = [
+  /SemrushBot/i,
+  /AhrefsBot/i,
+  /MJ12bot/i,
+  /DotBot/i,
+  /PetalBot/i,
+  /serpstatbot/i,
+  /DataForSeoBot/i,
+  /Bytespider/i,
+  /GPTBot/i,
+  /ClaudeBot/i,
+  /Amazonbot/i,
+  /PerplexityBot/i,
+];
+
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Only apply to API routes
+  // Block aggressive crawlers on page routes (not on static assets)
+  if (!pathname.startsWith("/_next/") && !pathname.startsWith("/favicon")) {
+    const ua = req.headers.get("user-agent") ?? "";
+    if (BLOCKED_UA_PATTERNS.some((p) => p.test(ua))) {
+      return new NextResponse("Too Many Requests", { status: 429 });
+    }
+  }
+
+  // Only apply CORS to API routes
   if (!pathname.startsWith("/api/")) {
     return NextResponse.next();
   }
@@ -59,5 +83,8 @@ function corsHeaders(
 }
 
 export const config = {
-  matcher: "/api/:path*",
+  matcher: [
+    // Match all routes except static files
+    "/((?!_next/static|_next/image|favicon.ico).*)",
+  ],
 };
