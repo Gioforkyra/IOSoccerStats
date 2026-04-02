@@ -1,5 +1,8 @@
 import Link from "next/link";
 import HomeSearchPanel from "@/components/HomeSearchPanel";
+
+export const dynamic = "force-dynamic";
+
 import {
   getMatches,
   getActiveTeams,
