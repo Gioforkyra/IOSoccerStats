@@ -390,6 +390,7 @@ export default async function PlayersPage({
           <Link
             key={sv.key}
             href={viewUrl(sv.key)}
+            prefetch={false}
             className={`px-3 py-1.5 rounded text-xs font-mono transition-colors ${
               view === sv.key
                 ? "bg-[#F4119E]/15 text-[#F4119E] border border-[#F4119E]/40"
@@ -425,6 +426,7 @@ export default async function PlayersPage({
                 <th key={col.key} className="px-3 py-3 font-mono text-[11px] text-chalk-400 text-right">
                   <Link
                     href={sortUrl(col.key)}
+                    prefetch={false}
                     className="flex items-center justify-end gap-1 hover:text-chalk-100 transition-colors cursor-help"
                     title={col.title}
                   >
@@ -451,6 +453,7 @@ export default async function PlayersPage({
                 <td className={`px-3 py-1.5 sticky left-0 z-10 ${i % 2 === 0 ? "trow-odd" : "trow-even"}`}>
                   <Link
                     href={`/players/${encodeURIComponent(p.steam_id)}`}
+                    prefetch={false}
                     className="flex items-center gap-2 hover:text-[#F4119E] transition-colors"
                   >
                     {p.avatar ? (
@@ -510,6 +513,7 @@ export default async function PlayersPage({
           {page > 1 && (
             <Link
               href={pageUrl(1)}
+              prefetch={false}
               className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center"
               title="First page"
             >
@@ -519,6 +523,7 @@ export default async function PlayersPage({
           {page > 1 && (
             <Link
               href={pageUrl(Math.max(1, page - 10))}
+              prefetch={false}
               className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center"
               title="Back 10 pages"
             >
@@ -540,6 +545,7 @@ export default async function PlayersPage({
               <Link
                 key={p}
                 href={pageUrl(p)}
+                prefetch={false}
                 className={`w-8 h-8 rounded text-xs font-mono transition-colors flex items-center justify-center ${
                   p === page
                     ? "bg-[#F4119E] text-white font-700"
@@ -553,6 +559,7 @@ export default async function PlayersPage({
           {page < totalPages && (
             <Link
               href={pageUrl(Math.min(totalPages, page + 10))}
+              prefetch={false}
               className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center"
               title="Forward 10 pages"
             >
@@ -562,6 +569,7 @@ export default async function PlayersPage({
           {page < totalPages && (
             <Link
               href={pageUrl(totalPages)}
+              prefetch={false}
               className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center"
               title="Last page"
             >

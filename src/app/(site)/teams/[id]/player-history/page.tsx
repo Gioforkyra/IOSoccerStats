@@ -199,6 +199,7 @@ export default async function TeamPlayerHistoryPage({
                   <td className="px-4 py-1.5">
                     <Link
                       href={`/players/${p.steam_id}`}
+                      prefetch={false}
                       className="font-body text-chalk-100 hover:text-[#F4119E] transition-colors"
                     >
                       {p.username}
@@ -249,6 +250,7 @@ export default async function TeamPlayerHistoryPage({
             {currentPage > 1 && (
               <Link
                 href={`/teams/${teamId}/player-history?${query ? `q=${encodeURIComponent(query)}&` : ""}page=1`}
+                prefetch={false}
                 className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center"
                 title="First page"
               >
@@ -258,6 +260,7 @@ export default async function TeamPlayerHistoryPage({
             {currentPage > 1 && (
               <Link
                 href={`/teams/${teamId}/player-history?${query ? `q=${encodeURIComponent(query)}&` : ""}page=${Math.max(1, currentPage - 10)}`}
+                prefetch={false}
                 className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center"
                 title="Back 10 pages"
               >
@@ -279,6 +282,7 @@ export default async function TeamPlayerHistoryPage({
                 <Link
                   key={p}
                   href={`/teams/${teamId}/player-history?${query ? `q=${encodeURIComponent(query)}&` : ""}page=${p}`}
+                  prefetch={false}
                   className={`w-8 h-8 rounded text-xs font-mono transition-colors flex items-center justify-center ${
                     p === currentPage
                       ? "bg-[#F4119E] text-white font-700"
@@ -292,6 +296,7 @@ export default async function TeamPlayerHistoryPage({
             {currentPage < totalPages && (
               <Link
                 href={`/teams/${teamId}/player-history?${query ? `q=${encodeURIComponent(query)}&` : ""}page=${Math.min(totalPages, currentPage + 10)}`}
+                prefetch={false}
                 className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center"
                 title="Forward 10 pages"
               >
@@ -301,6 +306,7 @@ export default async function TeamPlayerHistoryPage({
             {currentPage < totalPages && (
               <Link
                 href={`/teams/${teamId}/player-history?${query ? `q=${encodeURIComponent(query)}&` : ""}page=${totalPages}`}
+                prefetch={false}
                 className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center"
                 title="Last page"
               >
