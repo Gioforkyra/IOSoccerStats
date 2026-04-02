@@ -118,7 +118,7 @@ function matchTimeDisplay(displaySeconds: string, period: string): string {
   return displaySeconds || "0:00";
 }
 
-const REFRESH_INTERVAL = 30_000;
+const REFRESH_INTERVAL = 60_000;
 
 /* ── Component ───────────────────────────────────────────────────── */
 

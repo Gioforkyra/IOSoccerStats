@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTeamRoster } from "@/lib/iosoccer-api";
 
+export const revalidate = 120;
+
 type PlayerMeta = {
   steam_id: string;
   username: string;

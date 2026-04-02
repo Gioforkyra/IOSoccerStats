@@ -2,7 +2,7 @@ name: Scraper
 
 on:
   schedule:
-    - cron: '0 * * * *'   # ogni ora (sync-matches)
+    - cron: '0 13,16,19,23 * * *'   # 15:00, 18:00, 21:00, 01:00 Europe/Rome (DST, UTC+2)
     - cron: '0 2 * * *'   # ogni notte alle 2:00 (sync-meta)
   workflow_dispatch:        # run manuale dal dashboard GitHub
 

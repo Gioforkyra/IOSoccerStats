@@ -3,6 +3,8 @@ import Link from "next/link";
 import { Prisma } from "@/generated/prisma/client";
 import { MinAppsSelect } from "./MinAppsSelect";
 
+export const revalidate = 120;
+
 const PAGE_SIZE = 10;
 
 /* ------------------------------------------------------------------ */

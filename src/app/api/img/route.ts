@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 
 const ALLOWED_HOSTS = ["www.iosoccer.com", "iosoccer.com", "www.iosoccer.co.uk", "iosoccer.co.uk"];
 
+export const runtime = "edge";
+
 export async function GET(req: NextRequest) {
   const url = req.nextUrl.searchParams.get("url");
   if (!url) return new NextResponse("Missing url", { status: 400 });
@@ -27,7 +29,8 @@ export async function GET(req: NextRequest) {
     return new NextResponse(buffer, {
       headers: {
         "Content-Type": contentType,
-        "Cache-Control": "public, s-maxage=604800, max-age=604800, stale-while-revalidate=86400, immutable",
+        "Cache-Control": "public, s-maxage=2592000, max-age=2592000, stale-while-revalidate=86400, immutable",
+        "CDN-Cache-Control": "public, s-maxage=2592000, stale-while-revalidate=86400",
       },
     });
   } catch {
