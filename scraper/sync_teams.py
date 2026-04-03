@@ -2,6 +2,8 @@
 import httpx
 import asyncio
 import asyncpg
+import os
+from dotenv import load_dotenv
 
 API = "https://iosoccer.com:44380/api"
 HEADERS = {
@@ -9,7 +11,8 @@ HEADERS = {
     "Origin": "https://www.iosoccer.com",
     "Referer": "https://www.iosoccer.com/",
 }
-DB_URL = "postgresql://postgres:diodiobibo201@localhost:5432/iosoccer_stats"
+load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env.local"))
+DB_URL = os.getenv("DIRECT_URL") or os.getenv("DATABASE_URL", "")
 
 # regionId -> region name
 REGIONS = {1: "Europe", 2: "South America", 3: "Asia", 4: "North America"}
@@ -48,6 +51,9 @@ async def fetch_teams(client: httpx.AsyncClient, region_id: int):
     return list(seen.values())
 
 async def main():
+    if not DB_URL:
+        raise RuntimeError("DIRECT_URL or DATABASE_URL is required")
+
     pool = await asyncpg.create_pool(DB_URL, min_size=1, max_size=3)
 
     async with httpx.AsyncClient(headers=HEADERS, timeout=30) as client:

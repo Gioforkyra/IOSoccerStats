@@ -2,6 +2,8 @@
 import httpx
 import asyncio
 import asyncpg
+import os
+from dotenv import load_dotenv
 from datetime import datetime
 
 API = "https://iosoccer.com:44380/api"
@@ -10,7 +12,8 @@ HEADERS = {
     "Origin": "https://www.iosoccer.com",
     "Referer": "https://www.iosoccer.com/",
 }
-DB_URL = "postgresql://postgres:diodiobibo201@localhost:5432/iosoccer_stats"
+load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env.local"))
+DB_URL = os.getenv("DIRECT_URL") or os.getenv("DATABASE_URL", "")
 
 # Tournament types from JS: League=0, Knockout=1, GroupKnockout=2, Custom=10
 TOURNAMENT_TYPES = {0: "league", 1: "knockout", 2: "group_knockout", 10: "custom"}
@@ -19,6 +22,9 @@ TEAM_TYPES = {1: "club", 2: "national", 3: "mix", 4: "draft"}
 
 
 async def main():
+    if not DB_URL:
+        raise RuntimeError("DIRECT_URL or DATABASE_URL is required")
+
     pool = await asyncpg.create_pool(DB_URL, min_size=2, max_size=5)
 
     async with httpx.AsyncClient(headers=HEADERS, timeout=30) as client:

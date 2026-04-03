@@ -21,7 +21,7 @@ import httpx
 from scraper import scrape_match as api_scrape_match
 from db import (
     get_pool, upsert_team, upsert_player, insert_match,
-    insert_player_stats, get_scraper_state, update_scraper_state, match_exists,
+    insert_player_stats, get_scraper_state, update_scraper_state, match_exists, refresh_player_leaderboard,
 )
 
 API_BASE = "https://iosoccer.com:44380/api"
@@ -163,6 +163,11 @@ async def run_from_api(args, pool, client: httpx.AsyncClient):
 
     print(f"\nDone. New: {total_scraped}, Failed: {total_failed}")
 
+    if total_scraped > 0:
+        print("Refreshing mv_player_leaderboard...")
+        await refresh_player_leaderboard(pool)
+        print("mv_player_leaderboard refresh complete")
+
 
 async def run(args):
     pool = await get_pool()
@@ -247,6 +252,11 @@ async def run(args):
         print(f"  New matches scraped: {total_scraped}")
         print(f"  Skipped (existing):  {total_skipped}")
         print(f"  Failed (404/error):  {total_failed}")
+
+        if total_scraped > 0:
+            print("Refreshing mv_player_leaderboard...")
+            await refresh_player_leaderboard(pool)
+            print("mv_player_leaderboard refresh complete")
 
     await pool.close()
 

@@ -181,3 +181,9 @@ async def match_exists(pool: asyncpg.Pool, match_id: int) -> bool:
     async with pool.acquire() as conn:
         row = await conn.fetchrow("SELECT 1 FROM matches WHERE id = $1", match_id)
         return row is not None
+
+
+async def refresh_player_leaderboard(pool: asyncpg.Pool):
+    """Refresh player leaderboard materialized view used by Player Stats page."""
+    async with pool.acquire() as conn:
+        await conn.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_player_leaderboard")
