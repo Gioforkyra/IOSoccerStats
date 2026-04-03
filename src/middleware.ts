@@ -18,8 +18,37 @@ const BLOCKED_UA_PATTERNS = [
   /PerplexityBot/i,
 ];
 
+// Common probe paths used by bot scanners targeting WordPress/Joomla/PHP stacks.
+const BLOCKED_PROBE_PATH_PATTERNS = [
+  /^\/wp-admin(?:\/|$)/i,
+  /^\/wordpress\/wp-admin(?:\/|$)/i,
+  /^\/wp-login\.php$/i,
+  /^\/xmlrpc\.php$/i,
+  /^\/\.env(?:\.|$)/i,
+  /^\/phpmyadmin(?:\/|$)/i,
+  /^\/boaform\//i,
+];
+
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  const host = req.headers.get("host") ?? "";
+
+  // Force canonical host so direct *.vercel.app traffic does not bypass Cloudflare protections.
+  if (host.endsWith(".vercel.app") && PRODUCTION_ORIGIN) {
+    try {
+      const redirectUrl = new URL(PRODUCTION_ORIGIN);
+      redirectUrl.pathname = req.nextUrl.pathname;
+      redirectUrl.search = req.nextUrl.search;
+      return NextResponse.redirect(redirectUrl, 308);
+    } catch {
+      // Ignore invalid NEXT_PUBLIC_SITE_URL and continue request.
+    }
+  }
+
+  if (BLOCKED_PROBE_PATH_PATTERNS.some((pattern) => pattern.test(pathname))) {
+    // Return 404 to avoid confirming stack details to scanners.
+    return new NextResponse("Not Found", { status: 404 });
+  }
 
   // Block aggressive crawlers on page routes (not on static assets)
   if (!pathname.startsWith("/_next/") && !pathname.startsWith("/favicon")) {
@@ -35,8 +64,6 @@ export function middleware(req: NextRequest) {
   }
 
   const origin = req.headers.get("origin") ?? "";
-  const host = req.headers.get("host") ?? "";
-
   // Derive allowed origin: same host or explicitly set NEXT_PUBLIC_SITE_URL
   const allowedOrigin =
     PRODUCTION_ORIGIN ||
