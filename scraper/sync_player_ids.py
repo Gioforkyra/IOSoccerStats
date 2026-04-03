@@ -16,8 +16,9 @@ HEADERS = {
 import os
 from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env.local"))
-DB_URL = os.getenv("DIRECT_URL") or os.getenv("DATABASE_URL", "postgresql://postgres:diodiobibo201@localhost:5432/iosoccer_stats")
+DB_URL = os.getenv("DIRECT_URL") or os.getenv("DATABASE_URL", "")
 PAGE_SIZE = 100
+MAX_PAGES = 500
 
 # IOSoccer position IDs to abbreviations
 POSITION_MAP = {
@@ -28,15 +29,24 @@ POSITION_MAP = {
 
 
 async def main():
+    if not DB_URL:
+        raise RuntimeError("DIRECT_URL or DATABASE_URL is required")
+
     pool = await asyncpg.create_pool(DB_URL, min_size=2, max_size=5)
 
-    async with httpx.AsyncClient(headers=HEADERS, timeout=30) as client:
+    timeout = httpx.Timeout(connect=10.0, read=25.0, write=20.0, pool=10.0)
+    async with httpx.AsyncClient(headers=HEADERS, timeout=timeout) as client:
 
         page = 1
         total_updated = 0
+        last_first_id = None
 
         while True:
             try:
+                if page > MAX_PAGES:
+                    print(f"Reached MAX_PAGES={MAX_PAGES}, stopping for safety")
+                    break
+
                 r = await client.post(
                     f"{API}/player",
                     json={"steamID": "", "page": page, "pageSize": PAGE_SIZE},
@@ -50,6 +60,12 @@ async def main():
                 items = data.get("items", [])
                 if not items:
                     break
+
+                first_id = items[0].get("id")
+                if first_id is not None and first_id == last_first_id:
+                    print(f"Detected repeated page payload at page {page}, stopping")
+                    break
+                last_first_id = first_id
 
                 async with pool.acquire() as conn:
                     for p in items:
@@ -82,8 +98,11 @@ async def main():
                             pass
 
                 total_items = data.get("totalItems", 0)
-                if page % 10 == 0:
-                    print(f"  Page {page}: {total_updated} updated so far (total players: {total_items})")
+                    total_pages = data.get("totalPages")
+                    print(f"  Page {page}{f'/{total_pages}' if total_pages else ''}: {total_updated} updated so far (total players: {total_items})")
+
+                    if isinstance(total_pages, int) and total_pages > 0 and page >= total_pages:
+                        break
 
                 if len(items) < PAGE_SIZE:
                     break

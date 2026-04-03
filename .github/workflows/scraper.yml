@@ -1,8 +1,5 @@
 name: Scraper
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 on:
   schedule:
     - cron: '0 13,16,19,22 * * *'   # 15:00, 18:00, 21:00, 01:00 Europe/Rome (DST, UTC+2)
@@ -27,42 +24,6 @@ jobs:
 
       - name: Install dependencies
         run: pip install -r scraper/requirements.txt
-
-      - name: Validate DIRECT_URL for sync-meta (safe)
-        env:
-          DIRECT_URL: ${{ secrets.DIRECT_URL }}
-        run: |
-          python - <<'PY'
-          import os
-          from urllib.parse import urlparse
-
-          dsn = os.getenv("DIRECT_URL", "")
-          if not dsn:
-              raise SystemExit("DIRECT_URL is empty or missing")
-
-          p = urlparse(dsn)
-          host = p.hostname or ""
-          db = (p.path or "").lstrip("/")
-          print(f"sync-meta DIRECT_URL: scheme={p.scheme}, host={host}, port={p.port}, db={db}")
-          PY
-
-      - name: Validate DIRECT_URL (safe)
-        env:
-          DIRECT_URL: ${{ secrets.DIRECT_URL }}
-        run: |
-          python - <<'PY'
-          import os
-          from urllib.parse import urlparse
-
-          dsn = os.getenv("DIRECT_URL", "")
-          if not dsn:
-              raise SystemExit("DIRECT_URL is empty or missing")
-
-          p = urlparse(dsn)
-          host = p.hostname or ""
-          db = (p.path or "").lstrip("/")
-          print(f"DIRECT_URL present: scheme={p.scheme}, host={host}, port={p.port}, db={db}")
-          PY
 
       - name: Sync new matches (API list mode)
         working-directory: scraper
@@ -102,6 +63,7 @@ jobs:
         run: python sync_tournaments.py
 
       - name: Sync player IDs
+        timeout-minutes: 8
         working-directory: scraper
         env:
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
