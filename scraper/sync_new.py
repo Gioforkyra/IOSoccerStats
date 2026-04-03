@@ -165,8 +165,11 @@ async def run_from_api(args, pool, client: httpx.AsyncClient):
 
     if total_scraped > 0:
         print("Refreshing mv_player_leaderboard...")
-        await refresh_player_leaderboard(pool)
-        print("mv_player_leaderboard refresh complete")
+        try:
+            await refresh_player_leaderboard(pool)
+            print("mv_player_leaderboard refresh complete")
+        except Exception as e:
+            print(f"[WARN] leaderboard refresh skipped: {e}")
 
 
 async def run(args):
@@ -255,8 +258,11 @@ async def run(args):
 
         if total_scraped > 0:
             print("Refreshing mv_player_leaderboard...")
-            await refresh_player_leaderboard(pool)
-            print("mv_player_leaderboard refresh complete")
+            try:
+                await refresh_player_leaderboard(pool)
+                print("mv_player_leaderboard refresh complete")
+            except Exception as e:
+                print(f"[WARN] leaderboard refresh skipped: {e}")
 
     await pool.close()
 

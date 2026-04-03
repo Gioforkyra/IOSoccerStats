@@ -186,4 +186,28 @@ async def match_exists(pool: asyncpg.Pool, match_id: int) -> bool:
 async def refresh_player_leaderboard(pool: asyncpg.Pool):
     """Refresh player leaderboard materialized view used by Player Stats page."""
     async with pool.acquire() as conn:
-        await conn.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_player_leaderboard")
+        relkind = await conn.fetchval(
+            """
+            SELECT c.relkind
+            FROM pg_class c
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname = 'public' AND c.relname = 'mv_player_leaderboard'
+            """
+        )
+
+        if relkind is None:
+            print("[WARN] mv_player_leaderboard not found; skipping refresh")
+            return
+
+        if relkind != "m":
+            print("[WARN] mv_player_leaderboard is not a materialized view; skipping refresh")
+            return
+
+        try:
+            await conn.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_player_leaderboard")
+        except Exception as e:
+            print(f"[WARN] concurrent refresh failed: {e}; retrying non-concurrent refresh")
+            try:
+                await conn.execute("REFRESH MATERIALIZED VIEW mv_player_leaderboard")
+            except Exception as e2:
+                print(f"[WARN] refresh mv_player_leaderboard failed: {e2}")
