@@ -98,11 +98,11 @@ async def main():
                             pass
 
                 total_items = data.get("totalItems", 0)
-                    total_pages = data.get("totalPages")
-                    print(f"  Page {page}{f'/{total_pages}' if total_pages else ''}: {total_updated} updated so far (total players: {total_items})")
+                total_pages = data.get("totalPages")
+                print(f"  Page {page}{f'/{total_pages}' if total_pages else ''}: {total_updated} updated so far (total players: {total_items})")
 
-                    if isinstance(total_pages, int) and total_pages > 0 and page >= total_pages:
-                        break
+                if isinstance(total_pages, int) and total_pages > 0 and page >= total_pages:
+                    break
 
                 if len(items) < PAGE_SIZE:
                     break
