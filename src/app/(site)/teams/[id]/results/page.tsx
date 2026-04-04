@@ -95,13 +95,14 @@ export default async function TeamResultsPage({
   return (
     <div>
       <div className="rounded-lg border border-chalk-100/8 bg-pitch-900/40 overflow-hidden">
-        <div className="grid grid-cols-[190px_1fr_55px_95px_210px_90px] gap-2 px-4 py-3 border-b border-chalk-100/12 text-[11px] font-mono text-chalk-400 uppercase tracking-wide">
+        <div className="grid grid-cols-[170px_minmax(340px,1fr)_56px_92px_140px_72px_72px] gap-2 px-4 py-3 border-b border-chalk-100/12 text-[11px] font-mono text-chalk-400 uppercase tracking-wide">
           <div>Date</div>
           <div>Match</div>
-          <div>Res</div>
-          <div>Type</div>
-          <div>POTM</div>
-          <div>Location</div>
+          <div className="pl-2">Res</div>
+          <div className="pl-2">Type</div>
+          <div className="pl-2">POTM</div>
+          <div className="text-center">Location</div>
+          <div className="text-right pr-2">View</div>
         </div>
         <div className="divide-y divide-chalk-100/20">
           {matches.length === 0 ? (
@@ -121,7 +122,7 @@ export default async function TeamResultsPage({
               return (
                 <div
                   key={m.match_id}
-                  className={`relative grid grid-cols-[190px_1fr_55px_95px_210px_90px] items-center gap-2 px-4 py-2.5 transition-colors hover:bg-[#F4119E]/10 ${rowTone}`}
+                  className={`relative grid grid-cols-[170px_minmax(340px,1fr)_56px_92px_140px_72px_72px] items-center gap-2 px-4 py-2.5 transition-colors hover:bg-[#F4119E]/10 ${rowTone}`}
                 >
                   <Link href={`/matches/${m.match_id}`} className="absolute inset-0 z-0" />
 
@@ -156,7 +157,7 @@ export default async function TeamResultsPage({
                     </Link>
                   </div>
 
-                  <div className="relative z-10 pointer-events-none">
+                  <div className="relative z-10 pointer-events-none pl-2">
                     <span className={`inline-flex items-center justify-center w-6 h-6 rounded text-[10px] font-mono font-700 ${
                       won ? "bg-green-500/20 text-green-400" : draw ? "bg-chalk-400/20 text-chalk-400" : "bg-red-500/20 text-red-400"
                     }`}>
@@ -164,13 +165,13 @@ export default async function TeamResultsPage({
                     </span>
                   </div>
 
-                  <div className="relative z-10 text-xs font-mono uppercase pointer-events-none">
+                  <div className="relative z-10 text-xs font-mono uppercase pointer-events-none pl-2">
                     <span className={m.match_type === "competitive" ? "text-yellow-400" : "text-chalk-300"}>
                       {m.match_type === "competitive" ? "comp" : "friendly"}
                     </span>
                   </div>
 
-                  <div className="relative z-10 text-xs font-body truncate pointer-events-none">
+                  <div className="relative z-10 text-xs font-body truncate pointer-events-none pl-2">
                     {m.potm ? (
                       m.potm_steam_id ? (
                         <Link href={`/players/${m.potm_steam_id}`} className="text-[#56a3ff] hover:text-[#F4119E] transition-colors pointer-events-auto">
@@ -182,8 +183,17 @@ export default async function TeamResultsPage({
                     ) : "-"}
                   </div>
 
-                  <div className="relative z-10 text-sm font-mono text-chalk-200 pointer-events-none">
-                    {getServerFlag(m.server)}
+                  <div className="relative z-10 text-sm font-mono text-chalk-200 pointer-events-none flex justify-center">
+                    <span>{getServerFlag(m.server)}</span>
+                  </div>
+
+                  <div className="relative z-10 pointer-events-auto flex justify-end pr-2">
+                    <Link
+                      href={`/matches/${m.match_id}`}
+                      className="inline-flex items-center justify-center rounded-md border border-[#F4119E] bg-transparent px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-[#F4119E] transition-colors hover:bg-[#F4119E] hover:text-white"
+                    >
+                      View
+                    </Link>
                   </div>
                 </div>
               );

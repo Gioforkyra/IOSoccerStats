@@ -161,6 +161,7 @@ export default async function PlayerMatchesPage({
                   {c.label}
                 </th>
               ))}
+              <th className="text-center px-2 py-3 font-mono text-[10px] text-chalk-400" title="Open Match Detail">VIEW</th>
             </tr>
           </thead>
           <tbody>
@@ -172,7 +173,7 @@ export default async function PlayerMatchesPage({
               const dist = (m.distance_run / 1000).toFixed(2);
 
               return (
-                <tr key={`${m.match_id}-${m.team_side}`}>
+                <tr key={`${m.match_id}-${m.team_side}`} className={rowIdx % 2 === 0 ? "bg-black/[0.04]" : ""}>
                   <td className="px-3 py-2.5 font-mono text-[11px] text-chalk-400 sticky left-0 z-10">
                     {new Date(m.date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
                     <span className="text-[11px] text-chalk-100 font-700 ml-5">
@@ -212,6 +213,14 @@ export default async function PlayerMatchesPage({
                   <td className={`px-2 py-2.5 text-center font-mono text-xs ${m.yellow_cards > 0 ? "text-amber-400" : "text-chalk-300"}`}>{m.yellow_cards}</td>
                   <td className={`px-2 py-2.5 text-center font-mono text-xs ${m.red_cards > 0 ? "text-red-400 font-medium" : "text-chalk-300"}`}>{m.red_cards}</td>
                   <td className="px-2 py-2.5 text-center font-mono text-xs text-chalk-300">{dist}km</td>
+                  <td className="px-2 py-2.5 text-center font-mono text-xs">
+                    <Link
+                      href={`/matches/${m.match_id}`}
+                      className="inline-flex items-center justify-center rounded-md border border-[#F4119E] bg-transparent px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-[#F4119E] transition-colors hover:bg-[#F4119E] hover:text-white"
+                    >
+                      View
+                    </Link>
+                  </td>
                 </tr>
               );
             })}
