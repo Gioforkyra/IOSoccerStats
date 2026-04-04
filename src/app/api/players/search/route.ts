@@ -5,7 +5,6 @@ type Row = {
   steam_id: string;
   username: string;
   avatar: string | null;
-  apps: bigint;
 };
 
 export async function GET(req: NextRequest) {
@@ -14,13 +13,12 @@ export async function GET(req: NextRequest) {
 
   const pattern = `%${q}%`;
   const rows = await prisma.$queryRaw<Row[]>`
-    SELECT p.steam_id, p.username, p.avatar, COALESCE(agg.apps, 0)::bigint AS apps
+    SELECT p.steam_id, p.username, p.avatar
     FROM players p
-    LEFT JOIN mv_player_leaderboard agg ON agg.player_steam_id = p.steam_id
     WHERE p.username ILIKE ${pattern}
-    ORDER BY COALESCE(agg.apps, 0) DESC
+    ORDER BY p.username ASC
     LIMIT 30
   `;
 
-  return NextResponse.json(rows.map((r) => ({ ...r, apps: Number(r.apps) })));
+  return NextResponse.json(rows);
 }

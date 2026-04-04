@@ -11,6 +11,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
     headers: { ...HEADERS, ...init?.headers },
+    signal: init?.signal ?? AbortSignal.timeout(30_000),
     next: { revalidate: 60 },
   });
   if (!res.ok) throw new Error(`IOSoccer API ${path}: ${res.status}`);
@@ -309,6 +310,221 @@ export type ApiPlayerDetail = {
 
 export async function getPlayerById(id: number) {
   return apiFetch<ApiPlayerDetail>(`/player/${id}`);
+}
+
+export type ApiPlayerStatisticsTotalsItem = {
+  steamID: string;
+  playerId?: number;
+  name?: string;
+  nickname?: string;
+  rating?: number | null;
+  country?: string | null;
+  countryCode?: string | null;
+  appearances: number;
+  substituteAppearances: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  goals: number;
+  assists: number;
+  secondAssists: number;
+  shots: number;
+  shotsOnGoal: number;
+  keyPasses: number;
+  chancesCreated: number;
+  offsides: number;
+  ownGoals: number;
+  passes: number;
+  passesCompleted: number;
+  keeperSaves: number;
+  keeperSavesCaughtAverage: number;
+  goalsConceded: number;
+  interceptions: number;
+  slidingTacklesAverage: number;
+  slidingTacklesCompletedAverage: number;
+  fouls: number;
+  foulsSuffered: number;
+  yellowCards: number;
+  redCards: number;
+  distanceCoveredAverage: number;
+  possessionAverage: number;
+  possessionPercentageAverage: number;
+  shotAccuracyPercentage: number;
+  passCompletionPercentageAverage: number;
+};
+
+export async function getPlayerStatisticsTotals(opts: {
+  page?: number;
+  pageSize?: number;
+  sortBy?: string;
+  sortOrder?: "ASC" | "DESC";
+  playerName?: string;
+  minApps?: number;
+  includeSubstituteAppearances?: boolean;
+  matchFormat?: number;
+  regionId?: number;
+  timePeriod?: number;
+}) {
+  return apiFetch<Paginated<ApiPlayerStatisticsTotalsItem>>("/player-statistics/match-totals", {
+    method: "POST",
+    body: JSON.stringify({
+      page: opts.page ?? 1,
+      pageSize: opts.pageSize ?? 10,
+      sortBy: opts.sortBy ?? "PlayerId",
+      sortOrder: opts.sortOrder ?? "ASC",
+      filters: {
+        excludePlayers: [],
+        includeSubstituteAppearances: opts.includeSubstituteAppearances ?? true,
+        matchFormat: opts.matchFormat ?? 8,
+        regionId: opts.regionId ?? 1,
+        timePeriod: opts.timePeriod ?? 0,
+        ...(opts.playerName ? { playerName: opts.playerName } : {}),
+        ...(opts.minApps && opts.minApps > 0 ? { minimumAppearances: opts.minApps } : {}),
+      },
+    }),
+  });
+}
+
+export async function getPlayerStatisticsBySteamId(steamId: string) {
+  const target = steamId.trim().toLowerCase();
+  const PAGE_SIZE = 300;
+  const CONCURRENCY = 4;
+
+  async function fetchPageWithRetry(page: number) {
+    try {
+      return await getPlayerStatisticsTotals({
+        page,
+        pageSize: PAGE_SIZE,
+        sortBy: "PlayerId",
+        sortOrder: "ASC",
+        includeSubstituteAppearances: true,
+        matchFormat: 8,
+        regionId: 1,
+        timePeriod: 0,
+      });
+    } catch {
+      try {
+        return await getPlayerStatisticsTotals({
+          page,
+          pageSize: PAGE_SIZE,
+          sortBy: "PlayerId",
+          sortOrder: "ASC",
+          includeSubstituteAppearances: true,
+          matchFormat: 8,
+          regionId: 1,
+          timePeriod: 0,
+        });
+      } catch {
+        return null;
+      }
+    }
+  }
+
+  const first = await fetchPageWithRetry(1);
+  if (!first) return null;
+
+  const firstFound = first.items.find((i) => String(i.steamID).trim().toLowerCase() === target);
+  if (firstFound) return firstFound;
+
+  const totalPages = Math.max(1, first.totalPages || 1);
+  const maxPages = Math.min(totalPages, 80);
+
+  for (let start = 2; start <= maxPages; start += CONCURRENCY) {
+    const end = Math.min(start + CONCURRENCY - 1, maxPages);
+    const chunk = await Promise.all(
+      Array.from({ length: end - start + 1 }, (_, idx) => fetchPageWithRetry(start + idx))
+    );
+    for (const res of chunk) {
+      if (!res) continue;
+      const found = res.items.find((i) => String(i.steamID).trim().toLowerCase() === target);
+      if (found) return found;
+    }
+  }
+
+  return null;
+}
+
+export async function getPlayerStatisticsForProfile(opts: {
+  steamId: string;
+  iosoccerId?: number | null;
+  username?: string | null;
+}) {
+  if (opts.iosoccerId != null) {
+    try {
+      const profile = await getPlayerById(opts.iosoccerId);
+      const officialSteam = profile?.steamID?.trim();
+      const officialName = profile?.name?.trim();
+
+      if (officialName) {
+        const byOfficialName = await getPlayerStatisticsTotals({
+          page: 1,
+          pageSize: 100,
+          sortBy: "PlayerId",
+          sortOrder: "ASC",
+          playerName: officialName,
+          includeSubstituteAppearances: true,
+          matchFormat: 8,
+          regionId: 1,
+          timePeriod: 0,
+        });
+
+        const byId = byOfficialName.items.find((i) => Number(i.playerId ?? -1) === opts.iosoccerId);
+        if (byId) return byId;
+
+        if (officialSteam) {
+          const bySteamInName = byOfficialName.items.find(
+            (i) => String(i.steamID).trim().toLowerCase() === officialSteam.toLowerCase()
+          );
+          if (bySteamInName) return bySteamInName;
+        }
+      }
+
+      if (officialSteam) {
+        const byOfficialSteam = await getPlayerStatisticsBySteamId(officialSteam);
+        if (byOfficialSteam) return byOfficialSteam;
+      }
+    } catch {
+      // continue to name fallback
+    }
+  }
+
+  const name = opts.username?.trim();
+  if (name) {
+    try {
+      const byName = await getPlayerStatisticsTotals({
+        page: 1,
+        pageSize: 100,
+        sortBy: "PlayerId",
+        sortOrder: "ASC",
+        playerName: name,
+        includeSubstituteAppearances: true,
+        matchFormat: 8,
+        regionId: 1,
+        timePeriod: 0,
+      });
+
+      if (opts.iosoccerId != null) {
+        const idMatch = byName.items.find((i) => Number(i.playerId ?? -1) === opts.iosoccerId);
+        if (idMatch) return idMatch;
+      }
+
+      const lower = name.toLowerCase();
+      const exact = byName.items.find((i) => {
+        const n = (i.nickname || i.name || "").trim().toLowerCase();
+        return n === lower;
+      });
+      if (exact) return exact;
+
+      if (byName.items.length === 1) return byName.items[0];
+    } catch {
+      // ignore and return null
+    }
+  }
+
+  const bySteam = await getPlayerStatisticsBySteamId(opts.steamId);
+  if (bySteam) return bySteam;
+
+  return null;
 }
 
 /* ------------------------------------------------------------------ */

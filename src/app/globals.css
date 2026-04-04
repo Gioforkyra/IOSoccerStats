@@ -226,6 +226,12 @@ html.light .matches-table tbody tr:hover   td { background-color: rgba(244,17,15
   animation: shimmer 1.5s infinite;
 }
 
+@keyframes loaderSlide {
+  0%   { transform: translateX(-120%); }
+  50%  { transform: translateX(140%); }
+  100% { transform: translateX(140%); }
+}
+
 /* ------------------------------------------------------------------ */
 /*  Theme toggle switch                                                */
 /* ------------------------------------------------------------------ */

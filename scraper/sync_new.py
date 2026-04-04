@@ -21,7 +21,7 @@ import httpx
 from scraper import scrape_match as api_scrape_match
 from db import (
     get_pool, upsert_team, upsert_player, insert_match,
-    insert_player_stats, get_scraper_state, update_scraper_state, match_exists, refresh_player_leaderboard,
+    insert_player_stats, get_scraper_state, update_scraper_state, match_exists,
 )
 
 API_BASE = "https://iosoccer.com:44380/api"
@@ -163,15 +163,6 @@ async def run_from_api(args, pool, client: httpx.AsyncClient):
 
     print(f"\nDone. New: {total_scraped}, Failed: {total_failed}")
 
-    if total_scraped > 0:
-        print("Refreshing mv_player_leaderboard...")
-        try:
-            await refresh_player_leaderboard(pool)
-            print("mv_player_leaderboard refresh complete")
-        except Exception as e:
-            print(f"[WARN] leaderboard refresh skipped: {e}")
-
-
 async def run(args):
     pool = await get_pool()
     print("Connected to database.")
@@ -237,7 +228,8 @@ async def run(args):
                 empty_batches += 1
 
             elapsed = time.time() - start_time
-            pct = (current_id - start_id) / total_to_check * 100
+            progressed = min(current_id, end_id + 1) - start_id
+            pct = progressed / total_to_check * 100
             rate = total_scraped / elapsed if elapsed > 0 else 0
             print(
                 f"  [{batch_ids[-1]:>7}] {pct:5.1f}% | "
@@ -255,14 +247,6 @@ async def run(args):
         print(f"  New matches scraped: {total_scraped}")
         print(f"  Skipped (existing):  {total_skipped}")
         print(f"  Failed (404/error):  {total_failed}")
-
-        if total_scraped > 0:
-            print("Refreshing mv_player_leaderboard...")
-            try:
-                await refresh_player_leaderboard(pool)
-                print("mv_player_leaderboard refresh complete")
-            except Exception as e:
-                print(f"[WARN] leaderboard refresh skipped: {e}")
 
     await pool.close()
 

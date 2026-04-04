@@ -35,7 +35,7 @@ jobs:
   sync-meta:
     name: Sync teams / tournaments / ratings
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 2 * * *'
 
     steps:
@@ -80,3 +80,10 @@ jobs:
         env:
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
         run: python update_team_ratings.py
+
+      - name: Backfill missing match records
+        timeout-minutes: 12
+        working-directory: scraper
+        env:
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+        run: python sync_missing_matches.py --workers 20

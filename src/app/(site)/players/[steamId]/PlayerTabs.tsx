@@ -28,6 +28,7 @@ export default function PlayerTabs({ steamId }: { steamId: string }) {
           <Link
             key={tab.label}
             href={fullPath}
+            prefetch={false}
             className={`px-6 py-3 font-display font-700 text-sm uppercase tracking-wider border-b-2 transition-colors ${
               isActive
                 ? "border-[#F4119E] text-chalk-100"

@@ -1,11 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import RatingsDistributionChart from "@/components/RatingsDistributionChart";
+import { getPlayerStatisticsTotals } from "@/lib/iosoccer-api";
 
 export const revalidate = 0;
 
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const MIN_MATCHES_OPTIONS = [0, 10, 25, 50, 100, 200];
+const API_PAGE_SIZE = 500;
 
 function fmtPeriod(ym: string) {
   const [y, m] = ym.split("-");
@@ -17,6 +19,37 @@ function buildHref(period: string, minMatches: number) {
   params.set("period", period);
   if (minMatches > 0) params.set("min", String(minMatches));
   return `/ratings?${params.toString()}`;
+}
+
+async function getEligibleSteamIdsByMinApps(minMatches: number): Promise<Set<string> | null> {
+  if (minMatches <= 0) return null;
+
+  const result = new Set<string>();
+  let page = 1;
+  let totalPages = 1;
+
+  while (page <= totalPages && page <= 200) {
+    const res = await getPlayerStatisticsTotals({
+      page,
+      pageSize: API_PAGE_SIZE,
+      sortBy: "PlayerId",
+      sortOrder: "ASC",
+      minApps: minMatches,
+      includeSubstituteAppearances: true,
+      matchFormat: 8,
+      regionId: 1,
+      timePeriod: 0,
+    });
+
+    totalPages = Math.max(1, res.totalPages || 1);
+    for (const item of res.items) {
+      const steamId = String(item.steamID ?? "").trim();
+      if (steamId) result.add(steamId);
+    }
+    page += 1;
+  }
+
+  return result;
 }
 
 export default async function RatingsPage({
@@ -36,20 +69,24 @@ export default async function RatingsPage({
   const periods = periodsRaw.map((r) => r.period);
   const selectedPeriod = period && periods.includes(period) ? period : periods[0];
 
-  const rows = selectedPeriod
+  const eligibleSteamIds = await getEligibleSteamIdsByMinApps(minMatches);
+
+  const baseRows = selectedPeriod
     ? await prisma.$queryRaw<{ steam_id: string; username: string; rating: number }[]>`
         SELECT prh.steam_id, p.username, AVG(prh.rating)::float AS rating
         FROM player_rating_history prh
         JOIN players p ON p.steam_id = prh.steam_id
-        LEFT JOIN mv_player_leaderboard lb ON lb.player_steam_id = prh.steam_id
         WHERE TO_CHAR(DATE_TRUNC('month', prh.recorded_at), 'YYYY-MM') = ${selectedPeriod}
           AND prh.rating > 0
         GROUP BY prh.steam_id, p.username
         HAVING AVG(prh.rating) > 0
-          AND COALESCE(MAX(lb.apps), 0) >= ${minMatches}
         ORDER BY rating ASC
       `
     : [];
+
+  const rows = eligibleSteamIds
+    ? baseRows.filter((r) => eligibleSteamIds.has(r.steam_id))
+    : baseRows;
 
   return (
     <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-8">

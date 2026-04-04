@@ -1,39 +1,7 @@
+import { getPlayerStatisticsForProfile } from "@/lib/iosoccer-api";
 import { prisma } from "@/lib/prisma";
-import { notFound } from "next/navigation";
 
-type LeaderboardRow = {
-  apps: bigint;
-  as_sub: bigint;
-  wins: bigint;
-  draws: bigint;
-  losses: bigint;
-  total_goals: bigint;
-  total_assists: bigint;
-  total_second_assists: bigint;
-  total_shots: bigint;
-  total_shots_on_target: bigint;
-  total_key_passes: bigint;
-  total_chances_created: bigint;
-  total_offsides: bigint;
-  total_own_goals: bigint;
-  total_passes: bigint;
-  total_passes_completed: bigint;
-  total_saves: bigint;
-  total_saves_caught: bigint;
-  total_goals_conceded: bigint;
-  total_interceptions: bigint;
-  total_tackles: bigint;
-  total_tackles_completed: bigint;
-  total_fouls: bigint;
-  total_fouls_suffered: bigint;
-  total_yellow_cards: bigint;
-  total_red_cards: bigint;
-  total_distance: bigint;
-  total_possession: bigint;
-  avg_possession_pct: number;
-  shot_accuracy: number;
-  pass_accuracy: number;
-};
+export const revalidate = 120;
 
 export default async function PlayerStatisticsPage({
   params,
@@ -43,67 +11,63 @@ export default async function PlayerStatisticsPage({
   const { steamId: rawSteamId } = await params;
   const steamId = decodeURIComponent(rawSteamId);
 
-  const player = await prisma.player.findUnique({ where: { steamId } });
-  if (!player) return notFound();
+  const player = await prisma.player.findUnique({
+    where: { steamId },
+    select: { iosoccerId: true, username: true },
+  });
 
-  const rows = await prisma.$queryRaw<LeaderboardRow[]>`
-    SELECT
-      apps, as_sub, wins, draws, losses,
-      total_goals, total_assists, total_second_assists,
-      total_shots, total_shots_on_target,
-      total_key_passes, total_chances_created, total_offsides, total_own_goals,
-      total_passes, total_passes_completed,
-      total_saves, total_saves_caught, total_goals_conceded,
-      total_interceptions, total_tackles, total_tackles_completed,
-      total_fouls, total_fouls_suffered,
-      total_yellow_cards, total_red_cards,
-      total_distance, total_possession,
-      avg_possession_pct, shot_accuracy, pass_accuracy
-    FROM mv_player_leaderboard
-    WHERE player_steam_id = ${steamId}
-  `;
+  let stats = null;
+  try {
+    stats = await getPlayerStatisticsForProfile({
+      steamId,
+      iosoccerId: player?.iosoccerId ?? null,
+      username: player?.username ?? null,
+    });
+  } catch {
+    stats = null;
+  }
 
-  const raw = rows[0];
-  if (!raw) {
+  if (!stats) {
     return (
       <div className="text-center py-16 text-chalk-400 font-body">
-        No statistics available for this player.
+        Player statistics are temporarily unavailable. Please retry in a moment.
       </div>
     );
   }
-  const stats = raw;
 
-  const apps = Number(stats.apps);
-  const asSub = Number(stats.as_sub);
-  const wins = Number(stats.wins);
-  const draws = Number(stats.draws);
-  const losses = Number(stats.losses);
-  const goals = Number(stats.total_goals);
-  const assists = Number(stats.total_assists);
-  const secondAssists = Number(stats.total_second_assists);
-  const shots = Number(stats.total_shots);
-  const shotsOnTarget = Number(stats.total_shots_on_target);
-  const passes = Number(stats.total_passes);
-  const passesCompleted = Number(stats.total_passes_completed);
-  const keyPasses = Number(stats.total_key_passes);
-  const chancesCreated = Number(stats.total_chances_created);
-  const saves = Number(stats.total_saves);
-  const savesCaught = Number(stats.total_saves_caught);
-  const goalsConceded = Number(stats.total_goals_conceded);
-  const ownGoals = Number(stats.total_own_goals);
-  const fouls = Number(stats.total_fouls);
-  const foulsSuffered = Number(stats.total_fouls_suffered);
-  const yellows = Number(stats.total_yellow_cards);
-  const reds = Number(stats.total_red_cards);
-  const interceptions = Number(stats.total_interceptions);
-  const tackles = Number(stats.total_tackles);
-  const tacklesCompleted = Number(stats.total_tackles_completed);
-  const offsides = Number(stats.total_offsides);
-  const distance = Number(stats.total_distance);
+  const apps = Number(stats.appearances ?? 0);
+  const asSub = Number(stats.substituteAppearances ?? 0);
+  const wins = Number(stats.wins ?? 0);
+  const draws = Number(stats.draws ?? 0);
+  const losses = Number(stats.losses ?? 0);
+  const goals = Number(stats.goals ?? 0);
+  const assists = Number(stats.assists ?? 0);
+  const secondAssists = Number(stats.secondAssists ?? 0);
+  const shots = Number(stats.shots ?? 0);
+  const shotsOnTarget = Number(stats.shotsOnGoal ?? 0);
+  const passes = Number(stats.passes ?? 0);
+  const passesCompleted = Number(stats.passesCompleted ?? 0);
+  const keyPasses = Number(stats.keyPasses ?? 0);
+  const chancesCreated = Number(stats.chancesCreated ?? 0);
+  const saves = Number(stats.keeperSaves ?? 0);
+  const savesCaught = Math.round(Number(stats.keeperSavesCaughtAverage ?? 0) * apps);
+  const goalsConceded = Number(stats.goalsConceded ?? 0);
+  const ownGoals = Number(stats.ownGoals ?? 0);
+  const fouls = Number(stats.fouls ?? 0);
+  const foulsSuffered = Number(stats.foulsSuffered ?? 0);
+  const yellows = Number(stats.yellowCards ?? 0);
+  const reds = Number(stats.redCards ?? 0);
+  const interceptions = Number(stats.interceptions ?? 0);
+  const tackles = Math.round(Number(stats.slidingTacklesAverage ?? 0) * apps);
+  const tacklesCompleted = Math.round(Number(stats.slidingTacklesCompletedAverage ?? 0) * apps);
+  const offsides = Number(stats.offsides ?? 0);
+  const distance = Math.round(Number(stats.distanceCoveredAverage ?? 0) * apps);
 
   const winPct = apps > 0 ? ((wins / apps) * 100).toFixed(1) : "0";
-  const shotAcc = stats.shot_accuracy > 0 ? stats.shot_accuracy.toFixed(1) : "0";
-  const passAcc = stats.pass_accuracy > 0 ? stats.pass_accuracy.toFixed(1) : "0";
+  const shotAccuracyRaw = Number(stats.shotAccuracyPercentage ?? 0);
+  const passAccuracyRaw = Number(stats.passCompletionPercentageAverage ?? 0);
+  const shotAcc = shotAccuracyRaw > 0 && shotAccuracyRaw <= 1 ? (shotAccuracyRaw * 100).toFixed(1) : shotAccuracyRaw.toFixed(1);
+  const passAcc = passAccuracyRaw > 0 && passAccuracyRaw <= 1 ? (passAccuracyRaw * 100).toFixed(1) : passAccuracyRaw.toFixed(1);
   const savePct = saves + goalsConceded > 0 ? ((saves / (saves + goalsConceded)) * 100).toFixed(1) : "0";
   const tackleAcc = tackles > 0 ? ((tacklesCompleted / tackles) * 100).toFixed(1) : "0";
   const perApp = (v: number) => apps > 0 ? (v / apps).toFixed(2) : "0.00";
