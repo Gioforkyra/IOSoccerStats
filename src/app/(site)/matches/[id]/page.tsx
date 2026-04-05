@@ -100,12 +100,35 @@ async function fetchMatchSideAverageRatings(playerStats: MatchPlayer[]): Promise
 function estimateXgFromCoords(normalizedX: number, normalizedY: number) {
   const y = Math.min(1, Math.max(0, normalizedY));
   const x = Math.min(1, Math.max(0, normalizedX));
-  const goalY = y < 0.5 ? 0 : 1;
-  const depth = 1 - Math.abs(goalY - y);
-  const centrality = 1 - Math.min(1, Math.abs(x - 0.5) * 2);
-  const zoneBoost = Math.max(0, (depth - 0.72) / 0.28);
-  const xg = (depth * 0.58) + (centrality * 0.22) + (zoneBoost * 0.20);
-  return Math.max(0.02, Math.min(0.75, xg));
+
+  // Nearest goal
+  const goalY = y < 0.5 ? 0.0 : 1.0;
+  const goalX = 0.5;
+  const GOAL_HALF_WIDTH = 0.054; // 7.32m / 2 / 68m
+
+  // Distance scaled by field aspect ratio (105m × 68m)
+  const ASPECT = 105 / 68;
+  const dx = x - goalX;
+  const dy = (y - goalY) * ASPECT;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  if (distance < 0.001) return 0.95;
+
+  // Angle subtended by the goal posts from shot position
+  const distY = Math.abs(y - goalY) * ASPECT;
+  const a1 = Math.atan2(goalX - GOAL_HALF_WIDTH - x, distY);
+  const a2 = Math.atan2(goalX + GOAL_HALF_WIDTH - x, distY);
+  const angle = Math.abs(a2 - a1); // radians
+
+  // Logistic model — calibrated targets:
+  //   penalty spot (~0.16 dist, center) → xG ≈ 0.76
+  //   6-yard box center (~0.08 dist)    → xG ≈ 0.90
+  //   20m center (~0.38 dist)           → xG ≈ 0.12
+  //   30m center (~0.55 dist)           → xG ≈ 0.05
+  //   tight angle, medium dist          → xG < 0.05
+  const z = 1.16 - 8.0 * distance + 2.0 * angle;
+  const xg = 1 / (1 + Math.exp(-z));
+
+  return Math.max(0.02, Math.min(0.95, xg));
 }
 
 function normalizeFromField(val: number, min: number, max: number) {

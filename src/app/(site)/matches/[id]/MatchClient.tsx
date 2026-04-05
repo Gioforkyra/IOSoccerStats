@@ -545,11 +545,11 @@ function AccuracyCircle({ value, label, color }: { value: number; label: string;
   return (
     <div className="flex flex-col items-center gap-2">
       <svg width="120" height="120" viewBox="0 0 120 120">
-        <circle cx="60" cy="60" r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="7" />
+        <circle cx="60" cy="60" r={r} fill="none" stroke="rgba(128,128,128,0.15)" strokeWidth="7" />
         <circle cx="60" cy="60" r={r} fill="none" stroke={color} strokeWidth="7" strokeLinecap="round"
           strokeDasharray={circ} strokeDashoffset={offset} transform="rotate(-90 60 60)" />
         <text x="60" y="60" textAnchor="middle" dominantBaseline="central"
-          fill="white" fontSize="18" fontFamily="monospace" fontWeight="bold">{value.toFixed(0)}%</text>
+          className="circle-label" fontSize="18" fontFamily="monospace" fontWeight="bold">{value.toFixed(0)}%</text>
       </svg>
       <span className="text-[11px] font-mono text-chalk-400 uppercase">{label}</span>
     </div>
