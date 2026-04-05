@@ -63,7 +63,7 @@ jobs:
         run: python sync_tournaments.py
 
       - name: Sync player IDs
-        timeout-minutes: 8
+        timeout-minutes: 15
         working-directory: scraper
         env:
           DIRECT_URL: ${{ secrets.DIRECT_URL }}

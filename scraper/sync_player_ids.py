@@ -67,35 +67,48 @@ async def main():
                     break
                 last_first_id = first_id
 
-                async with pool.acquire() as conn:
-                    for p in items:
-                        iosoccer_id = p.get("id")
-                        steam_id = p.get("steamID")
-                        name = p.get("name")
-                        rating = p.get("rating")
-                        country = p.get("country")
-                        position_id = p.get("preferredPositionId")
+                batch = [
+                    (
+                        p.get("steamID"),
+                        p.get("id"),
+                        p.get("name") or "Unknown",
+                        p.get("rating"),
+                        p.get("country"),
+                        POSITION_MAP.get(p.get("preferredPositionId")),
+                    )
+                    for p in items
+                    if p.get("steamID") and p.get("id")
+                ]
 
-                        if not steam_id or not iosoccer_id:
-                            continue
+                if batch:
+                    steam_ids   = [r[0] for r in batch]
+                    ios_ids     = [r[1] for r in batch]
+                    names       = [r[2] for r in batch]
+                    ratings     = [r[3] for r in batch]
+                    countries   = [r[4] for r in batch]
+                    positions   = [r[5] for r in batch]
 
-                        position = POSITION_MAP.get(position_id)
-
-                        try:
-                            await conn.execute("""
-                                INSERT INTO players (steam_id, iosoccer_id, username, rating, country, position, created_at, updated_at)
-                                VALUES ($1, $2, COALESCE($3, 'Unknown'), $4, $5, $6, NOW(), NOW())
-                                ON CONFLICT (steam_id) DO UPDATE SET
-                                    iosoccer_id = COALESCE(EXCLUDED.iosoccer_id, players.iosoccer_id),
-                                    username = COALESCE(NULLIF(EXCLUDED.username, ''), players.username),
-                                    rating = COALESCE(EXCLUDED.rating, players.rating),
-                                    country = COALESCE(EXCLUDED.country, players.country),
-                                    position = COALESCE(EXCLUDED.position, players.position),
-                                    updated_at = NOW()
-                            """, steam_id, iosoccer_id, name, rating, country, position)
-                            total_updated += 1
-                        except Exception:
-                            pass
+                    async with pool.acquire() as conn:
+                        await conn.execute("""
+                            INSERT INTO players
+                                (steam_id, iosoccer_id, username, rating, country, position, created_at, updated_at)
+                            SELECT
+                                unnest($1::text[]),
+                                unnest($2::int[]),
+                                COALESCE(NULLIF(unnest($3::text[]), ''), 'Unknown'),
+                                unnest($4::float8[]),
+                                unnest($5::text[]),
+                                unnest($6::text[]),
+                                NOW(), NOW()
+                            ON CONFLICT (steam_id) DO UPDATE SET
+                                iosoccer_id = COALESCE(EXCLUDED.iosoccer_id, players.iosoccer_id),
+                                username    = COALESCE(NULLIF(EXCLUDED.username, ''), players.username),
+                                rating      = COALESCE(EXCLUDED.rating, players.rating),
+                                country     = COALESCE(EXCLUDED.country, players.country),
+                                position    = COALESCE(EXCLUDED.position, players.position),
+                                updated_at  = NOW()
+                        """, steam_ids, ios_ids, names, ratings, countries, positions)
+                    total_updated += len(batch)
 
                 total_items = data.get("totalItems", 0)
                 total_pages = data.get("totalPages")
