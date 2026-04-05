@@ -6,7 +6,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import type { Ref } from "react";
 import type { MatchPlayer, MatchShot } from "./page";
 
-type TeamInfo = { id: number; name: string; logo: string | null; color: string | null };
+type TeamInfo = { id: number; name: string; logo: string | null; color: string | null; avgRating: number | null };
 
 type MatchInfo = {
   id: number;
@@ -21,6 +21,71 @@ type MatchInfo = {
 };
 
 type SortKey = "goals" | "assists" | "second_assists" | "shots" | "shots_on_target" | "passes" | "passes_completed" | "pass_pct" | "key_passes" | "chances_created" | "interceptions" | "saves" | "offsides" | "fouls" | "fouls_suffered" | "yellow_cards" | "red_cards" | "own_goals" | "goals_conceded" | "corners" | "throw_ins" | "free_kicks" | "goal_kicks" | "penalties" | "distance_run" | "xg";
+
+type TeamAvgVisual = {
+  badgeClass: string;
+  hint: string | null;
+};
+
+function getTeamAvgVisuals(homeAvg: number | null, awayAvg: number | null): { home: TeamAvgVisual; away: TeamAvgVisual } {
+  const neutral: TeamAvgVisual = {
+    badgeClass: "border-slate-600/60 bg-slate-500/30 dark:border-slate-300/45 dark:bg-slate-300/20",
+    hint: null,
+  };
+
+  if (homeAvg == null || awayAvg == null || !Number.isFinite(homeAvg) || !Number.isFinite(awayAvg)) {
+    return { home: neutral, away: neutral };
+  }
+
+  const delta = Math.abs(homeAvg - awayAvg);
+  const homeStronger = homeAvg > awayAvg;
+  const awayStronger = awayAvg > homeAvg;
+
+  if (delta >= 1) {
+    return {
+      home: {
+        badgeClass: homeStronger
+          ? "border-emerald-700/65 bg-emerald-600/30 dark:border-emerald-300/45 dark:bg-emerald-300/20"
+          : "border-red-700/65 bg-red-600/30 dark:border-red-300/45 dark:bg-red-300/20",
+        hint: homeStronger ? "Very likely to win" : null,
+      },
+      away: {
+        badgeClass: awayStronger
+          ? "border-emerald-700/65 bg-emerald-600/30 dark:border-emerald-300/45 dark:bg-emerald-300/20"
+          : "border-red-700/65 bg-red-600/30 dark:border-red-300/45 dark:bg-red-300/20",
+        hint: awayStronger ? "Very likely to win" : null,
+      },
+    };
+  }
+
+  if (delta >= 0.5) {
+    return {
+      home: {
+        badgeClass: homeStronger
+          ? "border-green-700/65 bg-green-600/30 dark:border-green-300/45 dark:bg-green-300/20"
+          : "border-orange-700/65 bg-orange-600/30 dark:border-orange-300/45 dark:bg-orange-300/20",
+        hint: homeStronger ? "Likely to win" : null,
+      },
+      away: {
+        badgeClass: awayStronger
+          ? "border-green-700/65 bg-green-600/30 dark:border-green-300/45 dark:bg-green-300/20"
+          : "border-orange-700/65 bg-orange-600/30 dark:border-orange-300/45 dark:bg-orange-300/20",
+        hint: awayStronger ? "Likely to win" : null,
+      },
+    };
+  }
+
+  return {
+    home: {
+      badgeClass: "border-amber-700/65 bg-amber-600/30 dark:border-amber-300/45 dark:bg-amber-300/20",
+      hint: "Evenly Matched",
+    },
+    away: {
+      badgeClass: "border-amber-700/65 bg-amber-600/30 dark:border-amber-300/45 dark:bg-amber-300/20",
+      hint: "Evenly Matched",
+    },
+  };
+}
 
 const SERVER_FLAGS: Record<string, string> = {
   fr: "\u{1F1EB}\u{1F1F7}", de: "\u{1F1E9}\u{1F1EA}", uk: "\u{1F1EC}\u{1F1E7}", gb: "\u{1F1EC}\u{1F1E7}",
@@ -95,6 +160,11 @@ export default function MatchClient({
     observer.observe(card);
     return () => observer.disconnect();
   }, []);
+
+  const avgVisuals = useMemo(
+    () => getTeamAvgVisuals(match.homeTeam.avgRating, match.awayTeam.avgRating),
+    [match.homeTeam.avgRating, match.awayTeam.avgRating]
+  );
 
 
   return (
@@ -390,8 +460,24 @@ export default function MatchClient({
 
       {/* Player stats tables */}
       {[
-        { label: match.homeTeam.name, logo: match.homeTeam.logo, players: homePlayers, side: "home" as const },
-        { label: match.awayTeam.name, logo: match.awayTeam.logo, players: awayPlayers, side: "away" as const },
+        {
+          label: match.homeTeam.name,
+          logo: match.homeTeam.logo,
+          avgRating: match.homeTeam.avgRating,
+          avgBadgeClass: avgVisuals.home.badgeClass,
+          avgHint: avgVisuals.home.hint,
+          players: homePlayers,
+          side: "home" as const,
+        },
+        {
+          label: match.awayTeam.name,
+          logo: match.awayTeam.logo,
+          avgRating: match.awayTeam.avgRating,
+          avgBadgeClass: avgVisuals.away.badgeClass,
+          avgHint: avgVisuals.away.hint,
+          players: awayPlayers,
+          side: "away" as const,
+        },
       ].map((team) => (
         <SortablePlayerTable key={team.side} team={team} shots={shots} />
       ))}
@@ -729,7 +815,15 @@ function LineupGraphic({
 function SortablePlayerTable({
   team, shots,
 }: {
-  team: { label: string; logo: string | null; players: MatchPlayer[]; side: "home" | "away" };
+  team: {
+    label: string;
+    logo: string | null;
+    avgRating: number | null;
+    avgBadgeClass: string;
+    avgHint: string | null;
+    players: MatchPlayer[];
+    side: "home" | "away";
+  };
   shots: MatchShot[];
 }) {
   const router = useRouter();
@@ -801,6 +895,16 @@ function SortablePlayerTable({
         <h2 className="font-display font-700 text-base tracking-wider text-chalk-100 flex items-center gap-2">
           {team.logo && <img src={team.logo} alt="" className="w-5 h-5 object-contain" />}
           {team.label}
+          {team.avgRating != null && Number.isFinite(team.avgRating) && (
+            <span className={`ml-1 rounded-full border px-2 py-0.5 text-[10px] font-mono font-semibold text-black dark:text-chalk-100 ${team.avgBadgeClass}`}>
+              AVG {team.avgRating.toFixed(2)}
+            </span>
+          )}
+          {team.avgHint && (
+            <span className="text-[10px] font-mono text-slate-600 dark:text-chalk-400 uppercase tracking-wide">
+              {team.avgHint}
+            </span>
+          )}
         </h2>
         <button onClick={() => setShowMore(!showMore)}
           className="text-xs font-mono text-[#F4119E] hover:text-[#F4119E]/70 transition-colors cursor-pointer">

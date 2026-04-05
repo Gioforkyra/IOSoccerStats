@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import MatchClient from "./MatchClient";
+import { prisma } from "@/lib/prisma";
 
 export type MatchPlayer = {
   player_steam_id: string;
@@ -7,6 +8,7 @@ export type MatchPlayer = {
   username: string;
   position: string | null;
   team_side: string;
+  minutes_played: number;
   goals: number;
   assists: number;
   second_assists: number;
@@ -50,6 +52,49 @@ export type MatchShot = {
   minute: number | null;
   period: "FIRST HALF" | "SECOND HALF" | null;
 };
+
+async function fetchMatchSideAverageRatings(playerStats: MatchPlayer[]): Promise<{ home: number | null; away: number | null }> {
+  const homeIds = new Set<string>();
+  const awayIds = new Set<string>();
+
+  for (const player of playerStats) {
+    if (player.minutes_played < 30) continue;
+    if (player.team_side === "home") homeIds.add(player.player_steam_id);
+    else if (player.team_side === "away") awayIds.add(player.player_steam_id);
+  }
+
+  const allIds = Array.from(new Set([...homeIds, ...awayIds]));
+  if (allIds.length === 0) return { home: null, away: null };
+
+  try {
+    const players = await prisma.player.findMany({
+      where: { steamId: { in: allIds } },
+      select: { steamId: true, rating: true },
+    });
+
+    const ratingsBySteamId = new Map<string, number>();
+    for (const player of players) {
+      if (player.rating != null && Number.isFinite(player.rating)) {
+        ratingsBySteamId.set(player.steamId, player.rating);
+      }
+    }
+
+    const avgFor = (ids: Set<string>): number | null => {
+      const values = Array.from(ids)
+        .map((id) => ratingsBySteamId.get(id))
+        .filter((rating): rating is number => rating != null);
+      if (values.length === 0) return null;
+      return values.reduce((sum, value) => sum + value, 0) / values.length;
+    };
+
+    return {
+      home: avgFor(homeIds),
+      away: avgFor(awayIds),
+    };
+  } catch {
+    return { home: null, away: null };
+  }
+}
 
 
 function estimateXgFromCoords(normalizedX: number, normalizedY: number) {
@@ -137,18 +182,23 @@ function parsePlayerStatsFromApi(raw: any): MatchPlayer[] {
     if (periods.length === 0) continue;
 
     // Group periods by team side so a shared GK gets separate entries per team
-    const byTeam: Record<string, { totals: number[]; position: string | null; isSub: boolean }> = {};
+    const byTeam: Record<string, { totals: number[]; position: string | null; isSub: boolean; minutesPlayed: number }> = {};
     for (const period of periods) {
       const pInfo = period?.info || {};
       const side = pInfo.team === "away" ? "away" : "home";
       const stats: number[] = period?.statistics || [];
+      const startSecond = Number(pInfo.startSecond || 0);
+      const endSecond = Number(pInfo.endSecond || startSecond);
+      const secondsPlayed = Math.max(0, endSecond - startSecond);
       if (!byTeam[side]) {
         byTeam[side] = {
           totals: new Array(30).fill(0),
           position: pInfo.position || null,
           isSub: (pInfo.startSecond || 0) > 0,
+          minutesPlayed: 0,
         };
       }
+      byTeam[side].minutesPlayed += secondsPlayed / 60;
       for (let i = 0; i < stats.length; i++) byTeam[side].totals[i] += Number(stats[i] || 0);
     }
 
@@ -160,6 +210,7 @@ function parsePlayerStatsFromApi(raw: any): MatchPlayer[] {
         username: String(info.name || "Unknown"),
         position: data.position,
         team_side,
+        minutes_played: Math.round(data.minutesPlayed),
         goals: safeStat(totals, STAT_IDX.goals),
         assists: safeStat(totals, STAT_IDX.assists),
         second_assists: safeStat(totals, STAT_IDX.second_assists),
@@ -370,11 +421,16 @@ export default async function MatchPage({
     ? `/api/img?url=${encodeURIComponent(awayTeamRaw.badgeImage.smallUrl)}`
     : null;
 
+  const homeTeamId = Number(apiRaw.teamHomeId ?? 0);
+  const awayTeamId = Number(apiRaw.teamAwayId ?? 0);
+
   // Parse player stats from API
   const playerStats = parsePlayerStatsFromApi(apiRaw);
 
-  // Fetch shots from API
-  const shots = await fetchShotsFromApi(matchId, playerStats, apiRaw);
+  const [shots, sideAvgRatings] = await Promise.all([
+    fetchShotsFromApi(matchId, playerStats, apiRaw),
+    fetchMatchSideAverageRatings(playerStats),
+  ]);
 
   // Determine server and POTM
   const serverName: string | null = apiRaw.server?.name ?? null;
@@ -391,16 +447,18 @@ export default async function MatchPage({
         homeScore,
         awayScore,
         homeTeam: {
-          id: apiRaw.teamHomeId ?? 0,
+          id: homeTeamId,
           name: homeTeamRaw.name ?? "Home",
           logo: homeBadge,
           color: homeTeamRaw.color ?? null,
+          avgRating: sideAvgRatings.home,
         },
         awayTeam: {
-          id: apiRaw.teamAwayId ?? 0,
+          id: awayTeamId,
           name: awayTeamRaw.name ?? "Away",
           logo: awayBadge,
           color: awayTeamRaw.color ?? null,
+          avgRating: sideAvgRatings.away,
         },
       }}
       playerStats={playerStats.map((p) => {
