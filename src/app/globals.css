@@ -136,8 +136,27 @@ body {
   background-color: rgba(244, 17, 158, 0.10) !important;
 }
 
+/* Team results grid rows — dark mode only zebra */
+html:not(.light) .results-rows-container > div:nth-child(even):not(:hover) {
+  background-color: rgba(255,255,255,0.05);
+}
+html:not(.light) .results-rows-container > div:hover {
+  background-color: rgba(244,17,158,0.10) !important;
+}
+
+/* Global matches list — zebra + hover */
+html:not(.light) .matches-list-container > div:nth-child(even):not(:hover) {
+  background-color: rgba(255,255,255,0.05);
+}
+html:not(.light) .matches-list-container > div:hover {
+  background-color: rgba(244,17,158,0.10) !important;
+}
+html.light .matches-list-container > div:nth-child(odd)  { background-color: #ffffff !important; }
+html.light .matches-list-container > div:nth-child(even) { background-color: #f2f2f2 !important; }
+html.light .matches-list-container > div:hover           { background-color: rgba(244,17,158,0.10) !important; }
+
 /* Player matches table — uniform zebra + hover across ALL tds */
-.matches-table tbody tr:nth-child(even) td { background-color: rgba(0,0,0,0.05); }
+.matches-table tbody tr:nth-child(even) td { background-color: rgba(255,255,255,0.05); }
 .matches-table tbody tr:hover td           { background-color: rgba(244,17,158,0.10) !important; }
 html.light .matches-table tbody tr:nth-child(odd)  td { background-color: #ffffff !important; }
 html.light .matches-table tbody tr:nth-child(even) td { background-color: #f2f2f2 !important; }

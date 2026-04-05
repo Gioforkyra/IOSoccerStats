@@ -124,7 +124,7 @@ export default async function MatchesPage({
           <div>POTM</div>
           <div>Location</div>
         </div>
-        <div className="divide-y divide-chalk-100/20">
+        <div className="matches-list-container divide-y divide-chalk-100/20">
           {matches.map((m, i) => {
             const homeLogo = badgeSmallUrl(m.teamHome.badgeImage);
             const awayLogo = badgeSmallUrl(m.teamAway.badgeImage);
@@ -134,9 +134,7 @@ export default async function MatchesPage({
             return (
               <div
                 key={m.id}
-                className={`relative grid grid-cols-[190px_1fr_90px_190px_90px] items-center gap-2 px-4 py-2.5 hover:brightness-125 transition ${
-                  i % 2 === 0 ? "bg-pitch-600/15" : "bg-transparent"
-                }`}
+                className="relative grid grid-cols-[190px_1fr_90px_190px_90px] items-center gap-2 px-4 py-2.5 transition-colors"
               >
                 <Link href={`/matches/${m.id}`} className="absolute inset-0 z-0" aria-label="View match details" />
 

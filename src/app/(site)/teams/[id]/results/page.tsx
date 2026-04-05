@@ -104,7 +104,7 @@ export default async function TeamResultsPage({
           <div className="text-center">Location</div>
           <div className="text-right pr-2">View</div>
         </div>
-        <div className="divide-y divide-chalk-100/20">
+        <div className="results-rows-container divide-y divide-chalk-100/20">
           {matches.length === 0 ? (
             <div className="px-4 py-8 text-center text-sm font-mono text-chalk-400">
               No matches found.
