@@ -8,6 +8,14 @@ import type { MatchExtraEvent, MatchPlayer, MatchShot } from "./page";
 
 type MarkerType = "goal" | "save" | "miss" | "yellow_card" | "red_card" | "own_goal";
 
+type TeamInfo = {
+  id: number;
+  name: string;
+  logo: string | null;
+  color: string | null;
+  avgRating: number | null;
+};
+
 type MatchInfo = {
   id: number;
   date: string;
