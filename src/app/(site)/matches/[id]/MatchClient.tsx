@@ -141,6 +141,21 @@ export default function MatchClient({
 
   const homeXg = shots.filter((s) => s.team_side === "home").reduce((sum, s) => sum + s.xg, 0);
   const awayXg = shots.filter((s) => s.team_side === "away").reduce((sum, s) => sum + s.xg, 0);
+
+  // Auto-detect attack direction: after second-half flip, compute mean ny for each team.
+  // Home should appear on the LEFT of the shot map.
+  // If home mean ny > 0.5, home attacks toward ny=1 → flip: px = (1-ny)*92+4 puts them left.
+  // If home mean ny < 0.5, home attacks toward ny=0 → no flip: px = ny*92+4 puts them left.
+  const shotMapFlip = (() => {
+    const oriented = shots.map((s) => {
+      const flip = s.period === "SECOND HALF";
+      return { side: s.team_side, ny: flip ? 1 - s.normalized_y : s.normalized_y };
+    });
+    const homeShots = oriented.filter((s) => s.side === "home");
+    if (homeShots.length === 0) return true; // default
+    const homeMeanNy = homeShots.reduce((sum, s) => sum + s.ny, 0) / homeShots.length;
+    return homeMeanNy > 0.5; // true = flip (home attacks right → show left)
+  })();
   const serverFlag = match.server ? getServerFlag(match.server) : "";
 
   const homeGoals = shots.filter((s) => s.team_side === "home" && s.is_goal).sort((a, b) => (a.minute ?? 0) - (b.minute ?? 0));
@@ -484,6 +499,7 @@ export default function MatchClient({
               <rect x="101" y="26" width="2" height="16" fill="rgba(255,255,255,0.35)" rx="0.5" />
             </svg>
             {/* Team logos inside field, bottom near center line */}
+            {/* Home logo LEFT, away logo RIGHT — shots are flipped so home attacks LEFT */}
             <div className="absolute" style={{ left: "40%", bottom: "8%", transform: "translateX(-50%)" }}>
               {match.homeTeam.logo ? (
                 <img src={match.homeTeam.logo} alt="" className="w-28 h-28 md:w-40 md:h-40 object-contain opacity-50 [filter:contrast(1.18)_brightness(1.08)]" />
@@ -507,7 +523,7 @@ export default function MatchClient({
               const isSecondHalf = evt.period === "SECOND HALF";
               const ny = isSecondHalf ? 1 - evt.normalized_y : evt.normalized_y;
               const nx = isSecondHalf ? 1 - evt.normalized_x : evt.normalized_x;
-              const px = Math.max(4, Math.min(96, ny * 92 + 4));
+              const px = Math.max(4, Math.min(96, (shotMapFlip ? 1 - ny : ny) * 92 + 4));
               const py = Math.max(6, Math.min(94, nx * 88 + 6));
               const isSelected = selectedMapEventId === evt.id;
               let marker: React.ReactNode;
@@ -554,7 +570,7 @@ export default function MatchClient({
               const isSecondHalf = evt.period === "SECOND HALF";
               const ny = isSecondHalf ? 1 - evt.normalized_y : evt.normalized_y;
               const nx = isSecondHalf ? 1 - evt.normalized_x : evt.normalized_x;
-              const px = Math.max(4, Math.min(96, ny * 92 + 4));
+              const px = Math.max(4, Math.min(96, (shotMapFlip ? 1 - ny : ny) * 92 + 4));
               const py = Math.max(6, Math.min(94, nx * 88 + 6));
               const above = py > 50;
               const anchor = px > 84 ? 'right' : px < 16 ? 'left' : 'center';
@@ -646,6 +662,17 @@ export default function MatchClient({
         </div>
       </div>
 
+      {/* Shot Zone Heatmaps */}
+      {shots.length > 0 && (
+        <div className="mb-6">
+          <h2 className="font-display font-700 text-base tracking-wider text-chalk-100 mb-3">SHOT ZONES</h2>
+          <div className="grid grid-cols-2 gap-4">
+            <ShotZoneHeatmap shots={shots} teamSide="home" teamColor={match.homeTeam.color} teamName={match.homeTeam.name} />
+            <ShotZoneHeatmap shots={shots} teamSide="away" teamColor={match.awayTeam.color} teamName={match.awayTeam.name} />
+          </div>
+        </div>
+      )}
+
       {/* H2H centered + Highlights on right */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         <div className="lg:col-span-2">
@@ -730,6 +757,124 @@ export default function MatchClient({
       ].map((team) => (
         <SortablePlayerTable key={team.side} team={team} shots={shots} />
       ))}
+    </div>
+  );
+}
+
+
+/* ─── Shot Zone Heatmap ─── */
+function ShotZoneHeatmap({ shots, teamSide, teamColor, teamName }: {
+  shots: MatchShot[];
+  teamSide: "home" | "away";
+  teamColor: string | null;
+  teamName: string;
+}) {
+  const COLS = 8;
+  const ROWS = 3; // top 3 rows of attacking half (near goal)
+
+  const hex = teamColor?.match(/^#([0-9a-f]{6})$/i);
+  const [cr, cg, cb] = hex
+    ? [parseInt(hex[1].slice(0, 2), 16), parseInt(hex[1].slice(2, 4), 16), parseInt(hex[1].slice(4, 6), 16)]
+    : teamSide === "home" ? [138, 197, 255] : [255, 138, 138];
+  // Perceived luminance of team color: bright colors get black text, dark colors always get white
+  const luminance = (0.2126 * cr + 0.7152 * cg + 0.0722 * cb) / 255;
+
+  const teamShots = shots.filter((s) => s.team_side === teamSide);
+
+  const corrected = teamShots.map((s) => {
+    const isSecondHalf = s.period === "SECOND HALF";
+    const ny = isSecondHalf ? 1 - s.normalized_y : s.normalized_y;
+    const nx = isSecondHalf ? 1 - s.normalized_x : s.normalized_x;
+    // Use absolute distance to nearest goal line: 0 = at goal, 0.5 = center.
+    // This works regardless of which direction the team attacks in this match.
+    const distToGoal = Math.min(ny, 1 - ny);
+    return { x: nx, distToGoal, isGoal: s.is_goal };
+  });
+
+  // Row 0 = closest to goal (distToGoal ≈ 0), row ROWS-1 = farthest shown (center direction).
+  const grid: { count: number; goals: number }[][] = Array.from({ length: ROWS }, () =>
+    Array.from({ length: COLS }, () => ({ count: 0, goals: 0 }))
+  );
+  for (const s of corrected) {
+    const col = Math.min(COLS - 1, Math.floor(s.x * COLS));
+    // map distToGoal [0 → 0.5] to row [0 → ROWS-1], only show shots within attacking half
+    const row = Math.floor(s.distToGoal * ROWS * 2);
+    if (row >= ROWS) continue; // beyond the shown area
+    grid[row][col].count++;
+    if (s.isGoal) grid[row][col].goals++;
+  }
+
+  const total = teamShots.length;
+  const goals = teamShots.filter((s) => s.is_goal).length;
+  const maxCount = Math.max(1, ...grid.flatMap((r) => r.map((c) => c.count)));
+
+  // Row 0 = goal line (attackY≈1.0) displayed at top, row ROWS-1 = center at bottom
+  const displayRows = grid;
+
+  return (
+    <div>
+      <div className="text-xs font-mono text-chalk-300 mb-1.5 flex items-center gap-2 flex-wrap">
+        <span className="font-semibold">{teamName}</span>
+        <span className="text-chalk-600">·</span>
+        <span className="text-chalk-500">{total} shots · {goals} goals{total > 0 ? ` · ${Math.round((goals / total) * 100)}% conv.` : ""}</span>
+      </div>
+      {/* aspectRatio 68:33 — shows top 3/5 of attacking half (goal area + penalty area + just beyond) */}
+      <div className="relative rounded-lg overflow-hidden border border-chalk-100/8 bg-[#0d1f0d]" style={{ aspectRatio: "68/33" }}>
+        {/* SVG shows goal at top (y=0) down to ~30m (y=32). Penalty box ends at y=18.5, arc peaks ~y=22 */}
+        <svg className="absolute inset-0 w-full h-full" viewBox="0 0 68 32" preserveAspectRatio="none">
+          {/* Side boundaries only (no bottom line — field continues) */}
+          <line x1="2" y1="2" x2="2" y2="32" stroke="rgba(255,255,255,0.18)" strokeWidth="0.7" />
+          <line x1="66" y1="2" x2="66" y2="32" stroke="rgba(255,255,255,0.18)" strokeWidth="0.7" />
+          {/* Top boundary */}
+          <line x1="2" y1="2" x2="66" y2="2" stroke="rgba(255,255,255,0.18)" strokeWidth="0.7" />
+          {/* Penalty box */}
+          <rect x="13.84" y="2" width="40.32" height="16.5" fill="none" stroke="rgba(255,255,255,0.20)" strokeWidth="0.5" />
+          {/* 6-yard box */}
+          <rect x="24.84" y="2" width="18.32" height="5.5" fill="none" stroke="rgba(255,255,255,0.14)" strokeWidth="0.4" />
+          {/* Goal frame */}
+          <rect x="30.34" y="0" width="7.32" height="2.5" fill="rgba(255,255,255,0.4)" rx="0.3" />
+          {/* Penalty spot */}
+          <circle cx="34" cy="13" r="0.6" fill="rgba(255,255,255,0.3)" />
+          {/* Penalty arc — curves outside (below) penalty box */}
+          <path d="M 41.31 18.5 A 9.15 9.15 0 0 1 26.69 18.5" fill="none" stroke="rgba(255,255,255,0.14)" strokeWidth="0.5" />
+        </svg>
+        {/* Heatmap grid — aligned to field inner boundary (SVG viewBox 0 0 68 32, field from x=2,y=2 to x=66) */}
+        <div
+          className="absolute grid"
+          style={{
+            left: `${(2 / 68) * 100}%`,
+            right: `${(2 / 68) * 100}%`,
+            top: `${(2 / 32) * 100}%`,
+            bottom: 0,
+            gridTemplateColumns: `repeat(${COLS}, 1fr)`,
+            gridTemplateRows: `repeat(${ROWS}, 1fr)`,
+          }}
+        >
+          {displayRows.map((row, ri) =>
+            row.map((cell, ci) => {
+              const pct = total > 0 ? Math.round((cell.count / total) * 100) : 0;
+              const intensity = cell.count / maxCount;
+              return (
+                <div
+                  key={`${ri}-${ci}`}
+                  className="flex items-center justify-center border border-white/[0.02]"
+                  style={{ backgroundColor: intensity > 0 ? `rgba(${cr},${cg},${cb},${(intensity * 0.68).toFixed(2)})` : "transparent" }}
+                  title={`${cell.count} shot${cell.count !== 1 ? "s" : ""} (${pct}%)${cell.goals > 0 ? ` · ${cell.goals} goal${cell.goals > 1 ? "s" : ""}` : ""}`}
+                >
+                  {pct > 0 && (
+                    <span
+                      className="text-[16px] font-mono font-bold select-none leading-none"
+                      style={{ color: luminance > 0.55 && intensity > 0.5 ? "rgba(0,0,0,0.85)" : "rgba(255,255,255,0.92)" }}
+                    >
+                      {pct}%
+                    </span>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
     </div>
   );
 }
