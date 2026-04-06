@@ -4,9 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useMemo, useEffect, useRef } from "react";
 import type { Ref } from "react";
-import type { MatchPlayer, MatchShot } from "./page";
+import type { MatchExtraEvent, MatchPlayer, MatchShot } from "./page";
 
-type TeamInfo = { id: number; name: string; logo: string | null; color: string | null; avgRating: number | null };
+type MarkerType = "goal" | "save" | "miss" | "yellow_card" | "red_card" | "own_goal";
 
 type MatchInfo = {
   id: number;
@@ -104,18 +104,33 @@ function getServerFlag(server: string): string {
 }
 
 export default function MatchClient({
-  match, playerStats, shots,
+  match, playerStats, shots, extraEvents,
 }: {
   match: MatchInfo;
   playerStats: MatchPlayer[];
   shots: MatchShot[];
+  extraEvents: MatchExtraEvent[];
 }) {
-  const [selectedShot, setSelectedShot] = useState<number | null>(null);
+  const [selectedMapEventId, setSelectedMapEventId] = useState<string | null>(null);
+  const [visibleMarkers, setVisibleMarkers] = useState<Record<MarkerType, boolean>>({
+    goal: true,
+    save: true,
+    miss: true,
+    yellow_card: true,
+    red_card: true,
+    own_goal: true,
+  });
   const h2hCardRef = useRef<HTMLDivElement | null>(null);
   const [h2hCardHeight, setH2hCardHeight] = useState<number>(640);
 
   const homePlayers = playerStats.filter((p) => p.team_side === "home");
   const awayPlayers = playerStats.filter((p) => p.team_side === "away");
+  // Find GKs for save attribution. This must be declared before timeline useMemo.
+  const homeGk = homePlayers.find((p) => (p.position || "").toUpperCase() === "GK");
+  const awayGk = awayPlayers.find((p) => (p.position || "").toUpperCase() === "GK");
+  const getSaveKeeperName = (shot: MatchShot) =>
+    shot.goalkeeper_username || (shot.team_side === "home" ? (awayGk?.username || "GK") : (homeGk?.username || "GK"));
+
   const homeXg = shots.filter((s) => s.team_side === "home").reduce((sum, s) => sum + s.xg, 0);
   const awayXg = shots.filter((s) => s.team_side === "away").reduce((sum, s) => sum + s.xg, 0);
   const serverFlag = match.server ? getServerFlag(match.server) : "";
@@ -124,17 +139,192 @@ export default function MatchClient({
   const awayGoals = shots.filter((s) => s.team_side === "away" && s.is_goal).sort((a, b) => (a.minute ?? 0) - (b.minute ?? 0));
 
   const timeline = useMemo(() => {
-    return [...shots].filter((s) => s.minute != null).sort((a, b) => (a.minute ?? 0) - (b.minute ?? 0));
-  }, [shots]);
+    const shotTimeline = shots
+      .filter((s) => s.minute != null)
+      .map((s, index) => ({
+        id: `shot-${index}`,
+        minute: s.minute,
+        team_side: s.team_side,
+        icon: s.is_goal ? "\u26BD" : s.is_save ? "\u{1F9E4}" : "\u274C",
+        label: s.is_goal ? "GOAL" : s.is_save ? "SAVE" : "MISS",
+        color: s.is_goal ? "text-green-400" : s.is_save ? "text-amber-400" : "text-red-400",
+        actor: s.is_save ? getSaveKeeperName(s) : s.username,
+        secondaryText: s.is_goal && s.assist_username
+          ? `Assist by ${s.assist_username}`
+          : s.is_save
+            ? `Shot by ${s.username}`
+            : null,
+      }));
+
+    const extraTimeline = extraEvents
+      .map((ev, index) => ({
+        id: `extra-${index}`,
+        minute: ev.minute,
+        team_side: ev.team_side,
+        icon: ev.event_type === "OWN_GOAL" ? "\u26BD" : ev.event_type === "YELLOW_CARD" ? "\u{1F7E8}" : "\u{1F7E5}",
+        label: ev.event_type === "OWN_GOAL" ? "OWN GOAL" : ev.event_type === "YELLOW_CARD" ? "YELLOW CARD" : "RED CARD",
+        color: ev.event_type === "OWN_GOAL" ? "text-orange-400" : ev.event_type === "YELLOW_CARD" ? "text-yellow-400" : "text-red-400",
+        actor: ev.username,
+        secondaryText: null,
+      }));
+
+    return [...shotTimeline, ...extraTimeline].sort((a, b) => (a.minute ?? 999) - (b.minute ?? 999));
+  }, [shots, extraEvents]);
+
+  const mapEvents = useMemo(() => {
+    const playerShotCenters = new Map<string, { x: number; y: number; n: number }>();
+    for (const s of shots) {
+      const curr = playerShotCenters.get(s.player_steam_id) || { x: 0, y: 0, n: 0 };
+      curr.x += s.normalized_x;
+      curr.y += s.normalized_y;
+      curr.n += 1;
+      playerShotCenters.set(s.player_steam_id, curr);
+    }
+
+    const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+    const spreadStep = (idx: number) => {
+      if (idx <= 0) return 0;
+      const n = Math.ceil(idx / 2);
+      const sign = idx % 2 === 1 ? 1 : -1;
+      return sign * n * 0.02;
+    };
+    const markerCounts = new Map<string, number>();
+
+    const fallbackCoordsForEvent = (ev: MatchExtraEvent) => {
+      const key = `${ev.player_steam_id || ev.username}|${ev.event_type}`;
+      const currentCount = markerCounts.get(key) || 0;
+      markerCounts.set(key, currentCount + 1);
+      const dx = spreadStep(currentCount);
+      const dy = spreadStep(currentCount + 1);
+
+      if (ev.player_steam_id) {
+        const center = playerShotCenters.get(ev.player_steam_id);
+        if (center && center.n > 0) {
+          return {
+            x: clamp01(center.x / center.n + dx),
+            y: clamp01(center.y / center.n + dy),
+          };
+        }
+      }
+
+      // Team-side fallback for events without coordinates/player shot samples.
+      const baseY = ev.team_side === "home" ? 0.2 : 0.8;
+      const baseX = ev.event_type === "YELLOW_CARD" ? 0.42 : ev.event_type === "RED_CARD" ? 0.5 : 0.58;
+      return {
+        x: clamp01(baseX + dx),
+        y: clamp01(baseY + dy),
+      };
+    };
+
+    const shotMapEvents = shots.map((s, index) => ({
+      id: `shot-${index}`,
+      kind: "shot" as const,
+      team_side: s.team_side,
+      minute: s.minute,
+      period: s.period,
+      normalized_x: s.normalized_x,
+      normalized_y: s.normalized_y,
+      shot: s,
+      extra: null as MatchExtraEvent | null,
+    }));
+
+    const prelimExtras = extraEvents.map((ev, index) => {
+      const hasNativeCoords = ev.normalized_x != null && ev.normalized_y != null;
+      const resolved = hasNativeCoords
+        ? { x: ev.normalized_x as number, y: ev.normalized_y as number }
+        : fallbackCoordsForEvent(ev);
+      return {
+        ev,
+        index,
+        hasNativeCoords,
+        x: resolved.x,
+        y: resolved.y,
+      };
+    });
+
+    const yellowByPlayer = new Map<string, Array<{ x: number; y: number; minute: number | null; period: "FIRST HALF" | "SECOND HALF" | null; index: number }>>();
+    for (const item of prelimExtras) {
+      if (item.ev.event_type !== "YELLOW_CARD") continue;
+      const pid = item.ev.player_steam_id;
+      if (!pid) continue;
+      const arr = yellowByPlayer.get(pid) || [];
+      arr.push({ x: item.x, y: item.y, minute: item.ev.minute, period: item.ev.period, index: item.index });
+      yellowByPlayer.set(pid, arr);
+    }
+    for (const arr of yellowByPlayer.values()) {
+      arr.sort((a, b) => {
+        const am = a.minute ?? 999;
+        const bm = b.minute ?? 999;
+        if (am !== bm) return am - bm;
+        return a.index - b.index;
+      });
+    }
+
+    const redOffsetByPlayer = new Map<string, number>();
+    const extraMapEvents = prelimExtras.map((item) => {
+      let resolvedX = item.x;
+      let resolvedY = item.y;
+      let resolvedPeriod = item.ev.period;
+      let resolvedMinute = item.ev.minute;
+
+      // If red card has no native coordinates, pin it near the player's second yellow card.
+      if (item.ev.event_type === "RED_CARD" && !item.hasNativeCoords && item.ev.player_steam_id) {
+        const yellows = yellowByPlayer.get(item.ev.player_steam_id) || [];
+        if (yellows.length > 0) {
+          const anchor = yellows[Math.min(1, yellows.length - 1)];
+          const redIdx = redOffsetByPlayer.get(item.ev.player_steam_id) || 0;
+          redOffsetByPlayer.set(item.ev.player_steam_id, redIdx + 1);
+          resolvedX = clamp01(anchor.x + 0.014 * (redIdx + 1));
+          resolvedY = clamp01(anchor.y - 0.012 * (redIdx + 1));
+          if (!resolvedPeriod) resolvedPeriod = anchor.period;
+          if (resolvedMinute == null) resolvedMinute = anchor.minute;
+        }
+      }
+
+      if (!resolvedPeriod && resolvedMinute != null) {
+        resolvedPeriod = resolvedMinute >= 46 ? "SECOND HALF" : "FIRST HALF";
+      }
+
+      return {
+        id: `extra-${item.index}`,
+        kind: "extra" as const,
+        team_side: item.ev.team_side,
+        minute: resolvedMinute,
+        period: resolvedPeriod,
+        normalized_x: resolvedX,
+        normalized_y: resolvedY,
+        shot: null as MatchShot | null,
+        extra: item.ev,
+      };
+    });
+
+    return [...shotMapEvents, ...extraMapEvents];
+  }, [shots, extraEvents]);
+
+  const markerTypeForEvent = (evt: (typeof mapEvents)[number]): MarkerType => {
+    if (evt.kind === "shot") {
+      if (evt.shot!.is_goal) return "goal";
+      if (evt.shot!.is_save) return "save";
+      return "miss";
+    }
+    if (evt.extra!.event_type === "OWN_GOAL") return "own_goal";
+    if (evt.extra!.event_type === "YELLOW_CARD") return "yellow_card";
+    return "red_card";
+  };
+
+  const filteredMapEvents = useMemo(() => {
+    return mapEvents.filter((evt) => visibleMarkers[markerTypeForEvent(evt)]);
+  }, [mapEvents, visibleMarkers]);
+
+  useEffect(() => {
+    if (!selectedMapEventId) return;
+    if (!filteredMapEvents.some((evt) => evt.id === selectedMapEventId)) {
+      setSelectedMapEventId(null);
+    }
+  }, [filteredMapEvents, selectedMapEventId]);
 
   const hT = (key: keyof MatchPlayer) => homePlayers.reduce((s, p) => s + Number(p[key] || 0), 0);
   const aT = (key: keyof MatchPlayer) => awayPlayers.reduce((s, p) => s + Number(p[key] || 0), 0);
-
-  // Find GKs for save attribution
-  const homeGk = homePlayers.find((p) => (p.position || "").toUpperCase() === "GK");
-  const awayGk = awayPlayers.find((p) => (p.position || "").toUpperCase() === "GK");
-  const getSaveKeeperName = (shot: MatchShot) =>
-    shot.goalkeeper_username || (shot.team_side === "home" ? (awayGk?.username || "GK") : (homeGk?.username || "GK"));
 
   // Possession: compute as % of total so they sum to 100%
   const rawHomePoss = hT("possession");
@@ -288,65 +478,102 @@ export default function MatchClient({
             {/* Team logos inside field, bottom near center line */}
             <div className="absolute" style={{ left: "40%", bottom: "8%", transform: "translateX(-50%)" }}>
               {match.homeTeam.logo ? (
-                <img src={match.homeTeam.logo} alt="" className="w-28 h-28 md:w-40 md:h-40 object-contain opacity-20" />
+                <img src={match.homeTeam.logo} alt="" className="w-28 h-28 md:w-40 md:h-40 object-contain opacity-50 [filter:contrast(1.18)_brightness(1.08)]" />
               ) : (
                 <span className="text-3xl font-display font-bold text-chalk-100/15">{match.homeTeam.name.slice(0, 3).toUpperCase()}</span>
               )}
             </div>
             <div className="absolute" style={{ left: "60%", bottom: "8%", transform: "translateX(-50%)" }}>
               {match.awayTeam.logo ? (
-                <img src={match.awayTeam.logo} alt="" className="w-28 h-28 md:w-40 md:h-40 object-contain opacity-20" />
+                <img src={match.awayTeam.logo} alt="" className="w-28 h-28 md:w-40 md:h-40 object-contain opacity-50 [filter:contrast(1.18)_brightness(1.08)]" />
               ) : (
                 <span className="text-3xl font-display font-bold text-chalk-100/15">{match.awayTeam.name.slice(0, 3).toUpperCase()}</span>
               )}
             </div>
             {/* Shot markers ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â horizontal: x maps to left-right, y maps to top-bottom */}
-            {shots.map((s, i) => {
+            {filteredMapEvents.map((evt) => {
               // For horizontal: normalized_y becomes x (0=home goal left, 1=away goal right)
               // normalized_x becomes y (sideline)
               // Flip second-half shots because teams switch sides at half time.
               // Uses the period field from the API for accurate detection.
-              const isSecondHalf = s.period === "SECOND HALF";
-              const ny = isSecondHalf ? 1 - s.normalized_y : s.normalized_y;
-              const nx = isSecondHalf ? 1 - s.normalized_x : s.normalized_x;
+              const isSecondHalf = evt.period === "SECOND HALF";
+              const ny = isSecondHalf ? 1 - evt.normalized_y : evt.normalized_y;
+              const nx = isSecondHalf ? 1 - evt.normalized_x : evt.normalized_x;
               const px = Math.max(4, Math.min(96, ny * 92 + 4));
               const py = Math.max(6, Math.min(94, nx * 88 + 6));
-              const isSelected = selectedShot === i;
-              let emoji: string;
-              if (s.is_goal) emoji = "\u26BD";
-              else if (s.is_save) emoji = "\u{1F9E4}";
-              else emoji = "\u274C";
+              const isSelected = selectedMapEventId === evt.id;
+              let marker: React.ReactNode;
+              if (evt.kind === "shot") {
+                if (evt.shot!.is_goal) marker = "\u26BD";
+                else if (evt.shot!.is_save) marker = "\u{1F9E4}";
+                else marker = "\u274C";
+              } else {
+                marker = evt.extra!.event_type === "OWN_GOAL"
+                  ? "\u26BD"
+                  : evt.extra!.event_type === "YELLOW_CARD"
+                    ? "\u{1F7E8}"
+                    : "\u{1F7E5}";
+              }
+
+              const title = evt.kind === "shot"
+                ? `${evt.shot!.is_goal ? `Goal by ${evt.shot!.username}` : evt.shot!.is_save ? `Save by ${getSaveKeeperName(evt.shot!)} (shot by ${evt.shot!.username})` : `Missed by ${evt.shot!.username}`} (xG: ${evt.shot!.xg.toFixed(2)})`
+                : `${evt.extra!.event_type === "OWN_GOAL" ? "Own goal" : evt.extra!.event_type === "YELLOW_CARD" ? "Yellow card" : "Red card"} by ${evt.extra!.username}`;
+
               return (
                 <button
-                  key={i}
-                  onClick={() => setSelectedShot(isSelected ? null : i)}
+                  key={evt.id}
+                  onClick={() => setSelectedMapEventId(isSelected ? null : evt.id)}
                   className={`absolute transition-all cursor-pointer select-none ${isSelected ? "z-20" : ""}`}
                   style={{
                     left: `${px}%`,
                     top: `${py}%`,
                     transform: `translate(-50%, -50%)${isSelected ? " scale(1.3)" : ""}`,
-                    opacity: selectedShot !== null && !isSelected ? 0.4 : 1,
+                    opacity: selectedMapEventId !== null && !isSelected ? 0.4 : 1,
                     fontSize: "22px",
                     lineHeight: 1,
                   }}
-                  title={`${s.is_goal ? `Goal by ${s.username}` : s.is_save ? `Save by ${getSaveKeeperName(s)} (shot by ${s.username})` : `Missed by ${s.username}`} (xG: ${s.xg.toFixed(2)})`}
+                  title={title}
                 >
-                  {emoji}
+                  {marker}
                 </button>
               );
             })}
             {/* Tooltip */}
-            {selectedShot !== null && shots[selectedShot] && (() => {
-              const s = shots[selectedShot];
-              const isSecondHalf = s.period === "SECOND HALF";
-              const ny = isSecondHalf ? 1 - s.normalized_y : s.normalized_y;
-              const nx = isSecondHalf ? 1 - s.normalized_x : s.normalized_x;
+            {selectedMapEventId && (() => {
+              const evt = filteredMapEvents.find((e) => e.id === selectedMapEventId);
+              if (!evt) return null;
+
+              const isSecondHalf = evt.period === "SECOND HALF";
+              const ny = isSecondHalf ? 1 - evt.normalized_y : evt.normalized_y;
+              const nx = isSecondHalf ? 1 - evt.normalized_x : evt.normalized_x;
               const px = Math.max(4, Math.min(96, ny * 92 + 4));
               const py = Math.max(6, Math.min(94, nx * 88 + 6));
               const above = py > 50;
               const anchor = px > 84 ? 'right' : px < 16 ? 'left' : 'center';
               const left = anchor === 'right' ? `${px - 2}%` : anchor === 'left' ? `${px + 2}%` : `${px}%`;
               const transformX = anchor === 'right' ? '-100%' : anchor === 'left' ? '0' : '-50%';
+
+              if (evt.kind === "extra") {
+                const label = evt.extra!.event_type === "OWN_GOAL" ? "Own Goal" : evt.extra!.event_type === "YELLOW_CARD" ? "Yellow Card" : "Red Card";
+                const color = evt.extra!.event_type === "OWN_GOAL" ? "text-orange-400" : evt.extra!.event_type === "YELLOW_CARD" ? "text-yellow-400" : "text-red-400";
+                return (
+                  <div className="absolute z-30 pointer-events-none" style={{
+                    left,
+                    top: above ? `calc(${py}% - 12px)` : `calc(${py}% + 12px)`,
+                    transform: `translate(${transformX}, ${above ? "-100%" : "0"})`,
+                  }}>
+                    <div className="max-w-[260px] bg-pitch-950/95 border border-chalk-100/15 rounded-lg px-3 py-2 text-xs font-mono whitespace-normal break-words shadow-lg">
+                      <div className="font-medium text-chalk-100">{evt.extra!.username}</div>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className={color}>{label}</span>
+                        {evt.minute != null && <span className="text-chalk-400">{evt.minute}&apos;</span>}
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
+              const s = evt.shot!;
               return (
                 <div className="absolute z-30 pointer-events-none" style={{
                   left,
@@ -378,10 +605,35 @@ export default function MatchClient({
             })()}
           </div>
         </div>
-        <div className="flex items-center gap-4 mt-2 text-xs font-mono text-chalk-400">
-          <span className="flex items-center gap-1.5"><span>{"\u26BD"}</span> Goal</span>
-          <span className="flex items-center gap-1.5"><span>{"\u{1F9E4}"}</span> Save</span>
-          <span className="flex items-center gap-1.5"><span>{"\u274C"}</span> Miss</span>
+        <div className="flex flex-wrap items-center gap-3 mt-2 text-xs font-mono text-chalk-400">
+          {([
+            { key: "goal" as const, icon: "\u26BD", label: "Goal" },
+            { key: "save" as const, icon: "\u{1F9E4}", label: "Save" },
+            { key: "miss" as const, icon: "\u274C", label: "Miss" },
+            { key: "yellow_card" as const, icon: "\u{1F7E8}", label: "Yellow Card" },
+            { key: "red_card" as const, icon: "\u{1F7E5}", label: "Red Card" },
+            { key: "own_goal" as const, icon: "\u26BD", label: "Own Goal" },
+          ]).map((item) => {
+            const enabled = visibleMarkers[item.key];
+            return (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => setVisibleMarkers((prev) => ({ ...prev, [item.key]: !prev[item.key] }))}
+                className={`flex items-center gap-1.5 rounded px-1.5 py-0.5 transition-colors ${enabled ? "text-chalk-300" : "text-chalk-500/70"}`}
+                title={`${enabled ? "Hide" : "Show"} ${item.label}`}
+              >
+                <span
+                  className={`inline-flex h-3.5 w-3.5 items-center justify-center rounded-[3px] border ${enabled ? "border-grass-400 bg-grass-500/20" : "border-chalk-500/70 bg-transparent"}`}
+                  aria-hidden="true"
+                >
+                  <span className={`text-[10px] leading-none ${enabled ? "text-grass-400 opacity-100" : "opacity-0"}`}>{"✓"}</span>
+                </span>
+                <span>{item.icon}</span>
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
           <span className="text-chalk-400/40 ml-2">Click for details</span>
         </div>
       </div>
@@ -422,29 +674,18 @@ export default function MatchClient({
               style={{ maxHeight: `${h2hCardHeight}px` }}
             >
               {timeline.map((ev, i) => {
-                const icon = ev.is_goal ? "\u26BD" : ev.is_save ? "\u{1F9E4}" : "\u274C";
-                const label = ev.is_goal ? "GOAL" : ev.is_save ? "SAVE" : "MISS";
-                const color = ev.is_goal ? "text-green-400" : ev.is_save ? "text-amber-400" : "text-red-400";
                 const isHome = ev.team_side === "home";
-                const eventActor = ev.is_save ? getSaveKeeperName(ev) : ev.username;
-                // Secondary info: assist for goals, shooter for saves
-                let secondaryText: string | null = null;
-                if (ev.is_goal && ev.assist_username) {
-                  secondaryText = `Assist by ${ev.assist_username}`;
-                } else if (ev.is_save) {
-                  secondaryText = `Shot by ${ev.username}`;
-                }
                 return (
                   <div key={i} className={`flex items-center gap-3 px-4 py-2.5 ${i % 2 === 0 ? "bg-pitch-600/15" : ""}`}>
-                    <span className="text-xs font-mono text-chalk-400 w-8 shrink-0">{ev.minute}&apos;</span>
-                    <span className="text-base shrink-0">{icon}</span>
+                    <span className="text-xs font-mono text-chalk-400 w-8 shrink-0">{ev.minute != null ? `${ev.minute}'` : "-"}</span>
+                    <span className="text-base shrink-0">{ev.icon}</span>
                     <div className="flex-1 min-w-0">
                       <div>
-                        <span className={`text-xs font-mono font-bold ${color}`}>{label}</span>
-                        <span className="text-xs font-mono text-chalk-200 ml-2">{eventActor}</span>
+                        <span className={`text-xs font-mono font-bold ${ev.color}`}>{ev.label}</span>
+                        <span className="text-xs font-mono text-chalk-200 ml-2">{ev.actor}</span>
                       </div>
-                      {secondaryText && (
-                        <div className="text-[10px] font-mono text-chalk-400">{secondaryText}</div>
+                      {ev.secondaryText && (
+                        <div className="text-[10px] font-mono text-chalk-400">{ev.secondaryText}</div>
                       )}
                     </div>
                     {(isHome ? match.homeTeam.logo : match.awayTeam.logo) && (

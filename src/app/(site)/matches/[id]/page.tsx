@@ -53,6 +53,17 @@ export type MatchShot = {
   period: "FIRST HALF" | "SECOND HALF" | null;
 };
 
+export type MatchExtraEvent = {
+  event_type: "OWN_GOAL" | "YELLOW_CARD" | "RED_CARD";
+  player_steam_id: string | null;
+  username: string;
+  team_side: string;
+  normalized_x: number | null;
+  normalized_y: number | null;
+  minute: number | null;
+  period: "FIRST HALF" | "SECOND HALF" | null;
+};
+
 async function fetchMatchSideAverageRatings(playerStats: MatchPlayer[]): Promise<{ home: number | null; away: number | null }> {
   const homeIds = new Set<string>();
   const awayIds = new Set<string>();
@@ -408,6 +419,176 @@ async function fetchShotsFromApi(
   }
 }
 
+async function fetchExtraEventsFromApi(
+  matchId: number,
+  playerStats: MatchPlayer[],
+  rawOverride?: any | null,
+): Promise<MatchExtraEvent[]> {
+  try {
+    const raw = rawOverride ?? await fetchMatchApiRaw(matchId);
+    const md = raw?.matchStatistics?.matchData;
+    if (!md) return [];
+
+    const fieldMin = md.matchInfo?.fieldMin || { x: -1554, y: -2406 };
+    const fieldMax = md.matchInfo?.fieldMax || { x: 1554, y: 2406 };
+    const events: any[] = md.matchEvents || [];
+    const rawPlayers: any[] = md.players || [];
+
+    const steamLookup = new Map<string, string>();
+    const periodTeams = new Map<string, { side: string; start: number; end: number }[]>();
+    const playerNames = new Map<string, string>();
+
+    for (const rp of rawPlayers) {
+      const shortId = rp?.info?.steamId ? String(rp.info.steamId) : "";
+      const steam64 = rp?.info?.steamId64 ? String(rp.info.steamId64) : "";
+      if (shortId && steam64) steamLookup.set(shortId, steam64);
+      if (steam64) steamLookup.set(steam64, steam64);
+
+      if (steam64) {
+        playerNames.set(steam64, String(rp?.info?.name || "Unknown"));
+        const periods: any[] = rp?.matchPeriodData || [];
+        const entries: { side: string; start: number; end: number }[] = [];
+        for (const period of periods) {
+          const pInfo = period?.info || {};
+          entries.push({
+            side: pInfo.team === "away" ? "away" : "home",
+            start: Number(pInfo.startSecond || 0),
+            end: Number(pInfo.endSecond || 99999),
+          });
+        }
+        periodTeams.set(steam64, entries);
+      }
+    }
+
+    function getTeamAtSecond(steamId: string, second: number): string {
+      const periods = periodTeams.get(steamId);
+      if (!periods || periods.length === 0) return "home";
+      for (const p of periods) {
+        if (second >= p.start && second <= p.end) return p.side;
+      }
+      return periods[periods.length - 1].side;
+    }
+
+    const extraEvents: MatchExtraEvent[] = [];
+
+    for (const evt of events) {
+      const eventRaw = String(evt?.event || "")
+        .toUpperCase()
+        .replace(/[_-]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      let eventType: MatchExtraEvent["event_type"] | null = null;
+      if (eventRaw.includes("YELLOW")) {
+        eventType = "YELLOW_CARD";
+      } else if (eventRaw.includes("RED")) {
+        eventType = "RED_CARD";
+      } else if (eventRaw.includes("OWN") && eventRaw.includes("GOAL")) {
+        eventType = "OWN_GOAL";
+      }
+
+      if (!eventType) continue;
+
+      const playerRaw = evt.player1SteamId ? String(evt.player1SteamId) : "";
+      const playerSteamId = playerRaw ? (steamLookup.get(playerRaw) || playerRaw) : null;
+      const username = playerSteamId ? (playerNames.get(playerSteamId) || "Unknown") : String(evt.player1Name || "Unknown");
+
+      const eventSecond = Number(evt.second || 0);
+      const teamFromEvent = evt.team === "away" ? "away" : evt.team === "home" ? "home" : null;
+      const team_side = teamFromEvent || (playerSteamId ? getTeamAtSecond(playerSteamId, eventSecond) : "home");
+
+      const pos = evt.startPosition;
+      const normalized_x = pos
+        ? normalizeFromField(Number(pos.x), Number(fieldMin.x), Number(fieldMax.x))
+        : null;
+      const normalized_y = pos
+        ? normalizeFromField(Number(pos.y), Number(fieldMin.y), Number(fieldMax.y))
+        : null;
+
+      const secondNum = Number(evt.second);
+      const minute = Number.isFinite(secondNum) ? Math.floor(secondNum / 60) : null;
+
+      extraEvents.push({
+        event_type: eventType,
+        player_steam_id: playerSteamId,
+        username,
+        team_side,
+        normalized_x,
+        normalized_y,
+        minute,
+        period: (evt.period as "FIRST HALF" | "SECOND HALF") || null,
+      });
+    }
+
+    // Backfill missing events from aggregated player stats when matchEvents are incomplete.
+    const counted = new Map<string, number>();
+    for (const ev of extraEvents) {
+      const key = `${ev.player_steam_id || ev.username}|${ev.team_side}|${ev.event_type}`;
+      counted.set(key, (counted.get(key) || 0) + 1);
+    }
+
+    const ensureCount = (
+      p: MatchPlayer,
+      eventType: MatchExtraEvent["event_type"],
+      expected: number,
+    ) => {
+      if (expected <= 0) return;
+      const key = `${p.player_steam_id}|${p.team_side}|${eventType}`;
+      const current = counted.get(key) || 0;
+      const missing = Math.max(0, expected - current);
+      if (missing <= 0) return;
+
+      const inferMoment = (): Pick<MatchExtraEvent, "minute" | "period"> => {
+        if (eventType !== "RED_CARD") return { minute: null, period: null };
+
+        const yellows = extraEvents
+          .filter(
+            (ev) =>
+              ev.event_type === "YELLOW_CARD" &&
+              ev.player_steam_id === p.player_steam_id &&
+              ev.team_side === p.team_side
+          )
+          .sort((a, b) => {
+            const am = a.minute ?? 999;
+            const bm = b.minute ?? 999;
+            return am - bm;
+          });
+
+        if (yellows.length === 0) return { minute: null, period: null };
+        const anchor = yellows[Math.min(1, yellows.length - 1)];
+        return { minute: anchor.minute, period: anchor.period };
+      };
+
+      for (let i = 0; i < missing; i++) {
+        const inferred = inferMoment();
+        extraEvents.push({
+          event_type: eventType,
+          player_steam_id: p.player_steam_id,
+          username: p.username,
+          team_side: p.team_side,
+          normalized_x: null,
+          normalized_y: null,
+          minute: inferred.minute,
+          period: inferred.period,
+        });
+      }
+      counted.set(key, current + missing);
+    };
+
+    for (const p of playerStats) {
+      ensureCount(p, "YELLOW_CARD", Number(p.yellow_cards || 0));
+      ensureCount(p, "RED_CARD", Number(p.red_cards || 0));
+      ensureCount(p, "OWN_GOAL", Number(p.own_goals || 0));
+    }
+
+    extraEvents.sort((a, b) => (a.minute ?? 999) - (b.minute ?? 999));
+    return extraEvents;
+  } catch (err) {
+    console.error(`[events] error for match ${matchId}:`, err);
+    return [];
+  }
+}
+
 export default async function MatchPage({
   params,
 }: {
@@ -450,8 +631,9 @@ export default async function MatchPage({
   // Parse player stats from API
   const playerStats = parsePlayerStatsFromApi(apiRaw);
 
-  const [shots, sideAvgRatings] = await Promise.all([
+  const [shots, extraEvents, sideAvgRatings] = await Promise.all([
     fetchShotsFromApi(matchId, playerStats, apiRaw),
+    fetchExtraEventsFromApi(matchId, playerStats, apiRaw),
     fetchMatchSideAverageRatings(playerStats),
   ]);
 
@@ -494,6 +676,7 @@ export default async function MatchPage({
         return n as unknown as MatchPlayer;
       })}
       shots={shots}
+      extraEvents={extraEvents}
     />
   );
 }
