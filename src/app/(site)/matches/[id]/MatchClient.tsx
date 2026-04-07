@@ -446,42 +446,46 @@ export default function MatchClient({
         )}
       </div>
 
-      <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <LineupGraphic players={homePlayers} teamName={match.homeTeam.name} teamLogo={match.homeTeam.logo} teamColor={match.homeTeam.color} />
-        <LineupGraphic players={awayPlayers} teamName={match.awayTeam.name} teamLogo={match.awayTeam.logo} teamColor={match.awayTeam.color} />
+      <div className="mb-6">
+        <h2 className="font-display font-700 text-base tracking-wider text-chalk-100 mb-3">LINEUPS</h2>
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+          <LineupGraphic players={homePlayers} teamName={match.homeTeam.name} teamLogo={match.homeTeam.logo} teamColor={match.homeTeam.color} />
+          <LineupGraphic players={awayPlayers} teamName={match.awayTeam.name} teamLogo={match.awayTeam.logo} teamColor={match.awayTeam.color} />
+        </div>
       </div>
 
       {/* Horizontal shot map ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â full width */}
       <div className="mb-6">
-        <h2 className="font-display font-700 text-base tracking-wider text-chalk-100 mb-3">
-          SHOT MAP <span className="text-xs text-pink-400 font-mono">{" \u00B7 "}xG by IOStats</span>
-        </h2>
+        <h2 className="font-display font-700 text-base tracking-wider text-chalk-100 mb-3">SHOT MAP</h2>
         <div className="relative rounded-lg border border-chalk-100/8 overflow-hidden" style={{ aspectRatio: "105 / 50" }}>
-          <div className="absolute inset-0 bg-[#0d1f0d]">
+          <div
+            className="absolute inset-0 bg-[#3d7a38]"
+            style={{
+              backgroundImage:
+                "repeating-linear-gradient(90deg, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 40px, transparent 40px, transparent 80px)",
+            }}
+          >
             {/* Horizontal pitch SVG stretched to fill */}
             <svg viewBox="0 0 105 68" className="w-full h-full" preserveAspectRatio="none">
-              <rect x="0" y="0" width="105" height="68" fill="#0d1f0d" />
-              {[0, 15, 30, 45, 60, 75, 90].map((x) => (
-                <rect key={x} x={x} y="0" width="7.5" height="68" fill="rgba(255,255,255,0.015)" />
-              ))}
+              <rect x="0" y="0" width="105" height="68" fill="#3d7a38" fillOpacity="0.2" />
               {/* Outer boundary */}
-              <rect x="4" y="4" width="97" height="60" fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth="0.5" />
+              <rect x="4" y="4" width="97" height="60" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="0.8" />
               {/* Center line */}
-              <line x1="52.5" y1="4" x2="52.5" y2="64" stroke="rgba(255,255,255,0.12)" strokeWidth="0.5" />
+              <line x1="52.5" y1="4" x2="52.5" y2="64" stroke="rgba(255,255,255,0.55)" strokeWidth="0.7" />
               {/* Center circle */}
-              <circle cx="52.5" cy="34" r="9.15" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="0.5" />
-              <circle cx="52.5" cy="34" r="0.7" fill="rgba(255,255,255,0.3)" />
+              <circle cx="52.5" cy="34" r="9.15" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="0.7" />
+              <circle cx="52.5" cy="34" r="0.7" fill="rgba(255,255,255,0.7)" />
               {/* Left penalty box */}
-              <rect x="4" y="14" width="16.5" height="40" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="0.5" />
-              <rect x="4" y="22" width="5.5" height="24" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="0.5" />
-              <circle cx="15" cy="34" r="0.5" fill="rgba(255,255,255,0.25)" />
+              <rect x="4" y="14" width="16.5" height="40" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="0.7" />
+              <rect x="4" y="22" width="5.5" height="24" fill="none" stroke="rgba(255,255,255,0.38)" strokeWidth="0.6" />
+              <circle cx="15" cy="34" r="0.5" fill="rgba(255,255,255,0.55)" />
               {/* Right penalty box */}
-              <rect x="84.5" y="14" width="16.5" height="40" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="0.5" />
-              <rect x="95.5" y="22" width="5.5" height="24" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="0.5" />
-              <circle cx="90" cy="34" r="0.5" fill="rgba(255,255,255,0.25)" />
+              <rect x="84.5" y="14" width="16.5" height="40" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="0.7" />
+              <rect x="95.5" y="22" width="5.5" height="24" fill="none" stroke="rgba(255,255,255,0.38)" strokeWidth="0.6" />
+              <circle cx="90" cy="34" r="0.5" fill="rgba(255,255,255,0.55)" />
               {/* Goals */}
-              <rect x="2" y="26" width="2" height="16" fill="rgba(255,255,255,0.35)" rx="0.5" />
-              <rect x="101" y="26" width="2" height="16" fill="rgba(255,255,255,0.35)" rx="0.5" />
+              <rect x="2" y="26" width="2" height="16" fill="rgba(255,255,255,0.55)" rx="0.5" />
+              <rect x="101" y="26" width="2" height="16" fill="rgba(255,255,255,0.55)" rx="0.5" />
             </svg>
             {/* Team logos inside field, bottom near center line */}
             {/* Home logo LEFT, away logo RIGHT — shots are flipped so home attacks LEFT */}
@@ -945,9 +949,15 @@ type LineupRows = {
 
 type CanonicalPosition = "LW" | "CF" | "RW" | "CM" | "LB" | "CB" | "RB" | "GK";
 
+type LineupSubstitute = {
+  player_steam_id: string;
+  profile_steam_id: string;
+  username: string;
+};
+
 type LineupSlot = {
   starter: MatchPlayer;
-  substituteNames: string[];
+  substitutes: LineupSubstitute[];
 };
 
 function normalizeToCanonicalPosition(position: string | null): CanonicalPosition | null {
@@ -1004,15 +1014,24 @@ function getLineupRows(players: MatchPlayer[]): LineupRows {
     const starter = starterBySlot.get(slot);
     if (!starter) return null;
 
-    const subNames = bySlot
+    const substitutesRaw = bySlot
       .get(slot)!
       .filter((player) => player.player_steam_id !== starter.player_steam_id && player.is_sub)
       .sort((a, b) => b.minutes_played - a.minutes_played)
-      .map((player) => player.username);
+      .map((player) => ({
+        player_steam_id: player.player_steam_id,
+        profile_steam_id: player.profile_steam_id || player.player_steam_id,
+        username: player.username,
+      }));
+
+    const substitutesById = new Map<string, LineupSubstitute>();
+    for (const sub of substitutesRaw) {
+      substitutesById.set(sub.player_steam_id, sub);
+    }
 
     return {
       starter: { ...starter, position: slot },
-      substituteNames: Array.from(new Set(subNames)),
+      substitutes: Array.from(substitutesById.values()),
     };
   };
 
@@ -1048,6 +1067,14 @@ function StatChip({
 }
 
 function ShirtIcon({ color, label }: { color: string; label: string }) {
+  const normalized = color.trim().toLowerCase();
+  const isWhiteShirt =
+    normalized === "white" ||
+    normalized === "#fff" ||
+    normalized === "#ffffff" ||
+    normalized === "rgb(255,255,255)" ||
+    normalized === "rgba(255,255,255,1)";
+
   return (
     <svg viewBox="0 0 24 24" className="h-20 w-20 drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)]" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path
@@ -1058,7 +1085,7 @@ function ShirtIcon({ color, label }: { color: string; label: string }) {
         strokeLinecap="square"
         strokeLinejoin="round"
       />
-      <text x="12" y="15" textAnchor="middle" fill="white" fontSize="3.8" fontFamily="monospace" fontWeight="bold">
+      <text x="12" y="15" textAnchor="middle" fill={isWhiteShirt ? "#111111" : "white"} fontSize="3.8" fontFamily="monospace" fontWeight="bold">
         {label}
       </text>
     </svg>
@@ -1076,11 +1103,11 @@ function ShoeIcon() {
 function PlayerCard({
   p,
   shirtColor,
-  substituteNames,
+  substitutes,
 }: {
   p: MatchPlayer;
   shirtColor: string;
-  substituteNames: string[];
+  substitutes: LineupSubstitute[];
 }) {
   // Manual tuning knobs for marker placement.
   const markerTop = "35%";
@@ -1089,66 +1116,69 @@ function PlayerCard({
   const assistOffsetY = 24;
 
   return (
-    <Link
-      href={`/players/${encodeURIComponent(p.profile_steam_id || p.player_steam_id)}`}
-      className="group flex flex-col items-center gap-0"
-    >
-      <div className="relative">
-        <ShirtIcon color={shirtColor} label={p.position || '?'} />
+    <div className="flex flex-col items-center gap-0">
+      <Link
+        href={`/players/${encodeURIComponent(p.profile_steam_id || p.player_steam_id)}`}
+        className="group flex flex-col items-center gap-0"
+      >
+        <div className="relative">
+          <ShirtIcon color={shirtColor} label={p.position || '?'} />
 
-        {/* Left side: goals + assists */}
-        {(p.goals > 0 || p.assists > 0) && (
-          <div className="absolute" style={{ top: markerTop, right: goalsAssistRight }}>
-            {p.goals > 0 && (
-              <div className="absolute right-0 -translate-y-1/2 flex items-center gap-0.5">
-                <span className="text-sm leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.75)]">⚽</span>
-                <span className="text-[12px] font-mono font-bold text-white leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{p.goals}</span>
-              </div>
-            )}
-            {p.assists > 0 && (
-              <div
-                className="absolute right-0 -translate-y-1/2 flex items-center gap-0.5"
-                style={{ transform: `translateY(calc(-50% + ${assistOffsetY}px))` }}
-              >
-                <ShoeIcon />
-                <span className="text-[12px] font-mono font-bold text-white leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{p.assists}</span>
-              </div>
-            )}
-          </div>
-        )}
+          {/* Left side: goals + assists */}
+          {(p.goals > 0 || p.assists > 0) && (
+            <div className="absolute" style={{ top: markerTop, right: goalsAssistRight }}>
+              {p.goals > 0 && (
+                <div className="absolute right-0 -translate-y-1/2 flex items-center gap-0.5">
+                  <span className="text-sm leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.75)]">⚽</span>
+                  <span className="text-[12px] font-mono font-bold text-white leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{p.goals}</span>
+                </div>
+              )}
+              {p.assists > 0 && (
+                <div
+                  className="absolute right-0 -translate-y-1/2 flex items-center gap-0.5"
+                  style={{ transform: `translateY(calc(-50% + ${assistOffsetY}px))` }}
+                >
+                  <ShoeIcon />
+                  <span className="text-[12px] font-mono font-bold text-white leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{p.assists}</span>
+                </div>
+              )}
+            </div>
+          )}
 
-        {/* Right side: cards */}
-        {(p.yellow_cards > 0 || p.red_cards > 0) && (
-          <div
-            className="absolute -translate-y-1/2 flex flex-col gap-0.5 items-start"
-            style={{ top: markerTop, left: cardsLeft }}
-          >
-            {p.yellow_cards > 0 && <span className="text-base leading-none">🟨</span>}
-            {p.red_cards > 0 && <span className="text-base leading-none">🟥</span>}
-          </div>
-        )}
-      </div>
-
-      <div className="-mt-1 max-w-[88px] rounded-sm bg-slate-950/80 px-1.5 py-0.5 text-center group-hover:bg-slate-800">
-        <div className="truncate text-[9px] font-mono font-bold text-white">{p.username}</div>
-      </div>
-
-      {substituteNames.length > 0 && (
-        <div className="mt-1.5 flex flex-col items-center gap-1">
-          {substituteNames.map((subName, index) => (
+          {/* Right side: cards */}
+          {(p.yellow_cards > 0 || p.red_cards > 0) && (
             <div
-              key={`${subName}-${index}`}
-              className="max-w-[88px] rounded-sm bg-slate-950/80 px-1.5 py-0.5 text-center"
+              className="absolute -translate-y-1/2 flex flex-col gap-0.5 items-start"
+              style={{ top: markerTop, left: cardsLeft }}
+            >
+              {p.yellow_cards > 0 && <span className="text-base leading-none">🟨</span>}
+              {p.red_cards > 0 && <span className="text-base leading-none">🟥</span>}
+            </div>
+          )}
+        </div>
+
+        <div className="-mt-1 max-w-[88px] rounded-sm bg-slate-950/80 px-1.5 py-0.5 text-center group-hover:bg-slate-800">
+          <div className="truncate text-[9px] font-mono font-bold text-white transition-colors group-hover:text-[#F4119E]">{p.username}</div>
+        </div>
+      </Link>
+
+      {substitutes.length > 0 && (
+        <div className="mt-1.5 flex flex-col items-center gap-1">
+          {substitutes.map((sub) => (
+            <Link
+              key={sub.player_steam_id}
+              href={`/players/${encodeURIComponent(sub.profile_steam_id || sub.player_steam_id)}`}
+              className="group max-w-[88px] rounded-sm bg-slate-950/80 px-1.5 py-0.5 text-center transition-colors hover:bg-slate-800"
             >
               <div className="flex items-center justify-center gap-1 truncate text-[9px] font-mono font-bold text-white">
                 <span className="shrink-0 text-[#F4119E]" title="Substitute">&#x25B6;</span>
-                <span className="truncate">{subName}</span>
+                <span className="truncate transition-colors group-hover:text-[#F4119E]">{sub.username}</span>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}
-    </Link>
+    </div>
   );
 }
 
@@ -1172,7 +1202,7 @@ function FormationRow({
         const spread = (index - (players.length - 1) / 2) * 6;
         return (
           <div key={slot.starter.player_steam_id} style={{ transform: `translateX(${spread}px)` }}>
-            <PlayerCard p={slot.starter} shirtColor={shirtColor} substituteNames={slot.substituteNames} />
+            <PlayerCard p={slot.starter} shirtColor={shirtColor} substitutes={slot.substitutes} />
           </div>
         );
       })}
