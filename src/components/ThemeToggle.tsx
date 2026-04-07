@@ -2,46 +2,27 @@
 
 import { useTheme } from "@/contexts/ThemeContext";
 
-function MoonIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-chalk-300 shrink-0">
-      <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z" />
-    </svg>
-  );
-}
-
-function SunIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-chalk-300 shrink-0">
-      <circle cx="12" cy="12" r="5" />
-      <line x1="12" y1="1" x2="12" y2="3" />
-      <line x1="12" y1="21" x2="12" y2="23" />
-      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-      <line x1="1" y1="12" x2="3" y2="12" />
-      <line x1="21" y1="12" x2="23" y2="12" />
-      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-    </svg>
-  );
-}
-
 export default function ThemeToggle() {
   const { theme, toggle } = useTheme();
 
   return (
-    <div className="flex items-center gap-1.5 shrink-0">
-      <MoonIcon />
-      <label className="theme-switch">
-        <input
-          type="checkbox"
-          checked={theme === "light"}
-          onChange={toggle}
-          aria-label="Toggle light mode"
-        />
-        <span className="theme-slider" />
-      </label>
-      <SunIcon />
-    </div>
+    <label className="theme-switch">
+      <input
+        type="checkbox"
+        checked={theme === "light"}
+        onChange={toggle}
+        aria-label="Toggle light mode"
+      />
+      <span className="theme-slider">
+        <span className="theme-star theme-star-1" />
+        <span className="theme-star theme-star-2" />
+        <span className="theme-star theme-star-3" />
+        <svg className="theme-cloud" viewBox="0 0 100 60" fill="white">
+          <ellipse cx="50" cy="45" rx="40" ry="15" />
+          <ellipse cx="35" cy="38" rx="20" ry="18" />
+          <ellipse cx="60" cy="33" rx="25" ry="22" />
+        </svg>
+      </span>
+    </label>
   );
 }

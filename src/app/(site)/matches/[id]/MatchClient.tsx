@@ -28,7 +28,7 @@ type MatchInfo = {
   awayTeam: TeamInfo;
 };
 
-type SortKey = "goals" | "assists" | "second_assists" | "shots" | "shots_on_target" | "passes" | "passes_completed" | "pass_pct" | "key_passes" | "chances_created" | "interceptions" | "saves" | "offsides" | "fouls" | "fouls_suffered" | "yellow_cards" | "red_cards" | "own_goals" | "goals_conceded" | "corners" | "throw_ins" | "free_kicks" | "goal_kicks" | "penalties" | "distance_run" | "xg";
+type SortKey = "goals" | "assists" | "second_assists" | "shots" | "shots_on_target" | "passes" | "passes_completed" | "pass_pct" | "key_passes" | "chances_created" | "interceptions" | "saves" | "offsides" | "fouls" | "fouls_suffered" | "yellow_cards" | "red_cards" | "own_goals" | "goals_conceded" | "corners" | "throw_ins" | "free_kicks" | "goal_kicks" | "penalties" | "distance_run" | "xg" | "possession";
 
 type TeamAvgVisual = {
   badgeClass: string;
@@ -120,6 +120,7 @@ export default function MatchClient({
   extraEvents: MatchExtraEvent[];
 }) {
   const [selectedMapEventId, setSelectedMapEventId] = useState<string | null>(null);
+  const [lineupShowTitles, setLineupShowTitles] = useState(false);
   const [visibleMarkers, setVisibleMarkers] = useState<Record<MarkerType, boolean>>({
     goal: true,
     save: true,
@@ -447,10 +448,30 @@ export default function MatchClient({
       </div>
 
       <div className="mb-6">
-        <h2 className="font-display font-700 text-base tracking-wider text-chalk-100 mb-3">LINEUPS</h2>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <h2 className="font-display font-700 text-base tracking-wider text-chalk-100">LINEUPS</h2>
+            {lineupShowTitles && (
+              <span className="font-display font-700 text-base tracking-wider text-chalk-500">(titles appear to the right of each player)</span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={`text-sm font-mono tracking-wider transition-colors ${!lineupShowTitles ? "text-[#F4119E] font-bold" : "text-chalk-500"}`}>Stats</span>
+            <label className="lineup-switch">
+              <input
+                type="checkbox"
+                checked={lineupShowTitles}
+                onChange={() => setLineupShowTitles((v) => !v)}
+                aria-label="Toggle titles"
+              />
+              <span className="lineup-slider" />
+            </label>
+            <span className={`text-sm font-mono tracking-wider transition-colors ${lineupShowTitles ? "text-[#F4119E] font-bold" : "text-chalk-500"}`}>Titles</span>
+          </div>
+        </div>
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-          <LineupGraphic players={homePlayers} teamName={match.homeTeam.name} teamLogo={match.homeTeam.logo} teamColor={match.homeTeam.color} />
-          <LineupGraphic players={awayPlayers} teamName={match.awayTeam.name} teamLogo={match.awayTeam.logo} teamColor={match.awayTeam.color} />
+          <LineupGraphic players={homePlayers} teamName={match.homeTeam.name} teamLogo={match.homeTeam.logo} teamColor={match.homeTeam.color} showTitles={lineupShowTitles} shots={shots} potm={match.potm} totalPossession={playerStats.reduce((s, p) => s + p.possession, 0)} />
+          <LineupGraphic players={awayPlayers} teamName={match.awayTeam.name} teamLogo={match.awayTeam.logo} teamColor={match.awayTeam.color} showTitles={lineupShowTitles} shots={shots} potm={match.potm} totalPossession={playerStats.reduce((s, p) => s + p.possession, 0)} />
         </div>
       </div>
 
@@ -744,7 +765,7 @@ export default function MatchClient({
           side: "away" as const,
         },
       ].map((team) => (
-        <SortablePlayerTable key={team.side} team={team} shots={shots} potm={match.potm} />
+        <SortablePlayerTable key={team.side} team={team} shots={shots} potm={match.potm} totalPossession={playerStats.reduce((s, p) => s + p.possession, 0)} />
       ))}
     </div>
   );
@@ -1104,16 +1125,26 @@ function PlayerCard({
   p,
   shirtColor,
   substitutes,
+  showTitles,
+  playerXg,
+  potm,
+  totalPossession,
 }: {
   p: MatchPlayer;
   shirtColor: string;
   substitutes: LineupSubstitute[];
+  showTitles: boolean;
+  playerXg: number;
+  potm: string | null;
+  totalPossession: number;
 }) {
   // Manual tuning knobs for marker placement.
   const markerTop = "35%";
   const goalsAssistRight = "calc(100% - 4px)";
   const cardsLeft = "calc(100% - 4px)";
   const assistOffsetY = 24;
+
+  const titleLabels = showTitles ? getPlayerLabels(p, playerXg, potm, totalPossession) : [];
 
   return (
     <div className="flex flex-col items-center gap-0">
@@ -1124,41 +1155,70 @@ function PlayerCard({
         <div className="relative">
           <ShirtIcon color={shirtColor} label={p.position || '?'} />
 
-          {/* Left side: goals + assists */}
-          {(p.goals > 0 || p.assists > 0) && (
-            <div className="absolute" style={{ top: markerTop, right: goalsAssistRight }}>
-              {p.goals > 0 && (
-                <div className="absolute right-0 -translate-y-1/2 flex items-center gap-0.5">
-                  <span className="text-sm leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.75)]">⚽</span>
-                  <span className="text-[12px] font-mono font-bold text-white leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{p.goals}</span>
-                </div>
-              )}
-              {p.assists > 0 && (
-                <div
-                  className="absolute right-0 -translate-y-1/2 flex items-center gap-0.5"
-                  style={{ transform: `translateY(calc(-50% + ${assistOffsetY}px))` }}
-                >
-                  <ShoeIcon />
-                  <span className="text-[12px] font-mono font-bold text-white leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{p.assists}</span>
-                </div>
-              )}
+          {/* Title badges to the right of the shirt */}
+          {showTitles && titleLabels.length > 0 && (
+            <div className="absolute top-1/2 -translate-y-1/2 left-[calc(100%-8px)] flex flex-col gap-1 items-start" style={{ minWidth: "56px" }}>
+              {titleLabels.map((lbl) => (
+                lbl.text === "MVP"
+                  ? (
+                    <span
+                      key={lbl.text}
+                      className="rounded px-1.5 py-0.5 text-[12px] font-mono font-bold leading-tight text-slate-900 shadow-md"
+                      style={{ background: "linear-gradient(90deg, hsla(141,81%,87%,1) 0%, hsla(41,88%,75%,1) 50%, hsla(358,82%,71%,1) 100%)" }}
+                    >
+                      {lbl.text}
+                    </span>
+                  ) : (
+                    <span
+                      key={lbl.text}
+                      className={`rounded px-1.5 py-0.5 text-[12px] font-mono font-bold leading-tight ${labelClass(lbl.sentiment)}`}
+                    >
+                      {lbl.text}
+                    </span>
+                  )
+              ))}
             </div>
           )}
 
-          {/* Right side: cards */}
-          {(p.yellow_cards > 0 || p.red_cards > 0) && (
-            <div
-              className="absolute -translate-y-1/2 flex flex-col gap-0.5 items-start"
-              style={{ top: markerTop, left: cardsLeft }}
-            >
-              {p.yellow_cards > 0 && <span className="text-base leading-none">🟨</span>}
-              {p.red_cards > 0 && <span className="text-base leading-none">🟥</span>}
-            </div>
+          {!showTitles && (
+            <>
+              {/* Left side: goals + assists */}
+              {(p.goals > 0 || p.assists > 0) && (
+                <div className="absolute" style={{ top: markerTop, right: goalsAssistRight }}>
+                  {p.goals > 0 && (
+                    <div className="absolute right-0 -translate-y-1/2 flex items-center gap-0.5">
+                      <span className="text-sm leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.75)]">⚽</span>
+                      <span className="text-[12px] font-mono font-bold text-white leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{p.goals}</span>
+                    </div>
+                  )}
+                  {p.assists > 0 && (
+                    <div
+                      className="absolute right-0 -translate-y-1/2 flex items-center gap-0.5"
+                      style={{ transform: `translateY(calc(-50% + ${assistOffsetY}px))` }}
+                    >
+                      <ShoeIcon />
+                      <span className="text-[12px] font-mono font-bold text-white leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{p.assists}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Right side: cards */}
+              {(p.yellow_cards > 0 || p.red_cards > 0) && (
+                <div
+                  className="absolute -translate-y-1/2 flex flex-col gap-0.5 items-start"
+                  style={{ top: markerTop, left: cardsLeft }}
+                >
+                  {p.yellow_cards > 0 && <span className="text-base leading-none">🟨</span>}
+                  {p.red_cards > 0 && <span className="text-base leading-none">🟥</span>}
+                </div>
+              )}
+            </>
           )}
         </div>
 
         <div className="-mt-1 max-w-[88px] rounded-sm bg-slate-950/80 px-1.5 py-0.5 text-center group-hover:bg-slate-800">
-          <div className="truncate text-[9px] font-mono font-bold text-white transition-colors group-hover:text-[#F4119E]">{p.username}</div>
+          <div className="truncate text-[11px] font-mono font-bold text-white transition-colors group-hover:text-[#F4119E]">{p.username}</div>
         </div>
       </Link>
 
@@ -1186,10 +1246,18 @@ function FormationRow({
   players,
   top,
   shirtColor,
+  showTitles,
+  playerXgMap,
+  potm,
+  totalPossession,
 }: {
   players: LineupSlot[];
   top: string;
   shirtColor: string;
+  showTitles: boolean;
+  playerXgMap: Map<string, number>;
+  potm: string | null;
+  totalPossession: number;
 }) {
   if (players.length === 0) return null;
 
@@ -1202,7 +1270,15 @@ function FormationRow({
         const spread = (index - (players.length - 1) / 2) * 6;
         return (
           <div key={slot.starter.player_steam_id} style={{ transform: `translateX(${spread}px)` }}>
-            <PlayerCard p={slot.starter} shirtColor={shirtColor} substitutes={slot.substitutes} />
+            <PlayerCard
+              p={slot.starter}
+              shirtColor={shirtColor}
+              substitutes={slot.substitutes}
+              showTitles={showTitles}
+              playerXg={playerXgMap.get(slot.starter.player_steam_id) || 0}
+              potm={potm}
+              totalPossession={totalPossession}
+            />
           </div>
         );
       })}
@@ -1211,12 +1287,16 @@ function FormationRow({
 }
 
 function LineupGraphic({
-  players, teamName, teamLogo, teamColor,
+  players, teamName, teamLogo, teamColor, showTitles, shots, potm, totalPossession,
 }: {
   players: MatchPlayer[]; teamName: string; teamLogo: string | null; teamColor: string | null;
+  showTitles: boolean; shots: MatchShot[]; potm: string | null; totalPossession: number;
 }) {
   const lineup = getLineupRows(players);
   const shirtColor = teamColor || '#1e293b';
+
+  const playerXgMap = new Map<string, number>();
+  for (const s of shots) playerXgMap.set(s.player_steam_id, (playerXgMap.get(s.player_steam_id) || 0) + s.xg);
 
   return (
     <div
@@ -1259,10 +1339,10 @@ function LineupGraphic({
         <path d="M 299 388 A 11 11 0 0 0 288 399" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1" />
       </svg>
 
-      <FormationRow players={lineup.attack} top="19%" shirtColor={shirtColor} />
-      <FormationRow players={lineup.midfield} top="41%" shirtColor={shirtColor} />
-      <FormationRow players={lineup.defense} top="65%" shirtColor={shirtColor} />
-      <FormationRow players={lineup.goalkeepers} top="88%" shirtColor={shirtColor} />
+      <FormationRow players={lineup.attack} top="19%" shirtColor={shirtColor} showTitles={showTitles} playerXgMap={playerXgMap} potm={potm} totalPossession={totalPossession} />
+      <FormationRow players={lineup.midfield} top="41%" shirtColor={shirtColor} showTitles={showTitles} playerXgMap={playerXgMap} potm={potm} totalPossession={totalPossession} />
+      <FormationRow players={lineup.defense} top="65%" shirtColor={shirtColor} showTitles={showTitles} playerXgMap={playerXgMap} potm={potm} totalPossession={totalPossession} />
+      <FormationRow players={lineup.goalkeepers} top="88%" shirtColor={shirtColor} showTitles={showTitles} playerXgMap={playerXgMap} potm={potm} totalPossession={totalPossession} />
     </div>
   );
 }
@@ -1276,6 +1356,7 @@ function getPlayerLabels(
   p: MatchPlayer,
   pxg: number,
   potm: string | null,
+  totalPossession: number,
 ): PlayerLabel[] {
   const labels: PlayerLabel[] = [];
   const isGK = (p.position || "").toUpperCase() === "GK";
@@ -1286,24 +1367,29 @@ function getPlayerLabels(
   }
 
   if (isGK) {
-    // Wall: saves >= 3 AND saves >= 2× goals conceded
+    // Shot Stopper: saves >= 3 AND saves >= 2× goals conceded
     if (p.saves >= 3 && p.saves >= p.goals_conceded * 2) {
-      labels.push({ text: "Wall", sentiment: "positive" });
+      labels.push({ text: "Shot Stopper", sentiment: "positive" });
     }
-    // Sieve: 3+ goals conceded with ≤1 save
-    if (p.goals_conceded >= 3 && p.saves <= 1) {
-      labels.push({ text: "Sieve", sentiment: "negative" });
+    // Exposed: goals conceded are double or above saves
+    if (p.goals_conceded >= 2 && p.goals_conceded >= p.saves * 2) {
+      labels.push({ text: "Exposed", sentiment: "negative" });
     }
     return labels.slice(0, 2);
   }
 
-  // Clinical: conversion rate ≥65% (need ≥1 goal and ≥1 shot)
-  if (p.goals > 0 && p.shots > 0 && p.goals / p.shots >= 0.65) {
-    labels.push({ text: "Clinical", sentiment: "positive" });
+  // Hattrick: goals >= 3
+  if (p.goals >= 3) {
+    labels.push({ text: "Hattrick", sentiment: "positive" });
+  }
+
+  // Lethal: conversion rate ≥65% (need ≥1 goal and ≥1 shot, not already Hattrick)
+  if (p.goals > 0 && p.shots > 0 && p.goals / p.shots >= 0.65 && !labels.some((l) => l.text === "Hattrick")) {
+    labels.push({ text: "Lethal", sentiment: "positive" });
   }
 
   // Sniper: scored but very low xG (cold finisher)
-  if (p.goals > 0 && pxg < 0.3 && !labels.some((l) => l.text === "Clinical")) {
+  if (p.goals > 0 && pxg < 0.3 && !labels.some((l) => l.text === "Lethal" || l.text === "Hattrick")) {
     labels.push({ text: "Sniper", sentiment: "positive" });
   }
 
@@ -1312,41 +1398,49 @@ function getPlayerLabels(
     labels.push({ text: "Playmaker", sentiment: "positive" });
   }
 
-  // Box-to-Box: offensive + defensive contribution (8v8 threshold)
+  // Complete: offensive + defensive contribution
   if ((p.goals + p.assists) >= 1 && p.interceptions >= 4 && !labels.some((l) => l.text === "Playmaker")) {
-    labels.push({ text: "Box-to-Box", sentiment: "positive" });
+    labels.push({ text: "Complete", sentiment: "positive" });
   }
 
-  // Pitbull: high interceptions (8v8 threshold: 8+)
-  if (p.interceptions >= 8 && !labels.some((l) => l.text === "Box-to-Box")) {
-    labels.push({ text: "Pitbull", sentiment: "positive" });
+  // Interceptor: high interceptions (12+)
+  if (p.interceptions >= 12 && !labels.some((l) => l.text === "Complete")) {
+    labels.push({ text: "Interceptor", sentiment: "positive" });
   }
 
-  // Metronome: many passes + high accuracy (8v8: 20+ passes, ≥80%)
-  if (p.passes >= 20 && p.passes > 0 && p.passes_completed / p.passes >= 0.80) {
-    labels.push({ text: "Metronome", sentiment: "neutral" });
+  // Dictator: many passes + high accuracy (35+ passes, ≥80%)
+  if (p.passes >= 35 && p.passes > 0 && p.passes_completed / p.passes >= 0.80) {
+    labels.push({ text: "Dictator", sentiment: "positive" });
   }
 
-  // Wasteful: decent xG but no goals
-  if (pxg >= 0.4 && p.goals === 0) {
-    labels.push({ text: "Wasteful", sentiment: "negative" });
-  }
+  // Skip negative labels for MVP
+  if (!labels.some((l) => l.text === "MVP")) {
+    // Profligate: very high xG but no goals
+    if (pxg >= 2 && p.goals === 0) {
+      labels.push({ text: "Profligate", sentiment: "negative" });
+    }
 
-  // Ghost: zero offensive and defensive contribution (8v8 thresholds)
-  if (p.shots === 0 && p.assists === 0 && p.interceptions <= 1 && p.passes <= 8) {
-    labels.push({ text: "Ghost", sentiment: "negative" });
-  }
+    // Off Target: many shots but no goals
+    if (p.shots >= 4 && p.goals === 0) {
+      labels.push({ text: "Off Target", sentiment: "negative" });
+    }
 
-  // Passenger: high possession but zero contributions (8v8: possession > 12%)
-  if (
-    p.possession > 12 &&
-    p.goals === 0 &&
-    p.assists === 0 &&
-    p.key_passes === 0 &&
-    p.interceptions <= 1 &&
-    !labels.some((l) => l.text === "Metronome")
-  ) {
-    labels.push({ text: "Passenger", sentiment: "negative" });
+    // Ghost: zero offensive and defensive contribution
+    if (p.goals === 0 && p.assists === 0 && p.interceptions <= 2 && p.passes <= 10) {
+      labels.push({ text: "Ghost", sentiment: "negative" });
+    }
+
+    // Passenger: possession% > 8% but zero contributions
+    const possessionPct = totalPossession > 0 ? (p.possession / totalPossession) * 100 : 0;
+    if (
+      possessionPct > 8 &&
+      p.goals === 0 &&
+      p.assists === 0 &&
+      p.interceptions <= 4 &&
+      !labels.some((l) => l.text === "Dictator")
+    ) {
+      labels.push({ text: "Passenger", sentiment: "negative" });
+    }
   }
 
   return labels.slice(0, 2);
@@ -1362,8 +1456,9 @@ function labelClass(sentiment: PlayerLabel["sentiment"]) {
 
 
 function SortablePlayerTable({
-  team, shots, potm,
+  team, shots, potm, totalPossession,
 }: {
+  totalPossession: number;
   team: {
     label: string;
     logo: string | null;
@@ -1397,44 +1492,42 @@ function SortablePlayerTable({
     let av: number, bv: number;
     if (sortKey === "xg") { av = playerXgMap.get(a.player_steam_id) || 0; bv = playerXgMap.get(b.player_steam_id) || 0; }
     else if (sortKey === "pass_pct") { av = getPassPct(a); bv = getPassPct(b); }
+    else if (sortKey === "possession") { av = totalPossession > 0 ? a.possession / totalPossession : 0; bv = totalPossession > 0 ? b.possession / totalPossession : 0; }
     else { av = Number(a[sortKey] || 0); bv = Number(b[sortKey] || 0); }
     return sortAsc ? av - bv : bv - av;
   });
 
   const [showMore, setShowMore] = useState(false);
 
-  const baseCols: { key: SortKey | null; label: string; align: string }[] = [
-    { key: null, label: "PLAYER", align: "text-left" },
-    { key: null, label: "POS", align: "text-center" },
-    { key: "goals", label: "G", align: "text-right" },
-    { key: "shots", label: "SH", align: "text-right" },
-    { key: "shots_on_target", label: "OT", align: "text-right" },
-    { key: "assists", label: "A", align: "text-right" },
-    { key: "second_assists", label: "2ND", align: "text-right" },
-    { key: "key_passes", label: "KP", align: "text-right" },
-    { key: "chances_created", label: "CC", align: "text-right" },
-    { key: "passes", label: "PAS", align: "text-right" },
-    { key: "passes_completed", label: "CMP", align: "text-right" },
-    { key: "pass_pct", label: "%", align: "text-right" },
-    { key: "interceptions", label: "INT", align: "text-right" },
-    { key: "saves", label: "SVS", align: "text-right" },
-    { key: "xg", label: "xG", align: "text-right" },
+  const baseCols: { key: SortKey | null; label: string; align: string; tooltip: string }[] = [
+    { key: null, label: "PLAYER", align: "text-left", tooltip: "Player" },
+    { key: null, label: "POS", align: "text-center", tooltip: "Position" },
+    { key: "goals", label: "G", align: "text-right", tooltip: "Goals" },
+    { key: "shots", label: "SH", align: "text-right", tooltip: "Shots" },
+    { key: "shots_on_target", label: "OT", align: "text-right", tooltip: "Shots on Target" },
+    { key: "assists", label: "A", align: "text-right", tooltip: "Assists" },
+    { key: "second_assists", label: "2ND", align: "text-right", tooltip: "Second Assists" },
+    { key: "key_passes", label: "KP", align: "text-right", tooltip: "Key Passes" },
+    { key: "chances_created", label: "CC", align: "text-right", tooltip: "Chances Created" },
+    { key: "passes", label: "PAS", align: "text-right", tooltip: "Passes" },
+    { key: "passes_completed", label: "CMP", align: "text-right", tooltip: "Passes Completed" },
+    { key: "pass_pct", label: "%", align: "text-right", tooltip: "Pass Accuracy %" },
+    { key: "possession", label: "POS%", align: "text-right", tooltip: "Ball Possession %" },
+    { key: "interceptions", label: "INT", align: "text-right", tooltip: "Interceptions" },
+    { key: "saves", label: "SVS", align: "text-right", tooltip: "Saves" },
+    { key: "xg", label: "xG", align: "text-right", tooltip: "Expected Goals (xG)" },
   ];
 
-  const extraCols: { key: SortKey | null; label: string; align: string }[] = [
-    { key: "offsides", label: "OFF", align: "text-right" },
-    { key: "distance_run", label: "DIST", align: "text-right" },
-    { key: "fouls", label: "FLS", align: "text-right" },
-    { key: "fouls_suffered", label: "FS", align: "text-right" },
-    { key: "own_goals", label: "OG", align: "text-right" },
-    { key: "goals_conceded", label: "GC", align: "text-right" },
-    { key: "corners", label: "CRN", align: "text-right" },
-    { key: "throw_ins", label: "TI", align: "text-right" },
-    { key: "free_kicks", label: "FK", align: "text-right" },
-    { key: "goal_kicks", label: "GK", align: "text-right" },
-    { key: "penalties", label: "PEN", align: "text-right" },
-    { key: "yellow_cards", label: "YC", align: "text-right" },
-    { key: "red_cards", label: "RC", align: "text-right" },
+  const extraCols: { key: SortKey | null; label: string; align: string; tooltip: string }[] = [
+    { key: "offsides", label: "OFF", align: "text-right", tooltip: "Offsides" },
+    { key: "distance_run", label: "DIST", align: "text-right", tooltip: "Distance Run" },
+    { key: "fouls", label: "FLS", align: "text-right", tooltip: "Fouls Committed" },
+    { key: "corners", label: "CRN", align: "text-right", tooltip: "Corners" },
+    { key: "throw_ins", label: "TI", align: "text-right", tooltip: "Throw-ins" },
+    { key: "free_kicks", label: "FK", align: "text-right", tooltip: "Free Kicks" },
+    { key: "penalties", label: "PEN", align: "text-right", tooltip: "Penalties" },
+    { key: "yellow_cards", label: "YC", align: "text-right", tooltip: "Yellow Cards" },
+    { key: "red_cards", label: "RC", align: "text-right", tooltip: "Red Cards" },
   ];
 
   const cols = showMore ? [...baseCols, ...extraCols] : baseCols;
@@ -1467,6 +1560,7 @@ function SortablePlayerTable({
             <tr className="border-b border-chalk-100/8">
               {cols.map((col, ci) => (
                 <th key={ci}
+                  title={col.tooltip}
                   className={`${ci === 0 ? "px-3 w-[140px]" : ci === 1 ? "px-2 w-[40px]" : "px-2"} py-2 font-mono text-chalk-400 ${col.align} ${col.key ? "cursor-pointer hover:text-chalk-200 select-none transition-colors" : ""}`}
                   onClick={col.key ? () => handleSort(col.key as SortKey) : undefined}>
                   {col.label}
@@ -1491,6 +1585,7 @@ function SortablePlayerTable({
                   case "passes": return <span className="text-chalk-300">{p.passes}</span>;
                   case "passes_completed": return <span className="text-chalk-300">{p.passes_completed}</span>;
                   case "pass_pct": return <span className="text-chalk-300">{passAcc}%</span>;
+                  case "possession": return <span className="text-chalk-300">{totalPossession > 0 && p.possession > 0 ? (p.possession / totalPossession * 100).toFixed(1) + "%" : "-"}</span>;
                   case "key_passes": return <span className="text-chalk-300">{p.key_passes}</span>;
                   case "chances_created": return <span className="text-chalk-300">{p.chances_created}</span>;
                   case "interceptions": return <span className="text-chalk-300">{p.interceptions}</span>;
