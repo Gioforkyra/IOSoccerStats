@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getMatches, badgeSmallUrl } from "@/lib/iosoccer-api";
 
-const PAGE_SIZE = 15;
+const PAGE_SIZE = 10;
 
 const SERVER_FLAGS: Record<string, string> = {
   fr: "\u{1F1EB}\u{1F1F7}", de: "\u{1F1E9}\u{1F1EA}", uk: "\u{1F1EC}\u{1F1E7}", gb: "\u{1F1EC}\u{1F1E7}",

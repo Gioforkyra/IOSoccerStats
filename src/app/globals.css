@@ -234,6 +234,59 @@ html.light .matches-table tbody tr:hover   td { background-color: rgba(244,17,15
   text-shadow: none;
 }
 
+@keyframes top-rated-sheen {
+  0%, 68% { transform: translateX(-160%) skewX(-20deg); opacity: 0; }
+  72% { opacity: 0.85; }
+  88% { transform: translateX(190%) skewX(-20deg); opacity: 0.85; }
+  100% { transform: translateX(190%) skewX(-20deg); opacity: 0; }
+}
+
+.top-rated-player-item {
+  position: relative;
+  overflow: hidden;
+}
+
+.top-rated-medal {
+  border: 1px solid var(--medal-border);
+  background: linear-gradient(100deg, var(--medal-bg-start) 0%, var(--medal-bg-mid) 50%, var(--medal-bg-end) 100%);
+}
+
+.top-rated-medal::after {
+  content: "";
+  position: absolute;
+  top: -35%;
+  left: 0;
+  width: 34%;
+  height: 170%;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, var(--medal-sheen) 50%, rgba(255, 255, 255, 0) 100%);
+  animation: top-rated-sheen 3.2s ease-in-out infinite;
+}
+
+.top-rated-gold {
+  --medal-bg-start: rgba(117, 83, 20, 0.55);
+  --medal-bg-mid: rgba(212, 166, 58, 0.45);
+  --medal-bg-end: rgba(117, 83, 20, 0.55);
+  --medal-border: rgba(245, 210, 109, 0.55);
+  --medal-sheen: rgba(255, 245, 199, 0.82);
+}
+
+.top-rated-silver {
+  --medal-bg-start: rgba(90, 102, 118, 0.5);
+  --medal-bg-mid: rgba(174, 185, 196, 0.42);
+  --medal-bg-end: rgba(90, 102, 118, 0.5);
+  --medal-border: rgba(210, 219, 227, 0.52);
+  --medal-sheen: rgba(245, 249, 255, 0.8);
+}
+
+.top-rated-bronze {
+  --medal-bg-start: rgba(109, 70, 47, 0.52);
+  --medal-bg-mid: rgba(186, 121, 79, 0.42);
+  --medal-bg-end: rgba(109, 70, 47, 0.52);
+  --medal-border: rgba(217, 149, 103, 0.52);
+  --medal-sheen: rgba(255, 222, 200, 0.76);
+}
+
 /* Skeleton shimmer effect */
 @keyframes shimmer {
   0%   { background-position: -200% 0; }

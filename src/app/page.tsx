@@ -253,7 +253,15 @@ export default async function HomePage() {
                     <Link
                       key={player.steam_id}
                       href={`/players/${player.steam_id}`}
-                      className="flex items-center gap-2.5 rounded-md bg-pitch-800/40 px-2.5 py-2 pink-hover"
+                      className={`top-rated-player-item flex items-center gap-2.5 rounded-md bg-pitch-800/40 px-2.5 py-2 pink-hover ${
+                        i === 0
+                          ? "top-rated-medal top-rated-gold"
+                          : i === 1
+                            ? "top-rated-medal top-rated-silver"
+                            : i === 2
+                              ? "top-rated-medal top-rated-bronze"
+                              : ""
+                      }`}
                     >
                       <span className="w-4 text-[10px] font-mono text-chalk-400 text-center shrink-0">
                         {i + 1}
