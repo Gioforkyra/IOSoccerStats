@@ -355,7 +355,6 @@ export default function MatchClient({
   const totalPoss = rawHomePoss + rawAwayPoss;
   const homePossPct = totalPoss > 0 ? (rawHomePoss / totalPoss) * 100 : 50;
   const awayPossPct = totalPoss > 0 ? (rawAwayPoss / totalPoss) * 100 : 50;
-  const showLineups = false;
 
   useEffect(() => {
     const card = h2hCardRef.current;
@@ -447,24 +446,10 @@ export default function MatchClient({
         )}
       </div>
 
-      {showLineups && (
-        <div className="mb-8">
-          <div className="mb-3 flex items-end justify-between gap-4">
-            <div>
-              <h2 className="font-display text-base font-700 tracking-wider text-chalk-100">
-                STARTING LINEUPS
-              </h2>
-              <p className="mt-1 text-xs font-body text-chalk-400">
-                Vertical pitch view with starters separated from the bench.
-              </p>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-            <LineupGraphic players={homePlayers} teamName={match.homeTeam.name} teamLogo={match.homeTeam.logo} teamColor={match.homeTeam.color} />
-            <LineupGraphic players={awayPlayers} teamName={match.awayTeam.name} teamLogo={match.awayTeam.logo} teamColor={match.awayTeam.color} />
-          </div>
-        </div>
-      )}
+      <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <LineupGraphic players={homePlayers} teamName={match.homeTeam.name} teamLogo={match.homeTeam.logo} teamColor={match.homeTeam.color} />
+        <LineupGraphic players={awayPlayers} teamName={match.awayTeam.name} teamLogo={match.awayTeam.logo} teamColor={match.awayTeam.color} />
+      </div>
 
       {/* Horizontal shot map ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â full width */}
       <div className="mb-6">
@@ -755,7 +740,7 @@ export default function MatchClient({
           side: "away" as const,
         },
       ].map((team) => (
-        <SortablePlayerTable key={team.side} team={team} shots={shots} />
+        <SortablePlayerTable key={team.side} team={team} shots={shots} potm={match.potm} />
       ))}
     </div>
   );
@@ -952,69 +937,90 @@ function AccuracyCircle({ value, label, color }: { value: number; label: string;
 
 /* ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Lineup Player Card ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ */
 type LineupRows = {
-  attack: MatchPlayer[];
-  midfield: MatchPlayer[];
-  defense: MatchPlayer[];
-  goalkeepers: MatchPlayer[];
-  substitutes: MatchPlayer[];
+  attack: LineupSlot[];
+  midfield: LineupSlot[];
+  defense: LineupSlot[];
+  goalkeepers: LineupSlot[];
 };
 
-function getLineupRows(players: MatchPlayer[]): LineupRows {
-  const goalkeepers: MatchPlayer[] = [];
-  const defense: MatchPlayer[] = [];
-  const midfield: MatchPlayer[] = [];
-  const attack: MatchPlayer[] = [];
-  const extra: MatchPlayer[] = [];
+type CanonicalPosition = "LW" | "CF" | "RW" | "CM" | "LB" | "CB" | "RB" | "GK";
 
-  const sorted = [...players].sort((a, b) => b.possession - a.possession);
+type LineupSlot = {
+  starter: MatchPlayer;
+  substituteNames: string[];
+};
+
+function normalizeToCanonicalPosition(position: string | null): CanonicalPosition | null {
+  const pos = (position || "").toUpperCase();
+  if (pos === "LW" || pos === "LF") return "LW";
+  if (pos === "CF" || pos === "ST" || pos === "RF") return "CF";
+  if (pos === "RW") return "RW";
+  if (["CM", "LCM", "RCM", "CDM", "CAM", "LM", "RM", "DM", "AM"].includes(pos)) return "CM";
+  if (pos === "LB" || pos === "LWB") return "LB";
+  if (pos === "CB" || pos === "LCB" || pos === "RCB") return "CB";
+  if (pos === "RB" || pos === "RWB") return "RB";
+  if (pos === "GK") return "GK";
+  return null;
+}
+
+function getLineupRows(players: MatchPlayer[]): LineupRows {
+  const canonicalSlots: CanonicalPosition[] = ["LW", "CF", "RW", "CM", "LB", "CB", "RB", "GK"];
+  const bySlot = new Map<CanonicalPosition, MatchPlayer[]>(canonicalSlots.map((slot) => [slot, []]));
+
+  const sorted = [...players].sort((a, b) => {
+    if (b.minutes_played !== a.minutes_played) return b.minutes_played - a.minutes_played;
+    return b.possession - a.possession;
+  });
 
   for (const player of sorted) {
-    const position = (player.position || '').toUpperCase();
-
-    if (position === 'GK') goalkeepers.push(player);
-    else if (['LB', 'LCB', 'CB', 'RCB', 'RB', 'LWB', 'RWB'].includes(position)) defense.push(player);
-    else if (['LM', 'LCM', 'CM', 'RCM', 'RM', 'CDM', 'CAM', 'DM', 'AM'].includes(position)) midfield.push(player);
-    else if (position) attack.push(player);
-    else extra.push(player);
+    const slot = normalizeToCanonicalPosition(player.position);
+    if (!slot) continue;
+    bySlot.get(slot)!.push(player);
   }
 
-  const orderPlayers = (group: MatchPlayer[], order: string[], fallback: string) =>
-    [...group].sort((left, right) => {
-      const leftIndex = order.indexOf((left.position || fallback).toUpperCase());
-      const rightIndex = order.indexOf((right.position || fallback).toUpperCase());
-      const safeLeft = leftIndex === -1 ? order.length : leftIndex;
-      const safeRight = rightIndex === -1 ? order.length : rightIndex;
-      return safeLeft - safeRight;
-    });
+  const used = new Set<string>();
+  const starterBySlot = new Map<CanonicalPosition, MatchPlayer | null>();
 
-  const orderedAttack = orderPlayers(attack, ['LW', 'LF', 'ST', 'CF', 'RF', 'RW', 'CAM'], 'CF');
-  const orderedMidfield = orderPlayers(midfield, ['LM', 'LCM', 'CM', 'CDM', 'CAM', 'RCM', 'RM'], 'CM');
-  const orderedDefense = orderPlayers(defense, ['LWB', 'LB', 'LCB', 'CB', 'RCB', 'RB', 'RWB'], 'CB');
+  for (const slot of canonicalSlots) {
+    const candidates = bySlot.get(slot)!;
+    const preferredStarter = candidates.find((candidate) => !candidate.is_sub && !used.has(candidate.player_steam_id));
+    const fallbackStarter = candidates.find((candidate) => !used.has(candidate.player_steam_id));
+    const starter = preferredStarter || fallbackStarter || null;
+    if (starter) used.add(starter.player_steam_id);
+    starterBySlot.set(slot, starter);
+  }
 
-  const attackRow = orderedAttack.slice(0, 3);
-  const midfieldRow = orderedMidfield.slice(0, Math.max(1, Math.min(3, orderedMidfield.length)));
-  const defenseRow = orderedDefense.slice(0, 3);
-  const goalkeeperRow = goalkeepers.slice(0, 1);
+  const remainingPool = sorted.filter((player) => !used.has(player.player_steam_id));
+  for (const slot of canonicalSlots) {
+    if (starterBySlot.get(slot)) continue;
+    const replacement = remainingPool.shift() || null;
+    if (replacement) {
+      used.add(replacement.player_steam_id);
+      starterBySlot.set(slot, replacement);
+    }
+  }
 
-  const substitutes = [
-    ...orderedAttack.slice(attackRow.length),
-    ...orderedMidfield.slice(midfieldRow.length),
-    ...orderedDefense.slice(defenseRow.length),
-    ...goalkeepers.slice(goalkeeperRow.length),
-    ...extra,
-  ];
+  const slotEntry = (slot: CanonicalPosition): LineupSlot | null => {
+    const starter = starterBySlot.get(slot);
+    if (!starter) return null;
 
-  if (goalkeeperRow.length === 0 && substitutes.length > 0) goalkeeperRow.push(substitutes.shift()!);
-  if (defenseRow.length === 0 && substitutes.length > 0) defenseRow.push(substitutes.shift()!);
-  if (midfieldRow.length === 0 && substitutes.length > 0) midfieldRow.push(substitutes.shift()!);
-  if (attackRow.length === 0 && substitutes.length > 0) attackRow.push(substitutes.shift()!);
+    const subNames = bySlot
+      .get(slot)!
+      .filter((player) => player.player_steam_id !== starter.player_steam_id && player.is_sub)
+      .sort((a, b) => b.minutes_played - a.minutes_played)
+      .map((player) => player.username);
+
+    return {
+      starter: { ...starter, position: slot },
+      substituteNames: Array.from(new Set(subNames)),
+    };
+  };
 
   return {
-    attack: attackRow,
-    midfield: midfieldRow,
-    defense: defenseRow,
-    goalkeepers: goalkeeperRow,
-    substitutes,
+    attack: [slotEntry("LW"), slotEntry("CF"), slotEntry("RW")].filter((entry): entry is LineupSlot => entry != null),
+    midfield: [slotEntry("CM")].filter((entry): entry is LineupSlot => entry != null),
+    defense: [slotEntry("LB"), slotEntry("CB"), slotEntry("RB")].filter((entry): entry is LineupSlot => entry != null),
+    goalkeepers: [slotEntry("GK")].filter((entry): entry is LineupSlot => entry != null),
   };
 }
 
@@ -1041,53 +1047,107 @@ function StatChip({
   );
 }
 
-function ShirtIcon({
-  color,
-  label,
-  faded,
-}: {
-  color: string;
-  label: string;
-  faded?: boolean;
-}) {
+function ShirtIcon({ color, label }: { color: string; label: string }) {
   return (
-    <div className={`relative h-[60px] w-[72px] ${faded ? 'opacity-70' : ''}`}>
-      <svg viewBox="0 0 88 70" className="h-full w-full drop-shadow-[0_10px_18px_rgba(0,0,0,0.24)]">
-        <path
-          d="M25 8 37 2h14l12 6 13 17-10 8-9-6v38H31V27l-9 6-10-8Z"
-          fill={color}
-          stroke="rgba(255,255,255,0.3)"
-          strokeWidth="2"
-          strokeLinejoin="round"
-        />
-      </svg>
-      <span className="pointer-events-none absolute inset-x-0 top-[22px] text-center font-display text-sm font-700 uppercase tracking-wide text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.45)]">
+    <svg viewBox="0 0 24 24" className="h-20 w-20 drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)]" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path
+        d="M3 7L6 4H9C9 4.39397 9.0776 4.78407 9.22836 5.14805C9.37913 5.51203 9.6001 5.84274 9.87868 6.12132C10.1573 6.3999 10.488 6.62087 10.8519 6.77164C11.2159 6.9224 11.606 7 12 7C12.394 7 12.7841 6.9224 13.1481 6.77164C13.512 6.62087 13.8427 6.3999 14.1213 6.12132C14.3999 5.84274 14.6209 5.51203 14.7716 5.14805C14.9224 4.78407 15 4.39397 15 4H18L21 7L20.5 12L18 10.5V20H6V10.5L3.5 12L3 7Z"
+        fill={color}
+        stroke="rgba(255,255,255,0.45)"
+        strokeWidth="1.2"
+        strokeLinecap="square"
+        strokeLinejoin="round"
+      />
+      <text x="12" y="15" textAnchor="middle" fill="white" fontSize="3.8" fontFamily="monospace" fontWeight="bold">
         {label}
-      </span>
-    </div>
+      </text>
+    </svg>
   );
 }
 
-function PlayerCard({ p, shirtColor, isSub }: { p: MatchPlayer; shirtColor: string; isSub?: boolean }) {
+function ShoeIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 495.911 495.911" fill="white">
+      <path d="M444.679,320.672c60.387-17.744,65.879-54.018,24.439-73.301c-6.653-3.096-54.633-25.674-61.21-27.957l-1.89-0.656c-4.9-1.703-9.97-1.791-14.631-0.547c-2.886-3.867-6.919-6.939-11.819-8.641l-1.889-0.658c-4.9-1.701-9.97-1.789-14.631-0.545c-2.886-3.865-6.919-6.939-11.819-8.643l-1.889-0.656c-4.9-1.701-9.97-1.791-14.631-0.545c-2.886-3.867-6.919-6.939-11.819-8.643l-1.889-0.656c-4.9-1.701-9.971-1.791-14.631-0.547c-2.886-3.865-6.919-6.939-11.819-8.643l-1.889-0.654c-5.659-1.967-11.544-1.777-16.765,0.129c-0.182-0.115-0.379-0.234-0.544-0.346c-14.824-9.994-35.158-26.152-48.939-37.283c-43.333-35-57.647,1.104-73.656,18.482c-3.361,3.65-3.494,7.916-0.884,12.047c1.987,3.145,4.342,6.057,7.75,10.746c-12.025,1.246-22.703,2.32-33.373,3.469c-12.947,1.391-23.867-2.697-32.767-12.127c-4.546-4.814-8.502-10.287-13.512-14.535c-4.026-3.412-21.258-10.304-42.02-2.697C0.284,171.067-2.867,278.825,1.514,304.117c2.834,16.355,7.782,22.074,16.04,24.691l2.909,5.313l-1.239,12.289c-0.636,6.297,2.879,11.637,8.001,12.154c5.123,0.516,9.636-4.014,10.27-10.311l1.24-12.285l2.816-3.328c13.27,1.924,26.573,3.512,39.92,4.621l3.438,5.35l-0.378,12.346c-0.193,6.326,3.686,11.408,8.831,11.564c5.146,0.158,9.332-4.674,9.523-11l0.38-12.344l3.244-4.428c6.442,0.219,38.847-15.259,105.731-2.598c13.168,2.493,26.641,4.123,39.975,4.148c2.721,0.004,5.442-0.004,8.164-0.014l3.393,4.887l0.066,12.35c0.033,6.328,4.093,11.268,9.24,11.24c5.149-0.027,9.158-5.008,9.123-11.338l-0.064-12.348l3.472-5.113c15.932-0.344,31.859-0.949,47.763-1.82c2.788-0.154,5.576-0.318,8.363-0.492c0.09,0.125,0.179,0.248,0.282,0.365l4.744,5.314l1.565,12.25c0.803,6.279,5.432,10.688,10.538,10.035c5.107-0.654,8.481-6.082,7.679-12.361l-1.565-12.25l2.765-5.379c17.226-1.678,34.345-4.156,51.202-8.143c0.065,0.063,0.125,0.131,0.194,0.189l5.427,4.617l3.225,11.92c1.654,6.111,6.843,9.846,11.813,8.5s7.569-7.186,5.915-13.295l-3.226-11.922l2.359-6.721C444.664,320.74,444.668,320.705,444.679,320.672z" />
+    </svg>
+  );
+}
+
+function PlayerCard({
+  p,
+  shirtColor,
+  substituteNames,
+}: {
+  p: MatchPlayer;
+  shirtColor: string;
+  substituteNames: string[];
+}) {
+  // Manual tuning knobs for marker placement.
+  const markerTop = "35%";
+  const goalsAssistRight = "calc(100% - 4px)";
+  const cardsLeft = "calc(100% - 4px)";
+  const assistOffsetY = 24;
+
   return (
     <Link
       href={`/players/${encodeURIComponent(p.profile_steam_id || p.player_steam_id)}`}
-      className="group relative flex w-[92px] flex-col items-center"
+      className="group flex flex-col items-center gap-0"
     >
       <div className="relative">
-        <ShirtIcon color={shirtColor} label={p.position || '?'} faded={isSub} />
-        <div className="absolute -left-2 top-0 flex flex-col gap-1">
-          {p.goals > 0 && <StatChip label={`G${p.goals}`} tone="goal" />}
-          {p.red_cards > 0 && <StatChip label={`RC${p.red_cards}`} tone="danger" />}
-        </div>
-        <div className="absolute -right-2 top-0 flex flex-col gap-1">
-          {p.assists > 0 && <StatChip label={`A${p.assists}`} tone="assist" />}
-          {p.yellow_cards > 0 && <StatChip label={`YC${p.yellow_cards}`} tone="card" />}
-        </div>
+        <ShirtIcon color={shirtColor} label={p.position || '?'} />
+
+        {/* Left side: goals + assists */}
+        {(p.goals > 0 || p.assists > 0) && (
+          <div className="absolute" style={{ top: markerTop, right: goalsAssistRight }}>
+            {p.goals > 0 && (
+              <div className="absolute right-0 -translate-y-1/2 flex items-center gap-0.5">
+                <span className="text-sm leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.75)]">⚽</span>
+                <span className="text-[12px] font-mono font-bold text-white leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{p.goals}</span>
+              </div>
+            )}
+            {p.assists > 0 && (
+              <div
+                className="absolute right-0 -translate-y-1/2 flex items-center gap-0.5"
+                style={{ transform: `translateY(calc(-50% + ${assistOffsetY}px))` }}
+              >
+                <ShoeIcon />
+                <span className="text-[12px] font-mono font-bold text-white leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{p.assists}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Right side: cards */}
+        {(p.yellow_cards > 0 || p.red_cards > 0) && (
+          <div
+            className="absolute -translate-y-1/2 flex flex-col gap-0.5 items-start"
+            style={{ top: markerTop, left: cardsLeft }}
+          >
+            {p.yellow_cards > 0 && <span className="text-base leading-none">🟨</span>}
+            {p.red_cards > 0 && <span className="text-base leading-none">🟥</span>}
+          </div>
+        )}
       </div>
-      <span className="mt-2 max-w-full rounded-full bg-slate-950/88 px-2.5 py-1 text-center text-[10px] font-mono font-bold leading-tight text-white shadow-[0_8px_18px_rgba(0,0,0,0.24)] transition-colors group-hover:bg-slate-900">
-        {p.username}
-      </span>
+
+      <div className="-mt-1 max-w-[88px] rounded-sm bg-slate-950/80 px-1.5 py-0.5 text-center group-hover:bg-slate-800">
+        <div className="truncate text-[9px] font-mono font-bold text-white">{p.username}</div>
+      </div>
+
+      {substituteNames.length > 0 && (
+        <div className="mt-1.5 flex flex-col items-center gap-1">
+          {substituteNames.map((subName, index) => (
+            <div
+              key={`${subName}-${index}`}
+              className="max-w-[88px] rounded-sm bg-slate-950/80 px-1.5 py-0.5 text-center"
+            >
+              <div className="flex items-center justify-center gap-1 truncate text-[9px] font-mono font-bold text-white">
+                <span className="shrink-0 text-[#F4119E]" title="Substitute">&#x25B6;</span>
+                <span className="truncate">{subName}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </Link>
   );
 }
@@ -1097,7 +1157,7 @@ function FormationRow({
   top,
   shirtColor,
 }: {
-  players: MatchPlayer[];
+  players: LineupSlot[];
   top: string;
   shirtColor: string;
 }) {
@@ -1108,9 +1168,14 @@ function FormationRow({
       className="absolute left-0 right-0 flex -translate-y-1/2 justify-evenly gap-2 px-4"
       style={{ top }}
     >
-      {players.map((player) => (
-        <PlayerCard key={player.player_steam_id} p={player} shirtColor={shirtColor} />
-      ))}
+      {players.map((slot, index) => {
+        const spread = (index - (players.length - 1) / 2) * 6;
+        return (
+          <div key={slot.starter.player_steam_id} style={{ transform: `translateX(${spread}px)` }}>
+            <PlayerCard p={slot.starter} shirtColor={shirtColor} substituteNames={slot.substituteNames} />
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -1121,93 +1186,153 @@ function LineupGraphic({
   players: MatchPlayer[]; teamName: string; teamLogo: string | null; teamColor: string | null;
 }) {
   const lineup = getLineupRows(players);
-  const shirtColor = teamColor || '#111827';
+  const shirtColor = teamColor || '#1e293b';
 
   return (
-    <div className="overflow-hidden rounded-[28px] border border-white/10 bg-[#f3f5f7] shadow-[0_28px_70px_rgba(0,0,0,0.24)]">
-      <div className="flex items-center gap-3 border-b border-slate-200 bg-white px-5 py-4">
-        {teamLogo ? (
-          <img src={teamLogo} alt="" className="h-10 w-10 object-contain" />
-        ) : (
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 font-display text-sm font-700 uppercase text-slate-700">
-            {teamName.slice(0, 2)}
-          </div>
-        )}
-        <div className="min-w-0">
-          <div className="text-[11px] font-mono uppercase tracking-[0.2em] text-slate-500">
-            Starting Lineup
-          </div>
-          <div className="truncate font-display text-2xl font-700 uppercase tracking-wide text-slate-900">
-            {teamName}
-          </div>
-        </div>
-        <div className="ml-auto text-right">
-          <div className="text-[11px] font-mono uppercase tracking-[0.16em] text-slate-500">
-            Bench
-          </div>
-          <div className="font-display text-xl font-700 text-slate-900">
-            {lineup.substitutes.length}
-          </div>
-        </div>
-      </div>
+    <div
+      className="relative overflow-hidden bg-[#3d7a38]"
+      style={{
+        aspectRatio: '3 / 3.3',
+        backgroundImage:
+          'repeating-linear-gradient(180deg, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 40px, transparent 40px, transparent 80px)',
+      }}
+    >
+      {/* Field markings — outer lines flush with container edges */}
+      <svg className="absolute inset-0 w-full h-full" viewBox="0 0 300 400" preserveAspectRatio="none">
+        {/* Outer boundary flush with edges (stroke-width 2, inset 1px so line is fully visible) */}
+        <rect x="1" y="1" width="298" height="398" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="2" />
+        {/* Halfway line */}
+        <line x1="1" y1="200" x2="299" y2="200" stroke="rgba(255,255,255,0.55)" strokeWidth="1.5" />
+        {/* Center circle */}
+        <circle cx="150" cy="200" r="40" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="1.5" />
+        <circle cx="150" cy="200" r="3" fill="rgba(255,255,255,0.7)" />
+        {/* Top penalty box (no top side — merges with boundary) */}
+        <path d="M 61 1 L 61 68 L 239 68 L 239 1" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5" />
+        {/* Top 6-yard box */}
+        <path d="M 107 1 L 107 26 L 193 26 L 193 1" fill="none" stroke="rgba(255,255,255,0.38)" strokeWidth="1" />
+        {/* Top penalty spot */}
+        <circle cx="150" cy="50" r="2.5" fill="rgba(255,255,255,0.55)" />
+        {/* Top penalty arc (outside penalty box) */}
+        <path d="M 116 68 A 38 38 0 0 0 184 68" fill="none" stroke="rgba(255,255,255,0.38)" strokeWidth="1" />
+        {/* Bottom penalty box */}
+        <path d="M 61 399 L 61 332 L 239 332 L 239 399" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5" />
+        {/* Bottom 6-yard box */}
+        <path d="M 107 399 L 107 374 L 193 374 L 193 399" fill="none" stroke="rgba(255,255,255,0.38)" strokeWidth="1" />
+        {/* Bottom penalty spot */}
+        <circle cx="150" cy="350" r="2.5" fill="rgba(255,255,255,0.55)" />
+        {/* Bottom penalty arc */}
+        <path d="M 116 332 A 38 38 0 0 1 184 332" fill="none" stroke="rgba(255,255,255,0.38)" strokeWidth="1" />
+        {/* Corner arcs */}
+        <path d="M 1 12 A 11 11 0 0 0 12 1" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1" />
+        <path d="M 288 1 A 11 11 0 0 0 299 12" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1" />
+        <path d="M 1 388 A 11 11 0 0 1 12 399" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1" />
+        <path d="M 299 388 A 11 11 0 0 0 288 399" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1" />
+      </svg>
 
-      <div className="p-3 sm:p-4">
-        <div
-          className="relative h-[620px] overflow-hidden rounded-[24px] border-4 border-white/90 bg-[#4b8b3f]"
-          style={{
-            backgroundImage:
-              'repeating-linear-gradient(180deg, rgba(255,255,255,0.08) 0px, rgba(255,255,255,0.08) 56px, rgba(255,255,255,0.03) 56px, rgba(255,255,255,0.03) 112px)',
-          }}
-        >
-          <div className="absolute inset-[10px] rounded-[18px] border-[3px] border-white/90" />
-          <div className="absolute left-[10px] right-[10px] top-1/2 h-[3px] -translate-y-1/2 bg-white/90" />
-          <div className="absolute left-1/2 top-1/2 h-28 w-28 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-white/90" />
-          <div className="absolute left-1/2 top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/90" />
-          <div className="absolute left-1/2 top-[10px] h-[96px] w-[150px] -translate-x-1/2 rounded-b-[18px] border-[3px] border-t-0 border-white/90" />
-          <div className="absolute left-1/2 top-[10px] h-[44px] w-[70px] -translate-x-1/2 rounded-b-[10px] border-[3px] border-t-0 border-white/90" />
-          <div className="absolute left-1/2 top-[98px] h-12 w-24 -translate-x-1/2 rounded-full border-[3px] border-white/90 border-t-0 opacity-90" />
-          <div className="absolute left-1/2 bottom-[10px] h-[96px] w-[150px] -translate-x-1/2 rounded-t-[18px] border-[3px] border-b-0 border-white/90" />
-          <div className="absolute left-1/2 bottom-[10px] h-[44px] w-[70px] -translate-x-1/2 rounded-t-[10px] border-[3px] border-b-0 border-white/90" />
-          <div className="absolute left-1/2 bottom-[98px] h-12 w-24 -translate-x-1/2 rounded-full border-[3px] border-white/90 border-b-0 opacity-90" />
-          <div className="absolute left-0 top-0 h-5 w-5 rounded-br-[18px] border-b-[3px] border-r-[3px] border-white/90" />
-          <div className="absolute right-0 top-0 h-5 w-5 rounded-bl-[18px] border-b-[3px] border-l-[3px] border-white/90" />
-          <div className="absolute bottom-0 left-0 h-5 w-5 rounded-tr-[18px] border-r-[3px] border-t-[3px] border-white/90" />
-          <div className="absolute bottom-0 right-0 h-5 w-5 rounded-tl-[18px] border-l-[3px] border-t-[3px] border-white/90" />
-
-          <FormationRow players={lineup.attack} top="18%" shirtColor={shirtColor} />
-          <FormationRow players={lineup.midfield} top="40%" shirtColor={shirtColor} />
-          <FormationRow players={lineup.defense} top="63%" shirtColor={shirtColor} />
-          <FormationRow players={lineup.goalkeepers} top="86%" shirtColor={shirtColor} />
-        </div>
-
-        {lineup.substitutes.length > 0 && (
-          <div className="mt-3 rounded-[22px] border border-slate-200 bg-white px-4 py-3">
-            <div className="text-[11px] font-mono uppercase tracking-[0.18em] text-slate-500">
-              Substitutes
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2.5">
-              {lineup.substitutes.map((player) => (
-                <Link
-                  key={player.player_steam_id}
-                  href={`/players/${encodeURIComponent(player.profile_steam_id || player.player_steam_id)}`}
-                  className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-body text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-100"
-                >
-                  <span className="font-medium">{player.username}</span>
-                  <span className="ml-2 font-mono text-[10px] uppercase text-slate-500">
-                    {player.position || 'SUB'}
-                  </span>
-                </Link>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
+      <FormationRow players={lineup.attack} top="19%" shirtColor={shirtColor} />
+      <FormationRow players={lineup.midfield} top="41%" shirtColor={shirtColor} />
+      <FormationRow players={lineup.defense} top="65%" shirtColor={shirtColor} />
+      <FormationRow players={lineup.goalkeepers} top="88%" shirtColor={shirtColor} />
     </div>
   );
 }
 
+type PlayerLabel = {
+  text: string;
+  sentiment: "positive" | "negative" | "neutral";
+};
+
+function getPlayerLabels(
+  p: MatchPlayer,
+  pxg: number,
+  potm: string | null,
+): PlayerLabel[] {
+  const labels: PlayerLabel[] = [];
+  const isGK = (p.position || "").toUpperCase() === "GK";
+
+  // MVP → only POTM
+  if (potm && p.username === potm) {
+    labels.push({ text: "MVP", sentiment: "positive" });
+  }
+
+  if (isGK) {
+    // Wall: saves >= 3 AND saves >= 2× goals conceded
+    if (p.saves >= 3 && p.saves >= p.goals_conceded * 2) {
+      labels.push({ text: "Wall", sentiment: "positive" });
+    }
+    // Sieve: 3+ goals conceded with ≤1 save
+    if (p.goals_conceded >= 3 && p.saves <= 1) {
+      labels.push({ text: "Sieve", sentiment: "negative" });
+    }
+    return labels.slice(0, 2);
+  }
+
+  // Clinical: conversion rate ≥65% (need ≥1 goal and ≥1 shot)
+  if (p.goals > 0 && p.shots > 0 && p.goals / p.shots >= 0.65) {
+    labels.push({ text: "Clinical", sentiment: "positive" });
+  }
+
+  // Sniper: scored but very low xG (cold finisher)
+  if (p.goals > 0 && pxg < 0.3 && !labels.some((l) => l.text === "Clinical")) {
+    labels.push({ text: "Sniper", sentiment: "positive" });
+  }
+
+  // Playmaker: 2+ assists
+  if (p.assists >= 2) {
+    labels.push({ text: "Playmaker", sentiment: "positive" });
+  }
+
+  // Box-to-Box: offensive + defensive contribution (8v8 threshold)
+  if ((p.goals + p.assists) >= 1 && p.interceptions >= 4 && !labels.some((l) => l.text === "Playmaker")) {
+    labels.push({ text: "Box-to-Box", sentiment: "positive" });
+  }
+
+  // Pitbull: high interceptions (8v8 threshold: 8+)
+  if (p.interceptions >= 8 && !labels.some((l) => l.text === "Box-to-Box")) {
+    labels.push({ text: "Pitbull", sentiment: "positive" });
+  }
+
+  // Metronome: many passes + high accuracy (8v8: 20+ passes, ≥80%)
+  if (p.passes >= 20 && p.passes > 0 && p.passes_completed / p.passes >= 0.80) {
+    labels.push({ text: "Metronome", sentiment: "neutral" });
+  }
+
+  // Wasteful: decent xG but no goals
+  if (pxg >= 0.4 && p.goals === 0) {
+    labels.push({ text: "Wasteful", sentiment: "negative" });
+  }
+
+  // Ghost: zero offensive and defensive contribution (8v8 thresholds)
+  if (p.shots === 0 && p.assists === 0 && p.interceptions <= 1 && p.passes <= 8) {
+    labels.push({ text: "Ghost", sentiment: "negative" });
+  }
+
+  // Passenger: high possession but zero contributions (8v8: possession > 12%)
+  if (
+    p.possession > 12 &&
+    p.goals === 0 &&
+    p.assists === 0 &&
+    p.key_passes === 0 &&
+    p.interceptions <= 1 &&
+    !labels.some((l) => l.text === "Metronome")
+  ) {
+    labels.push({ text: "Passenger", sentiment: "negative" });
+  }
+
+  return labels.slice(0, 2);
+}
+
+function labelClass(sentiment: PlayerLabel["sentiment"]) {
+  if (sentiment === "positive")
+    return "text-emerald-400 bg-emerald-950/70 border border-emerald-600/40";
+  if (sentiment === "negative")
+    return "text-red-400 bg-red-950/70 border border-red-600/40";
+  return "text-amber-400 bg-amber-950/70 border border-amber-600/40";
+}
+
+
 function SortablePlayerTable({
-  team, shots,
+  team, shots, potm,
 }: {
   team: {
     label: string;
@@ -1219,6 +1344,7 @@ function SortablePlayerTable({
     side: "home" | "away";
   };
   shots: MatchShot[];
+  potm: string | null;
 }) {
   const router = useRouter();
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
