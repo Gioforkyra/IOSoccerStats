@@ -43,32 +43,12 @@ export default function PrivacyPage() {
         <Section title="2. Data we process">
           <p className="mb-3">
             IOSHUBv2 does <strong className="text-chalk-100">not</strong> operate user accounts, login systems,
-            or any form of registration. No personal data is collected directly by this site.
+            or any form of registration. No personal data is collected directly.
           </p>
           <p>
-            By visiting this site, you interact with the following third-party processors, which may process
-            data independently:
-          </p>
-          <ul className="mt-3 space-y-2 list-none">
-            {[
-              {
-                name: "Vercel (Hosting provider)",
-                detail: "Processes standard server access logs including IP addresses for the purpose of serving web content and detecting abuse. Data may be processed in the United States. See Vercel's Privacy Policy for details.",
-              },
-              {
-                name: "Cloudflare (CDN & Security)",
-                detail: "May process your IP address and request metadata to protect against abuse, route traffic, and deliver content efficiently. Data may be processed in the United States. Cloudflare is certified under applicable data transfer frameworks. See Cloudflare's Privacy Policy for details.",
-              },
-            ].map((item) => (
-              <li key={item.name} className="border border-chalk-100/10 rounded-lg p-3 bg-pitch-900/50">
-                <span className="font-mono text-sm text-[#F4119E]">{item.name}</span>
-                <p className="text-sm text-chalk-400 mt-1">{item.detail}</p>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-3 text-sm text-chalk-400">
-            Both providers act as data processors under our use of their services. Their processing is based on
-            legitimate interests (security and service delivery) and/or contractual necessity.
+              This site is delivered through third-party infrastructure providers (Vercel and Cloudflare) which may process 
+            standard technical data such as IP addresses for security and content delivery purposes. For details, refer to 
+            their respective privacy policies.
           </p>
         </Section>
 
