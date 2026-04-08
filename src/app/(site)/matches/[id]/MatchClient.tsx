@@ -1156,18 +1156,18 @@ function PlayerCard({
               {(p.goals > 0 || p.assists > 0) && (
                 <div className="absolute" style={{ top: markerTop, right: goalsAssistRight }}>
                   {p.goals > 0 && (
-                    <div className="absolute right-0 -translate-y-1/2 flex items-center gap-0.5">
+                    <div className="absolute right-1 -translate-y-1/2 flex items-center gap-0.5">
                       <span className="text-sm leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.75)]">⚽</span>
-                      <span className="text-[12px] font-mono font-bold text-[#c5302e] leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{p.goals}</span>
+                      <span className="text-[12px] font-mono font-bold text-[#01dbff] leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{p.goals}</span>
                     </div>
                   )}
                   {p.assists > 0 && (
                     <div
-                      className="absolute right-0 -translate-y-1/2 flex items-center gap-0.5"
+                      className="absolute right-1 -translate-y-1/2 flex items-center gap-0.5"
                       style={{ transform: `translateY(calc(-50% + ${assistOffsetY}px))` }}
                     >
                       <ShoeIcon />
-                      <span className="text-[12px] font-mono font-bold text-[#f4762d] leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{p.assists}</span>
+                      <span className="text-[12px] font-mono font-bold text-[#f90c71] leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{p.assists}</span>
                     </div>
                   )}
                 </div>
