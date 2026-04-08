@@ -1,6 +1,12 @@
+import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: "Team Statistics — IOSHUBv2",
+  description: "IOSoccer team statistics leaderboard — goals, wins, matches played and more.",
+};
 
 export const revalidate = 300;
 

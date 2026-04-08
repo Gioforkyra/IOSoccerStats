@@ -1,8 +1,14 @@
+import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { getActiveTeams, type ApiTeamSummary } from "@/lib/iosoccer-api";
 import TeamsGrid from "./TeamsGrid";
 
 export const revalidate = 0;
+
+export const metadata: Metadata = {
+  title: "Teams — IOSHUBv2",
+  description: "All active IOSoccer teams with ratings, stats and squad information.",
+};
 
 const TEAM_TYPES = [
   { value: "1", label: "CLUB TEAMS" },

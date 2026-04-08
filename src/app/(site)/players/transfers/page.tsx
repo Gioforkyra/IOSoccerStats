@@ -1,4 +1,10 @@
+import type { Metadata } from "next";
 import { getTransfers, getPlayerById } from "@/lib/iosoccer-api";
+
+export const metadata: Metadata = {
+  title: "Player Transfers — IOSHUBv2",
+  description: "Latest IOSoccer player transfers and team movements.",
+};
 import { fetchSteamAvatarCached } from "@/lib/steam-avatar";
 import Link from "next/link";
 

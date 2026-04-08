@@ -1,9 +1,26 @@
+import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { proxyImg } from "@/lib/img";
 import TeamTabs from "./TeamTabs";
 import { ActivityHeatmap } from "@/components/ActivityHeatmap";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const teamId = parseInt(id, 10);
+  if (isNaN(teamId)) return { title: "Team — IOSHUBv2" };
+  const rows = await prisma.$queryRaw<{ name: string }[]>`SELECT name FROM teams WHERE id = ${teamId} LIMIT 1`;
+  if (!rows.length) return { title: "Team — IOSHUBv2" };
+  return {
+    title: `${rows[0].name} — IOSHUBv2`,
+    description: `Stats, squad, match history and results for ${rows[0].name} on IOSoccer.`,
+  };
+}
 
 type TeamStats = {
   total_matches: bigint;

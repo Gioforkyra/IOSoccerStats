@@ -1,5 +1,11 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getMatches, badgeSmallUrl } from "@/lib/iosoccer-api";
+
+export const metadata: Metadata = {
+  title: "Matches — IOSHUBv2",
+  description: "Browse the full IOSoccer match archive. Filter by type, region and page.",
+};
 
 const PAGE_SIZE = 10;
 

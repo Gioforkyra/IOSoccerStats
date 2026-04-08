@@ -1,6 +1,27 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import MatchClient from "./MatchClient";
 import { prisma } from "@/lib/prisma";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const matchId = parseInt(id, 10);
+  if (isNaN(matchId)) return { title: "Match — IOSHUBv2" };
+  const row = await prisma.match.findUnique({
+    where: { id: matchId },
+    select: { homeScore: true, awayScore: true, homeTeam: { select: { name: true } }, awayTeam: { select: { name: true } } },
+  });
+  if (!row) return { title: "Match — IOSHUBv2" };
+  const title = `${row.homeTeam?.name ?? "?"} ${row.homeScore ?? "?"}–${row.awayScore ?? "?"} ${row.awayTeam?.name ?? "?"} — IOSHUBv2`;
+  return {
+    title,
+    description: `Match breakdown, stats, shot map and xG for ${row.homeTeam?.name ?? "?"} vs ${row.awayTeam?.name ?? "?"} on IOSoccer.`,
+  };
+}
 
 export type MatchPlayer = {
   player_steam_id: string;

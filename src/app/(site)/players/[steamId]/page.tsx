@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -6,6 +7,21 @@ import { getPastTournaments, badgeSmallUrl } from "@/lib/iosoccer-api";
 import RatingChart from "@/components/RatingChart";
 
 export const revalidate = 0;
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ steamId: string }>;
+}): Promise<Metadata> {
+  const { steamId: rawSteamId } = await params;
+  const steamId = decodeURIComponent(rawSteamId);
+  const player = await prisma.player.findUnique({ where: { steamId }, select: { username: true } });
+  if (!player) return { title: "Player — IOSHUBv2" };
+  return {
+    title: `${player.username} — IOSHUBv2`,
+    description: `Stats, ratings, match history and team career for ${player.username} on IOSoccer.`,
+  };
+}
 
 type TeamStint = {
   team_id: number;

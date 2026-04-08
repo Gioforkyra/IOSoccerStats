@@ -1,8 +1,14 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { proxyImg } from "@/lib/img";
 import { getSteamAvatar } from "@/lib/steam-avatar";
 import { getRelatedSteamIds } from "@/lib/player-aliases";
+
+export const metadata: Metadata = {
+  title: "Player Head to Head — IOSHUBv2",
+  description: "Compare two IOSoccer players head to head — stats, ratings and match history.",
+};
 import { PlayerH2HPicker } from "./PlayerH2HPicker";
 import { H2HStatSlider, type StatPage } from "../../teams/h2h/H2HStatSlider";
 import { Prisma } from "@/generated/prisma/client";

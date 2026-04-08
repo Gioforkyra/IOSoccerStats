@@ -1,7 +1,13 @@
+import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import RatingsDistributionChart from "@/components/RatingsDistributionChart";
 import { getPlayerStatisticsTotals } from "@/lib/iosoccer-api";
+
+export const metadata: Metadata = {
+  title: "Player Ratings — IOSHUBv2",
+  description: "IOSoccer player ratings leaderboard and historical rating distribution.",
+};
 
 export const revalidate = 0;
 

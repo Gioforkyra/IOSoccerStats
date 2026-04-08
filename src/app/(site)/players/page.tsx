@@ -1,4 +1,10 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: "Player Statistics — IOSHUBv2",
+  description: "Full IOSoccer player statistics leaderboard. Filter by goals, assists, rating and more.",
+};
 import { MinAppsSelect } from "./MinAppsSelect";
 import { PendingLink } from "./PendingLink";
 import { PlayersFilterForm } from "./PlayersFilterForm";

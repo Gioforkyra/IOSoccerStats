@@ -84,9 +84,12 @@ export default async function HomePage() {
                   <img src="/favicon/favicon-96x96.png" alt="IOSHUBv2" className="w-12 h-12 md:w-16 md:h-16 object-contain" />
                   <span>IOS<span className="text-[#F4119E]">HUB</span>V2</span>
                 </h1>
-                <p className="mt-4 max-w-xl text-sm font-body leading-6 text-chalk-300">
-                  A personal fan project, not affiliated with the official IOSoccer website. Players, teams, live scores, match breakdowns and tournament tracking from one hub.
-                </p>
+                <Link
+                  href="/about"
+                  className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-chalk-100/15 bg-pitch-800/50 px-3 py-1.5 text-xs font-mono uppercase tracking-[0.18em] text-chalk-400 hover:text-chalk-100 hover:border-chalk-100/30 transition-all"
+                >
+                  About this project {"->"}
+                </Link>
               </div>
 
               {/* Right: Online badge + Ko-fi button stacked */}

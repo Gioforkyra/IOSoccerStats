@@ -1,6 +1,12 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getActiveTeams, badgeUrl } from "@/lib/iosoccer-api";
+
+export const metadata: Metadata = {
+  title: "Team Head to Head — IOSHUBv2",
+  description: "Compare two IOSoccer teams head to head — results, goals and win rates.",
+};
 import { proxyImg } from "@/lib/img";
 import { H2HPicker } from "./H2HPicker";
 import { H2HStatSlider, type StatPage } from "./H2HStatSlider";

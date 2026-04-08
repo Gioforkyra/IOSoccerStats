@@ -28,7 +28,7 @@ jobs:
       - name: Sync new matches (API list mode)
         working-directory: scraper
         env:
-          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          DIRECT_URL: "${{ secrets.DIRECT_URL }}"
         run: python sync_new.py --from-api
 
   # ── Ogni notte alle 2:00: metadata ─────────────────────────────────
@@ -53,37 +53,37 @@ jobs:
       - name: Sync teams metadata
         working-directory: scraper
         env:
-          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          DIRECT_URL: "${{ secrets.DIRECT_URL }}"
         run: python sync_teams.py
 
       - name: Sync tournaments
         working-directory: scraper
         env:
-          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          DIRECT_URL: "${{ secrets.DIRECT_URL }}"
         run: python sync_tournaments.py
 
       - name: Sync player IDs
         timeout-minutes: 15
         working-directory: scraper
         env:
-          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          DIRECT_URL: "${{ secrets.DIRECT_URL }}"
         run: python sync_player_ids.py
 
       - name: Fetch player ratings
         working-directory: scraper
         env:
-          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          DIRECT_URL: "${{ secrets.DIRECT_URL }}"
         run: python fetch_ratings.py
 
       - name: Update team avg ratings
         working-directory: scraper
         env:
-          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          DIRECT_URL: "${{ secrets.DIRECT_URL }}"
         run: python update_team_ratings.py
 
       - name: Backfill missing match records
         timeout-minutes: 12
         working-directory: scraper
         env:
-          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          DIRECT_URL: "${{ secrets.DIRECT_URL }}"
         run: python sync_missing_matches.py --workers 20

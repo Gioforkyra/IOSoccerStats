@@ -1,7 +1,13 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getMatches, badgeSmallUrl } from "@/lib/iosoccer-api";
 
 export const revalidate = 60;
+
+export const metadata: Metadata = {
+  title: "Fixtures — IOSHUBv2",
+  description: "Upcoming IOSoccer fixtures and scheduled matches.",
+};
 
 const PAGE_SIZE = 10;
 

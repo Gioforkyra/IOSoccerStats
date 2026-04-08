@@ -1,7 +1,13 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getPastTournaments, getCurrentTournaments, badgeSmallUrl, type ApiTournament } from "@/lib/iosoccer-api";
 
 export const revalidate = 300;
+
+export const metadata: Metadata = {
+  title: "Tournaments — IOSHUBv2",
+  description: "Browse all IOSoccer tournaments, leagues and cups — active and past.",
+};
 
 const TEAM_TYPES: Record<number, string> = { 1: "Club", 2: "National", 3: "Mix", 4: "Draft" };
 const FORMAT_LABELS: Record<number, string> = {
