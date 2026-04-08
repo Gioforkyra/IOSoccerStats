@@ -1396,7 +1396,7 @@ function getPlayerLabels(
     }
 
     // Ghost: zero offensive and defensive contribution
-    if (p.goals === 0 && p.assists === 0 && p.interceptions <= 2 && p.passes <= 10) {
+    if (p.goals === 0 && p.assists === 0 && p.interceptions <= 2 && p.passes_completed <= 10) {
       labels.push({ text: "Ghost", sentiment: "negative" });
     }
 
