@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, useMemo, useEffect, useRef } from "react";
 import type { Ref } from "react";
 import type { MatchExtraEvent, MatchPlayer, MatchShot } from "./page";
+import Jersey from "@/components/Jersey";
 
 type MarkerType = "goal" | "save" | "miss" | "yellow_card" | "red_card" | "own_goal";
 
@@ -443,7 +444,7 @@ export default function MatchClient({
         )}
 
         {match.potm && (
-          <div className="text-center mt-4"><span className="text-xs font-mono text-amber-400">POTM: {match.potm}</span></div>
+          <div className="text-center mt-4"><span className="text-xs font-mono text-amber-400">POTM: {playerStats.find((p) => p.profile_steam_id === match.potm || p.player_steam_id === match.potm)?.username ?? match.potm}</span></div>
         )}
       </div>
 
@@ -650,25 +651,19 @@ export default function MatchClient({
           ]).map((item) => {
             const enabled = visibleMarkers[item.key];
             return (
-              <button
-                key={item.key}
-                type="button"
-                onClick={() => setVisibleMarkers((prev) => ({ ...prev, [item.key]: !prev[item.key] }))}
-                className={`flex items-center gap-1.5 rounded px-1.5 py-0.5 transition-colors ${enabled ? "text-chalk-300" : "text-chalk-500/70"}`}
-                title={`${enabled ? "Hide" : "Show"} ${item.label}`}
-              >
-                <span
-                  className={`inline-flex h-3.5 w-3.5 items-center justify-center rounded-[3px] border ${enabled ? "border-grass-400 bg-grass-500/20" : "border-chalk-500/70 bg-transparent"}`}
-                  aria-hidden="true"
-                >
-                  <span className={`text-[10px] leading-none ${enabled ? "text-grass-400 opacity-100" : "opacity-0"}`}>{"✓"}</span>
+              <label key={item.key} className={`cl-checkbox flex items-center gap-0 transition-colors ${enabled ? "text-chalk-300" : "text-chalk-500/70"}`}>
+                <input
+                  type="checkbox"
+                  checked={enabled}
+                  onChange={() => setVisibleMarkers((prev) => ({ ...prev, [item.key]: !prev[item.key] }))}
+                />
+                <span className="flex items-center gap-1">
+                  <span>{item.icon}</span>
+                  <span>{item.label}</span>
                 </span>
-                <span>{item.icon}</span>
-                <span>{item.label}</span>
-              </button>
+              </label>
             );
           })}
-          <span className="text-chalk-400/40 ml-2">Click for details</span>
         </div>
       </div>
 
@@ -1087,31 +1082,6 @@ function StatChip({
   );
 }
 
-function ShirtIcon({ color, label }: { color: string; label: string }) {
-  const normalized = color.trim().toLowerCase();
-  const isWhiteShirt =
-    normalized === "white" ||
-    normalized === "#fff" ||
-    normalized === "#ffffff" ||
-    normalized === "rgb(255,255,255)" ||
-    normalized === "rgba(255,255,255,1)";
-
-  return (
-    <svg viewBox="0 0 24 24" className="h-20 w-20 drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)]" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path
-        d="M3 7L6 4H9C9 4.39397 9.0776 4.78407 9.22836 5.14805C9.37913 5.51203 9.6001 5.84274 9.87868 6.12132C10.1573 6.3999 10.488 6.62087 10.8519 6.77164C11.2159 6.9224 11.606 7 12 7C12.394 7 12.7841 6.9224 13.1481 6.77164C13.512 6.62087 13.8427 6.3999 14.1213 6.12132C14.3999 5.84274 14.6209 5.51203 14.7716 5.14805C14.9224 4.78407 15 4.39397 15 4H18L21 7L20.5 12L18 10.5V20H6V10.5L3.5 12L3 7Z"
-        fill={color}
-        stroke="rgba(255,255,255,0.45)"
-        strokeWidth="1.2"
-        strokeLinecap="square"
-        strokeLinejoin="round"
-      />
-      <text x="12" y="15" textAnchor="middle" fill={isWhiteShirt ? "#111111" : "white"} fontSize="3.8" fontFamily="monospace" fontWeight="bold">
-        {label}
-      </text>
-    </svg>
-  );
-}
 
 function ShoeIcon() {
   return (
@@ -1147,13 +1117,13 @@ function PlayerCard({
   const titleLabels = showTitles ? getPlayerLabels(p, playerXg, potm, totalPossession) : [];
 
   return (
-    <div className="flex flex-col items-center gap-0">
+    <div className="flex flex-col items-center gap-0 w-[72px]">
       <Link
         href={`/players/${encodeURIComponent(p.profile_steam_id || p.player_steam_id)}`}
-        className="group flex flex-col items-center gap-0"
+        className="group flex flex-col items-center gap-0 w-full"
       >
         <div className="relative">
-          <ShirtIcon color={shirtColor} label={p.position || '?'} />
+          <Jersey color={shirtColor} size={60} label={p.position || '?'} />
 
           {/* Title badges to the right of the shirt */}
           {showTitles && titleLabels.length > 0 && (
@@ -1188,7 +1158,7 @@ function PlayerCard({
                   {p.goals > 0 && (
                     <div className="absolute right-0 -translate-y-1/2 flex items-center gap-0.5">
                       <span className="text-sm leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.75)]">⚽</span>
-                      <span className="text-[12px] font-mono font-bold text-white leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{p.goals}</span>
+                      <span className="text-[12px] font-mono font-bold text-[#c5302e] leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{p.goals}</span>
                     </div>
                   )}
                   {p.assists > 0 && (
@@ -1197,7 +1167,7 @@ function PlayerCard({
                       style={{ transform: `translateY(calc(-50% + ${assistOffsetY}px))` }}
                     >
                       <ShoeIcon />
-                      <span className="text-[12px] font-mono font-bold text-white leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{p.assists}</span>
+                      <span className="text-[12px] font-mono font-bold text-[#f4762d] leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{p.assists}</span>
                     </div>
                   )}
                 </div>
@@ -1361,8 +1331,8 @@ function getPlayerLabels(
   const labels: PlayerLabel[] = [];
   const isGK = (p.position || "").toUpperCase() === "GK";
 
-  // MVP → only POTM
-  if (potm && p.username === potm) {
+  // MVP → match by steamID for accuracy
+  if (potm && (p.profile_steam_id === potm || p.player_steam_id === potm)) {
     labels.push({ text: "MVP", sentiment: "positive" });
   }
 

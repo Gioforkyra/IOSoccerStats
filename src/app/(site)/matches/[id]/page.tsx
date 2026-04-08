@@ -639,7 +639,7 @@ export default async function MatchPage({
 
   // Determine server and POTM
   const serverName: string | null = apiRaw.server?.name ?? null;
-  const potmName: string | null = apiRaw.playerOfTheMatch?.name ?? null;
+  const potmSteamId: string | null = apiRaw.playerOfTheMatch?.steamID ?? null;
 
   return (
     <MatchClient
@@ -648,7 +648,7 @@ export default async function MatchPage({
         date: matchDate,
         map: null,
         server: serverName,
-        potm: potmName,
+        potm: potmSteamId,
         homeScore,
         awayScore,
         homeTeam: {
