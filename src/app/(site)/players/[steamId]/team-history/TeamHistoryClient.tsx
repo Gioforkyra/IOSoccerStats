@@ -105,7 +105,7 @@ export default function TeamHistoryClient({ teams }: { teams: TeamHistoryEntry[]
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-pitch-950/60 to-transparent pointer-events-none" />
 
-                <div className="relative z-10 flex items-center gap-3">
+                <div className="relative z-10 flex flex-wrap items-center gap-2 sm:gap-3">
                   <div className="shrink-0">
                     {t.team_logo ? (
                       <img src={t.team_logo} alt="" className="w-8 h-8 object-contain" />
@@ -116,12 +116,12 @@ export default function TeamHistoryClient({ teams }: { teams: TeamHistoryEntry[]
                     )}
                   </div>
 
-                  <span className="font-display font-700 text-sm text-chalk-100 min-w-[120px]">{t.team_name}</span>
+                  <span className="font-display font-700 text-sm text-chalk-100">{t.team_name}</span>
                   {t.is_current && (
                     <span className="text-[10px] font-mono bg-grass-500/20 text-grass-400 px-2 py-0.5 rounded">CURRENT</span>
                   )}
                   <span className={`text-xs font-mono ${theme === "light" ? "text-gray-800" : "text-chalk-400"}`}>{t.join_date || "?"} – {t.leave_date || "Present"}</span>
-                  <div className="flex items-center gap-x-4 text-xs font-mono ml-auto">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-mono w-full sm:w-auto sm:ml-auto">
                     <span className="text-chalk-300">APPS <span className="text-chalk-100 font-medium">{t.apps}</span></span>
                     <span className="text-chalk-300">G <span className="text-chalk-100">{t.goals}</span></span>
                     <span className="text-chalk-300">A <span className="text-chalk-100">{t.assists}</span></span>

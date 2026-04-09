@@ -152,7 +152,7 @@ export default async function PlayerMatchesPage({
         <table className="matches-table w-full text-sm whitespace-nowrap">
           <thead>
             <tr className="border-b border-chalk-100/8 bg-pitch-900">
-              <th className="text-left px-3 py-3 font-mono text-[10px] text-chalk-400 sticky left-0 bg-pitch-900 z-10" title="Date">DATE</th>
+              <th className="text-left px-3 py-3 font-mono text-[10px] text-chalk-400" title="Date">DATE</th>
               <th className="text-center px-2 py-3 font-mono text-[10px] text-chalk-400" title="Position">POS</th>
               <th className="text-left px-3 py-3 font-mono text-[10px] text-chalk-400" title="Team">TEAM</th>
               <th className="text-center px-2 py-3 font-mono text-[10px] text-chalk-400" title="Result">RES</th>
@@ -173,8 +173,8 @@ export default async function PlayerMatchesPage({
               const dist = (m.distance_run / 1000).toFixed(2);
 
               return (
-                <tr key={`${m.match_id}-${m.team_side}`} className={rowIdx % 2 === 0 ? "bg-black/[0.04]" : ""}>
-                  <td className="px-3 py-2.5 font-mono text-[11px] text-chalk-400 sticky left-0 z-10">
+                <tr key={`${m.match_id}-${m.team_side}`} className={rowIdx % 2 === 0 ? "bg-pitch-600/15" : ""}>
+                  <td className="px-3 py-2.5 font-mono text-[11px] text-chalk-400">
                     {new Date(m.date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
                     <span className="text-[11px] text-chalk-100 font-700 ml-5">
                       {new Date(m.date).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}

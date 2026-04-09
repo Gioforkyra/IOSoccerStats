@@ -122,8 +122,9 @@ export default async function MatchesPage({
         ))}
       </div>
 
-      <div className="rounded-lg border border-chalk-100/8 bg-pitch-900/40 overflow-hidden">
-        <div className="grid grid-cols-[190px_1fr_90px_190px_90px] gap-2 px-4 py-3 border-b border-chalk-100/12 text-[11px] font-mono text-chalk-400 uppercase tracking-wide">
+      <div className="rounded-lg border border-chalk-100/8 bg-pitch-900/40 overflow-x-auto">
+        <div className="w-max min-w-full">
+        <div className="grid grid-cols-[160px_1fr_70px_140px_70px] gap-2 px-4 py-3 border-b border-chalk-100/12 text-[11px] font-mono text-chalk-400 uppercase tracking-wide">
           <div>Date</div>
           <div>Match</div>
           <div>Type</div>
@@ -140,7 +141,7 @@ export default async function MatchesPage({
             return (
               <div
                 key={m.id}
-                className="relative grid grid-cols-[190px_1fr_90px_190px_90px] items-center gap-2 px-4 py-2.5 transition-colors"
+                className="relative grid grid-cols-[160px_1fr_70px_140px_70px] items-center gap-2 px-4 py-2.5 transition-colors"
               >
                 <Link href={`/matches/${m.id}`} className="absolute inset-0 z-0" aria-label="View match details" />
 
@@ -202,6 +203,7 @@ export default async function MatchesPage({
               </div>
             );
           })}
+        </div>
         </div>
       </div>
 

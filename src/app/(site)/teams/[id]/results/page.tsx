@@ -94,7 +94,8 @@ export default async function TeamResultsPage({
 
   return (
     <div>
-      <div className="rounded-lg border border-chalk-100/8 bg-pitch-900/40 overflow-hidden">
+      <div className="rounded-lg border border-chalk-100/8 bg-pitch-900/40 overflow-x-auto">
+        <div className="w-max min-w-full">
         <div className="grid grid-cols-[170px_minmax(340px,1fr)_56px_92px_140px_72px_72px] gap-2 px-4 py-3 border-b border-chalk-100/12 text-[11px] font-mono text-chalk-400 uppercase tracking-wide">
           <div>Date</div>
           <div>Match</div>
@@ -116,7 +117,7 @@ export default async function TeamResultsPage({
                 ? m.home_score > m.away_score
                 : m.away_score > m.home_score;
               const draw = m.home_score === m.away_score;
-              const rowTone = rowIdx % 2 === 0 ? "bg-black/[0.04]" : "";
+              const rowTone = rowIdx % 2 === 0 ? "bg-pitch-600/15" : "";
 
 
               return (
@@ -199,6 +200,7 @@ export default async function TeamResultsPage({
               );
             })
           )}
+        </div>
         </div>
       </div>
 

@@ -16,7 +16,7 @@ export default function PlayerTabs({ steamId }: { steamId: string }) {
   const basePath = `/players/${encodeURIComponent(steamId)}`;
 
   return (
-    <div className="flex border-b border-chalk-100/8 mb-6">
+    <div className="flex border-b border-chalk-100/8 mb-6 overflow-x-auto">
       {TABS.map((tab) => {
         const fullPath = basePath + tab.href;
         const isActive =
@@ -29,7 +29,7 @@ export default function PlayerTabs({ steamId }: { steamId: string }) {
             key={tab.label}
             href={fullPath}
             prefetch={false}
-            className={`px-6 py-3 font-display font-700 text-sm uppercase tracking-wider border-b-2 transition-colors ${
+            className={`px-6 py-3 font-display font-700 text-sm uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${
               isActive
                 ? "border-[#F4119E] text-chalk-100"
                 : "border-transparent text-chalk-400 hover:text-chalk-200 hover:border-chalk-100/20"

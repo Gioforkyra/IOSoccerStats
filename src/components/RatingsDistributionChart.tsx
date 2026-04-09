@@ -237,14 +237,14 @@ export default function RatingsDistributionChart({ players }: { players: Player[
       onKeyDown={handleKeyDown}
     >
       {/* Controls row */}
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-3 text-[10px] font-mono text-chalk-500">
-          <span className="flex items-center gap-1">
+      <div className="flex flex-col sm:flex-row items-start sm:items-start sm:justify-between gap-2 mb-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-[10px] font-mono text-chalk-500">
+          <span className="hidden sm:flex items-center gap-1">
             <kbd className="px-1.5 py-0.5 rounded border border-chalk-100/20 text-chalk-300 text-[10px] leading-tight">←</kbd>
             <kbd className="px-1.5 py-0.5 rounded border border-chalk-100/20 text-chalk-300 text-[10px] leading-tight">→</kbd>
             <span className="ml-0.5">rating</span>
           </span>
-          <span className="flex items-center gap-1">
+          <span className="hidden sm:flex items-center gap-1">
             <kbd className="px-1.5 py-0.5 rounded border border-chalk-100/20 text-chalk-300 text-[10px] leading-tight">↑</kbd>
             <kbd className="px-1.5 py-0.5 rounded border border-chalk-100/20 text-chalk-300 text-[10px] leading-tight">↓</kbd>
             <span className="ml-0.5">player</span>
@@ -255,13 +255,13 @@ export default function RatingsDistributionChart({ players }: { players: Player[
             value={searchQuery}
             onChange={(e) => handleSearch(e.target.value)}
             onKeyDown={(e) => e.stopPropagation()}
-            className="ml-2 bg-pitch-800 border border-chalk-100/10 rounded px-2 py-0.5 text-[10px] font-mono text-chalk-200 placeholder-chalk-500 focus:outline-none focus:border-[#F4119E]/40 w-36"
+            className="bg-pitch-800 border border-chalk-100/10 rounded px-2 py-0.5 text-[10px] font-mono text-chalk-200 placeholder-chalk-500 focus:outline-none focus:border-[#F4119E]/40 w-36"
           />
         </div>
 
         {displayInfo && (
-          <div className="rounded-md border border-[#F4119E]/50 bg-[#F4119E]/5 px-3 py-2 text-right font-mono text-xs shadow-[0_0_12px_rgba(244,17,158,0.15)]">
-            <div className="text-chalk-100 font-600 mb-1">{displayInfo.username}</div>
+          <div className="rounded-md border border-[#F4119E]/50 bg-[#F4119E]/5 px-3 py-2 text-right font-mono text-xs shadow-[0_0_12px_rgba(244,17,158,0.15)] w-full sm:w-auto max-w-full overflow-hidden">
+            <div className="text-chalk-100 font-600 mb-1 truncate">{displayInfo.username}</div>
             <div className="flex items-center justify-end gap-2">
               <span style={{ color: displayInfo.color }} className="font-700 text-sm">
                 {displayInfo.rating.toFixed(2)}

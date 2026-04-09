@@ -397,7 +397,7 @@ export default async function PlayerH2HPage({
         className="rounded-xl border border-chalk-100/8 overflow-hidden mb-6 relative"
         style={{ background: `linear-gradient(to right, ${P1_COLOR}25, transparent 40%, transparent 60%, ${P2_COLOR}25)` }}
       >
-        <div className="absolute top-3 right-3 z-10">
+        <div className="flex justify-end px-4 pt-3 sm:absolute sm:top-3 sm:right-3 sm:p-0 z-10">
           <MatchFilterDropdown
             current={filter}
             hrefAll={`/players/h2h?p1=${encodeURIComponent(p1SteamId)}&p2=${encodeURIComponent(p2SteamId)}&page=1&filter=all`}
@@ -405,7 +405,7 @@ export default async function PlayerH2HPage({
             hrefCompetitive={`/players/h2h?p1=${encodeURIComponent(p1SteamId)}&p2=${encodeURIComponent(p2SteamId)}&page=1&filter=competitive`}
           />
         </div>
-        <div className="flex items-center justify-between p-6 gap-4">
+        <div className="flex items-center justify-between px-6 pb-6 pt-2 sm:p-6 gap-4">
           {/* Player 1 */}
           <Link href={`/players/${p1SteamId}`} className="flex flex-col items-center gap-2 flex-1 min-w-0 group">
             <PlayerAvatar src={avatar1} username={p1Info.username} color={P1_COLOR} />
@@ -453,8 +453,9 @@ export default async function PlayerH2HPage({
           <H2HStatSlider pages={statPages} color1={P1_COLOR} color2={P2_COLOR} />
 
           {/* Match list */}
-          <div className="rounded-lg border border-chalk-100/8 bg-pitch-900/40 overflow-hidden mb-4">
-            <div className="grid grid-cols-[190px_1fr_95px_210px_90px] gap-2 px-4 py-3 border-b border-chalk-100/12 text-[11px] font-mono text-chalk-400 uppercase tracking-wide">
+          <div className="rounded-lg border border-chalk-100/8 bg-pitch-900/40 overflow-x-auto mb-4">
+            <div className="w-max min-w-full">
+            <div className="grid grid-cols-[160px_1fr_70px_140px_70px] gap-2 px-4 py-3 border-b border-chalk-100/12 text-[11px] font-mono text-chalk-400 uppercase tracking-wide">
               <div>Date</div>
               <div>Match</div>
               <div>Type</div>
@@ -472,7 +473,7 @@ export default async function PlayerH2HPage({
                 return (
                   <div
                     key={m.match_id}
-                    className={`relative grid grid-cols-[190px_1fr_95px_210px_90px] items-center gap-2 px-4 py-2.5 hover:brightness-125 transition border-l-2`}
+                    className={`relative grid grid-cols-[160px_1fr_70px_140px_70px] items-center gap-2 px-4 py-2.5 hover:brightness-125 transition border-l-2`}
                     style={{ backgroundColor: rowBg, borderLeftColor: rowBorderColor }}
                   >
                     <Link href={`/matches/${m.match_id}`} className="absolute inset-0 z-0" />
@@ -537,6 +538,7 @@ export default async function PlayerH2HPage({
                   </div>
                 );
               })}
+            </div>
             </div>
           </div>
 

@@ -392,39 +392,39 @@ export default function MatchClient({
 
       {/* Score header */}
       <div className="bg-pitch-900/60 border border-chalk-100/8 rounded-xl p-6 md:p-8 mb-6">
-        <div className="flex items-center justify-between text-xs font-mono text-chalk-400 mb-5">
-          <span>{match.date}{match.map && <> {" \u00B7 "}{match.map}</>}</span>
-          {match.server && <span>{serverFlag && <>{serverFlag} </>}{match.server}</span>}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-xs font-mono text-chalk-400 mb-5">
+          <span className="whitespace-nowrap">{match.date}{match.map && <> {" \u00B7 "}{match.map}</>}</span>
+          {match.server && <span className="whitespace-nowrap">{serverFlag && <>{serverFlag} </>}{match.server}</span>}
         </div>
 
-        <div className="flex items-center justify-center gap-4 md:gap-6">
-          <Link href={`/teams/${match.homeTeam.id}`} className="group flex items-center gap-3 md:gap-4 flex-1 justify-end">
-            {match.homeTeam.logo && <img src={match.homeTeam.logo} alt="" className="w-20 h-20 md:w-28 md:h-28 object-contain shrink-0" />}
-            <span className="font-display font-800 text-lg md:text-2xl text-chalk-100 group-hover:text-[#F4119E] transition-colors text-right">{match.homeTeam.name}</span>
+        <div className="flex items-center justify-center gap-2 sm:gap-4 md:gap-6">
+          <Link href={`/teams/${match.homeTeam.id}`} className="group flex items-center gap-2 sm:gap-3 md:gap-4 flex-1 justify-end min-w-0">
+            {match.homeTeam.logo && <img src={match.homeTeam.logo} alt="" className="w-10 h-10 sm:w-16 sm:h-16 md:w-28 md:h-28 object-contain shrink-0" />}
+            <span className="font-display font-800 text-sm sm:text-lg md:text-2xl text-chalk-100 group-hover:text-[#F4119E] transition-colors text-right truncate">{match.homeTeam.name}</span>
           </Link>
-          <div className="font-display font-900 text-3xl md:text-5xl flex items-center gap-3 shrink-0">
+          <div className="font-display font-900 text-2xl sm:text-3xl md:text-5xl flex items-center gap-2 sm:gap-3 shrink-0">
             <span className="text-chalk-100">{match.homeScore}</span>
-            <span className="text-chalk-400/30 text-xl md:text-2xl">:</span>
+            <span className="text-chalk-400/30 text-lg sm:text-xl md:text-2xl">:</span>
             <span className="text-chalk-100">{match.awayScore}</span>
           </div>
-          <Link href={`/teams/${match.awayTeam.id}`} className="group flex items-center gap-3 md:gap-4 flex-1">
-            <span className="font-display font-800 text-lg md:text-2xl text-chalk-100 group-hover:text-[#F4119E] transition-colors">{match.awayTeam.name}</span>
-            {match.awayTeam.logo && <img src={match.awayTeam.logo} alt="" className="w-20 h-20 md:w-28 md:h-28 object-contain shrink-0" />}
+          <Link href={`/teams/${match.awayTeam.id}`} className="group flex items-center gap-2 sm:gap-3 md:gap-4 flex-1 min-w-0">
+            <span className="font-display font-800 text-sm sm:text-lg md:text-2xl text-chalk-100 group-hover:text-[#F4119E] transition-colors truncate">{match.awayTeam.name}</span>
+            {match.awayTeam.logo && <img src={match.awayTeam.logo} alt="" className="w-10 h-10 sm:w-16 sm:h-16 md:w-28 md:h-28 object-contain shrink-0" />}
           </Link>
         </div>
 
         {/* Goal scorers */}
         {(homeGoals.length > 0 || awayGoals.length > 0) && (
-          <div className="flex items-start justify-center gap-4 md:gap-8 mt-4">
-            <div className="flex-1 text-right">
-              <div className="text-xs font-mono text-chalk-300 space-y-0.5">
-                {homeGoals.map((g, i) => <div key={i}>{g.username} ({g.minute}&apos;)</div>)}
+          <div className="flex items-start justify-center gap-2 sm:gap-4 md:gap-8 mt-4">
+            <div className="flex-1 text-right min-w-0">
+              <div className="text-[11px] sm:text-xs font-mono text-chalk-300 space-y-0.5">
+                {homeGoals.map((g, i) => <div key={i} className="whitespace-nowrap">{g.username} ({g.minute}&apos;)</div>)}
               </div>
             </div>
-            <div className="shrink-0 w-16 text-center"><span className="text-[10px] font-mono text-chalk-400">FT</span></div>
-            <div className="flex-1 text-left">
-              <div className="text-xs font-mono text-chalk-300 space-y-0.5">
-                {awayGoals.map((g, i) => <div key={i}>{g.username} ({g.minute}&apos;)</div>)}
+            <div className="shrink-0 w-8 sm:w-16 text-center"><span className="text-[10px] font-mono text-chalk-400">FT</span></div>
+            <div className="flex-1 text-left min-w-0">
+              <div className="text-[11px] sm:text-xs font-mono text-chalk-300 space-y-0.5">
+                {awayGoals.map((g, i) => <div key={i} className="whitespace-nowrap">{g.username} ({g.minute}&apos;)</div>)}
               </div>
             </div>
           </div>
@@ -449,11 +449,11 @@ export default function MatchClient({
       </div>
 
       <div className="mb-6">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
           <div className="flex items-center gap-3">
-            <h2 className="font-display font-700 text-base tracking-wider text-chalk-100">LINEUPS</h2>
+            <h2 className="font-display font-700 text-base tracking-wider text-chalk-100 shrink-0">LINEUPS</h2>
             {lineupShowTitles && (
-              <span className="font-display font-700 text-base tracking-wider text-chalk-500">(titles appear to the right of each player)</span>
+              <span className="text-xs font-mono text-chalk-500">(titles to the right of each player)</span>
             )}
           </div>
           <div className="flex items-center gap-2">
@@ -513,14 +513,14 @@ export default function MatchClient({
             {/* Home logo LEFT, away logo RIGHT — shots are flipped so home attacks LEFT */}
             <div className="absolute" style={{ left: "40%", bottom: "8%", transform: "translateX(-50%)" }}>
               {match.homeTeam.logo ? (
-                <img src={match.homeTeam.logo} alt="" className="w-28 h-28 md:w-40 md:h-40 object-contain opacity-50 [filter:contrast(1.18)_brightness(1.08)]" />
+                <img src={match.homeTeam.logo} alt="" className="w-16 h-16 sm:w-28 sm:h-28 md:w-40 md:h-40 object-contain opacity-50 [filter:contrast(1.18)_brightness(1.08)]" />
               ) : (
                 <span className="text-3xl font-display font-bold text-chalk-100/15">{match.homeTeam.name.slice(0, 3).toUpperCase()}</span>
               )}
             </div>
             <div className="absolute" style={{ left: "60%", bottom: "8%", transform: "translateX(-50%)" }}>
               {match.awayTeam.logo ? (
-                <img src={match.awayTeam.logo} alt="" className="w-28 h-28 md:w-40 md:h-40 object-contain opacity-50 [filter:contrast(1.18)_brightness(1.08)]" />
+                <img src={match.awayTeam.logo} alt="" className="w-16 h-16 sm:w-28 sm:h-28 md:w-40 md:h-40 object-contain opacity-50 [filter:contrast(1.18)_brightness(1.08)]" />
               ) : (
                 <span className="text-3xl font-display font-bold text-chalk-100/15">{match.awayTeam.name.slice(0, 3).toUpperCase()}</span>
               )}
@@ -1525,13 +1525,13 @@ function SortablePlayerTable({
         </button>
       </div>
       <div className="rounded-lg border border-chalk-100/8 overflow-x-auto bg-pitch-900/40">
-        <table className="w-full text-xs table-fixed">
+        <table className="w-full text-xs whitespace-nowrap">
           <thead>
             <tr className="border-b border-chalk-100/8">
               {cols.map((col, ci) => (
                 <th key={ci}
                   title={col.tooltip}
-                  className={`${ci === 0 ? "px-3 w-[140px]" : ci === 1 ? "px-2 w-[40px]" : "px-2"} py-2 font-mono text-chalk-400 ${col.align} ${col.key ? "cursor-pointer hover:text-chalk-200 select-none transition-colors" : ""}`}
+                  className={`${ci === 0 ? "px-3 min-w-[120px]" : ci === 1 ? "px-2 min-w-[36px]" : "px-2"} py-2 font-mono text-chalk-400 ${col.align} ${col.key ? "cursor-pointer hover:text-chalk-200 select-none transition-colors" : ""}`}
                   onClick={col.key ? () => handleSort(col.key as SortKey) : undefined}>
                   {col.label}
                   {col.key && sortKey === col.key && <span className={`ml-0.5 ${sortAsc ? "text-grass-500" : "text-red-400"}`}>{sortAsc ? "\u25B2" : "\u25BC"}</span>}

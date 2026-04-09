@@ -221,14 +221,15 @@ export default async function TournamentDetailPage({
             <div className="text-center py-8 text-chalk-400 font-body text-sm">No matches found.</div>
           ) : (
             <>
-              <div className="rounded-lg border border-chalk-100/8 bg-pitch-900/40 overflow-hidden">
-                <div className="hidden sm:grid border-b border-chalk-100/8 px-4 py-2 text-[10px] font-mono text-chalk-500 uppercase"
+              <div className="rounded-lg border border-chalk-100/8 bg-pitch-900/40 overflow-x-auto">
+                <div className="w-max min-w-full">
+                <div className="grid border-b border-chalk-100/8 px-4 py-2 text-[10px] font-mono text-chalk-500 uppercase"
                   style={{ gridTemplateColumns: "9rem 1fr 2.5rem 1fr 7rem 2rem" }}>
                   <span>Date</span>
                   <span className="text-right">Home</span>
                   <span className="text-center">Score</span>
                   <span>Away</span>
-                  <span className="text-center hidden md:block">POTM</span>
+                  <span className="text-center">POTM</span>
                   <span />
                 </div>
                 {matches.map((m, i) => {
@@ -241,24 +242,24 @@ export default async function TournamentDetailPage({
                     <Link
                       key={m.id}
                       href={`/matches/${m.id}`}
-                      className={`flex sm:grid items-center gap-2 px-4 py-2.5 hover:bg-[#F4119E]/10 transition-colors ${i % 2 === 0 ? "bg-black/[0.03]" : ""} ${i > 0 ? "border-t border-chalk-100/5" : ""}`}
+                      className={`grid items-center gap-2 px-4 py-2.5 hover:bg-[#F4119E]/10 transition-colors ${i % 2 === 0 ? "bg-pitch-600/15" : ""} ${i > 0 ? "border-t border-chalk-100/5" : ""}`}
                       style={{ gridTemplateColumns: "9rem 1fr 2.5rem 1fr 7rem 2rem" }}
                     >
-                      <span className="text-[10px] font-mono text-chalk-500 shrink-0 hidden sm:block">
+                      <span className="text-[10px] font-mono text-chalk-500 shrink-0">
                         {fmtDateTime(m.kickOff)}
                       </span>
-                      <span className="flex-1 sm:flex-none text-right font-body text-sm text-chalk-100 truncate flex items-center justify-end gap-1.5">
+                      <span className="text-right font-body text-sm text-chalk-100 truncate flex items-center justify-end gap-1.5">
                         {m.teamHome.name}
                         {homeLogo ? <img src={homeLogo} alt="" className="h-5 w-5 shrink-0 object-contain" /> : <div className="h-5 w-5 shrink-0" />}
                       </span>
                       <span className="font-mono text-sm font-700 text-chalk-100 text-center shrink-0">
                         {hg !== null ? `${hg}-${ag}` : "vs"}
                       </span>
-                      <span className="flex-1 sm:flex-none font-body text-sm text-chalk-100 truncate flex items-center gap-1.5">
+                      <span className="font-body text-sm text-chalk-100 truncate flex items-center gap-1.5">
                         {awayLogo ? <img src={awayLogo} alt="" className="h-5 w-5 shrink-0 object-contain" /> : <div className="h-5 w-5 shrink-0" />}
                         {m.teamAway.name}
                       </span>
-                      <span className="text-[10px] font-mono text-[#56a3ff] shrink-0 text-center hidden md:block truncate">
+                      <span className="text-[10px] font-mono text-[#56a3ff] shrink-0 text-center truncate">
                         {m.playerOfTheMatch ? m.playerOfTheMatch.name : ""}
                       </span>
                       <span className="text-base shrink-0 text-right" title={m.server?.name ?? undefined}>
@@ -267,6 +268,7 @@ export default async function TournamentDetailPage({
                     </Link>
                   );
                 })}
+                </div>
               </div>
 
               {totalPages > 1 && (
@@ -304,8 +306,8 @@ export default async function TournamentDetailPage({
             2: { label: "L", cls: "bg-red-500 text-white" },
           };
           return (
-            <div className="rounded-lg border border-chalk-100/8 bg-pitch-900/40 overflow-hidden">
-              <table className="w-full text-xs">
+            <div className="rounded-lg border border-chalk-100/8 bg-pitch-900/40 overflow-x-auto">
+              <table className="w-full text-xs whitespace-nowrap">
                 <thead>
                   <tr className="border-b border-chalk-100/8">
                     <th className="text-left px-3 py-2.5 font-mono text-[10px] text-chalk-400 w-7">#</th>
@@ -369,8 +371,8 @@ export default async function TournamentDetailPage({
           return <div className="text-center py-12 text-chalk-400 font-body text-sm">No standings data available.</div>;
         }
         return (
-          <div className="rounded-lg border border-chalk-100/8 bg-pitch-900/40 overflow-hidden">
-            <table className="w-full text-xs">
+          <div className="rounded-lg border border-chalk-100/8 bg-pitch-900/40 overflow-x-auto">
+            <table className="w-full text-xs whitespace-nowrap">
               <thead>
                 <tr className="border-b border-chalk-100/8">
                   <th className="text-left px-3 py-2.5 font-mono text-[10px] text-chalk-400 w-7">#</th>
