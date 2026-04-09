@@ -553,10 +553,15 @@ html.light tr:hover .trow-even { background-color: rgba(244,17,158,0.10) !import
 .circle-label { fill: white; }
 html.light .circle-label { fill: #1a1a1a; }
 
-/* ── Navbar dropdown hover in light mode ── */
+/* ── Navbar hover in light mode ── */
+html.light .nav-link:hover {
+  color: #F4119E !important;
+  background-color: transparent !important;
+}
+
 html.light .nav-dropdown-item:hover {
-  background-color: rgba(0, 0, 0, 0.07) !important;
-  color: #111 !important;
+  color: #F4119E !important;
+  background-color: transparent !important;
 }
 
 /* ── Hang animation for nav dropdown chevron ── */

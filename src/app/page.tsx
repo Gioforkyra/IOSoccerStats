@@ -1,5 +1,6 @@
 import Link from "next/link";
 import HomeSearchPanel from "@/components/HomeSearchPanel";
+import KofiSupportButton from "@/components/KofiSupportButton";
 
 export const dynamic = "force-dynamic";
 
@@ -77,51 +78,18 @@ export default async function HomePage() {
         <section>
           <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-12 pb-12">
             {/* Header */}
-            <div className="mb-8 flex items-start justify-between gap-6">
-              {/* Left: title + description */}
-              <div>
+            <div className="mb-6 grid items-center gap-3 lg:grid-cols-[1.6fr_1fr]">
+              {/* Left: title */}
+              <div className="min-w-0">
                 <h1 className="flex items-center gap-3 font-display text-5xl font-black uppercase leading-[0.95] tracking-tight text-chalk-100 md:text-7xl">
                   <img src="/favicon/favicon-96x96.png" alt="IOSHUBv2" className="w-12 h-12 md:w-16 md:h-16 object-contain" />
                   <span>IOS<span className="text-[#F4119E]">HUB</span>V2</span>
                 </h1>
-                <div className="mt-4 flex flex-wrap items-center gap-2">
-                  <Link
-                    href="/about"
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-chalk-100/15 bg-pitch-800/50 px-3 py-1.5 text-xs font-mono uppercase tracking-[0.18em] text-chalk-400 hover:text-chalk-100 hover:border-chalk-100/30 transition-all"
-                  >
-                    About this project {"->"}
-                  </Link>
-                  <a
-                    href="https://ko-fi.com/bybl0s"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="md:hidden inline-flex items-center gap-1.5 rounded-lg border-2 border-[#FF5E5B]/60 bg-[#FF5E5B]/15 px-3 py-1.5 text-xs font-mono font-bold uppercase tracking-[0.18em] text-[#FF5E5B] hover:bg-[#FF5E5B]/30 hover:border-[#FF5E5B] transition-all"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style={{width:"14px",height:"14px"}} className="shrink-0">
-                      <path d="M23.881 8.948c-.773-4.085-4.859-4.593-4.859-4.593H.723c-.604 0-.679.798-.679.798s-.082 7.324-.022 11.822c.164 2.424 2.586 2.672 2.586 2.672s8.267-.023 11.966-.049c2.438-.426 2.683-2.566 2.658-3.734 4.352.24 7.422-2.831 6.649-6.916zm-11.062 3.511c-1.246 1.453-4.011 3.976-4.011 3.976s-.121.119-.31.023c-.076-.057-.108-.09-.108-.09-.443-.441-3.368-3.049-4.034-3.954-.709-.965-1.041-2.7-.091-3.71.951-1.01 3.005-1.086 4.363.407 0 0 1.565-1.782 3.468-.963 1.904.82 1.832 3.011.723 4.311zm6.173.478c-.928.116-1.682.028-1.682.028V7.284h1.77s1.971.551 1.971 2.638c0 1.913-.985 2.667-2.059 3.015z"/>
-                    </svg>
-                    Support
-                  </a>
-                </div>
               </div>
 
-              {/* Right: Online badge + Ko-fi button stacked */}
-              <div className="flex flex-col items-end gap-2 shrink-0">
-                <div className="inline-flex items-center gap-2 rounded-full border border-[#F4119E]/30 bg-[#F4119E]/8 px-3 py-1 text-[11px] font-mono uppercase tracking-[0.22em] text-[#F4119E]">
-                  <span className="live-dot inline-block h-2 w-2 rounded-full bg-[#F4119E]" />
-                  Online
-                </div>
-                <a
-                  href="https://ko-fi.com/bybl0s"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hidden md:inline-flex items-center gap-2 rounded-xl border-2 border-[#FF5E5B]/60 bg-[#FF5E5B]/15 px-5 py-2.5 text-sm font-mono font-bold uppercase tracking-[0.18em] text-[#FF5E5B] hover:bg-[#FF5E5B]/30 hover:border-[#FF5E5B] transition-all"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style={{width:"18px",height:"18px"}} className="shrink-0">
-                    <path d="M23.881 8.948c-.773-4.085-4.859-4.593-4.859-4.593H.723c-.604 0-.679.798-.679.798s-.082 7.324-.022 11.822c.164 2.424 2.586 2.672 2.586 2.672s8.267-.023 11.966-.049c2.438-.426 2.683-2.566 2.658-3.734 4.352.24 7.422-2.831 6.649-6.916zm-11.062 3.511c-1.246 1.453-4.011 3.976-4.011 3.976s-.121.119-.31.023c-.076-.057-.108-.09-.108-.09-.443-.441-3.368-3.049-4.034-3.954-.709-.965-1.041-2.7-.091-3.71.951-1.01 3.005-1.086 4.363.407 0 0 1.565-1.782 3.468-.963 1.904.82 1.832 3.011.723 4.311zm6.173.478c-.928.116-1.682.028-1.682.028V7.284h1.77s1.971.551 1.971 2.638c0 1.913-.985 2.667-2.059 3.015z"/>
-                  </svg>
-                  Support on Ko-fi
-                </a>
+              {/* Right: Ko-fi button */}
+              <div className="w-full">
+                <KofiSupportButton username="bybl0s" label="Support me on Ko-fi" />
               </div>
             </div>
 

@@ -59,6 +59,8 @@ function isActive(path: string, item: NavItem): boolean {
   if (item.exact) return path === item.href;
   // For "/matches", don't match "/matches/live"
   if (item.href === "/matches") return path === "/matches" || (path.startsWith("/matches") && !path.startsWith("/matches/live"));
+  // Check dropdown sub-pages too (e.g. /fixtures under Tournaments)
+  if (item.dropdown?.some((sub) => path === sub.href || path.startsWith(sub.href + "/"))) return true;
   return path.startsWith(item.href);
 }
 
@@ -175,8 +177,8 @@ export default function Navbar() {
                   className={clsx(
                     "nav-link flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-body font-medium transition-colors",
                     isActive(path, item)
-                      ? "text-chalk-100 border border-[#F4119E]/40 bg-[#F4119E]/5"
-                      : "text-chalk-400 hover:text-chalk-100 border border-transparent"
+                      ? "text-[#F4119E]"
+                      : "text-chalk-400 hover:text-[#F4119E]"
                   )}
                 >
                   {item.label}
@@ -192,7 +194,7 @@ export default function Navbar() {
                           "nav-dropdown-item block px-4 py-2 text-sm font-body transition-colors",
                           path === sub.href
                             ? "text-chalk-100 bg-[#F4119E]/10"
-                            : "text-chalk-400 hover:text-chalk-100 hover:bg-pitch-700/50"
+                            : "text-chalk-400 hover:text-[#F4119E] hover:bg-pitch-700/50"
                         )}
                       >
                         {sub.label}
@@ -208,8 +210,8 @@ export default function Navbar() {
                 className={clsx(
                   "nav-link flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-body font-medium transition-colors",
                   isActive(path, item)
-                    ? "text-chalk-100 border border-[#F4119E]/40 bg-[#F4119E]/5"
-                    : "text-chalk-400 hover:text-chalk-100 border border-transparent"
+                    ? "text-[#F4119E]"
+                    : "text-chalk-400 hover:text-[#F4119E]"
                 )}
               >
                 {item.live && (
@@ -251,8 +253,8 @@ export default function Navbar() {
                   className={clsx(
                     "flex items-center gap-2 px-3 py-2.5 rounded text-sm font-body font-medium transition-colors",
                     isActive(path, item)
-                      ? "text-chalk-100 bg-pitch-800"
-                      : "text-chalk-400 hover:text-chalk-100 hover:bg-pitch-800/50"
+                      ? "text-[#F4119E]"
+                      : "text-chalk-400 hover:text-[#F4119E] hover:bg-pitch-800/50"
                   )}
                 >
                   {item.live && (
@@ -268,10 +270,10 @@ export default function Navbar() {
                         href={sub.href}
                         onClick={() => setOpen(false)}
                         className={clsx(
-                          "block px-3 py-2 rounded text-sm font-body transition-colors",
+                          "nav-dropdown-item block px-3 py-2 rounded text-sm font-body transition-colors",
                           path === sub.href
-                            ? "text-chalk-100 bg-pitch-800/60"
-                            : "text-chalk-500 hover:text-chalk-100 hover:bg-pitch-800/30"
+                            ? "text-[#F4119E]"
+                            : "text-chalk-500 hover:text-[#F4119E] hover:bg-pitch-800/30"
                         )}
                       >
                         {sub.label}
