@@ -130,7 +130,7 @@ export default function Navbar() {
         className="w-full h-7 bg-pitch-800 border border-chalk-100/10 rounded px-3 py-0 text-sm font-body text-chalk-200 placeholder-chalk-400 focus:outline-none focus:border-[#F4119E]/50"
       />
       {showResults && (results.length > 0 || loading) && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-pitch-900 border border-chalk-100/10 rounded-lg shadow-xl overflow-hidden z-50 max-h-80 overflow-y-auto">
+        <div className="absolute top-full right-0 mt-1 min-w-[320px] bg-pitch-900 border border-chalk-100/10 rounded-lg shadow-xl overflow-hidden z-50 max-h-80 overflow-y-auto">
           {loading && results.length === 0 && (
             <div className="px-4 py-3 text-xs font-mono text-chalk-400">Searching...</div>
           )}
@@ -167,7 +167,7 @@ export default function Navbar() {
           </span>
         </Link>
 
-        {/* Desktop nav links */}
+        {/* Desktop nav links + Ko-fi */}
         <div className="relative z-10 hidden md:flex items-center gap-1">
           {NAV.map((item) =>
             item.dropdown ? (
@@ -221,18 +221,16 @@ export default function Navbar() {
               </Link>
             )
           )}
+          <a
+            href="https://ko-fi.com/bybl0s"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Support me on Ko-fi"
+            className="shrink-0 brightness-125 hover:brightness-150 transition-all ml-1"
+          >
+            <img src="/kofi_brandasset/kofi_logo.svg" alt="Ko-fi" className="h-5 w-auto" />
+          </a>
         </div>
-
-        {/* Ko-fi link — sits right after nav links */}
-        <a
-          href="https://ko-fi.com/bybl0s"
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Support me on Ko-fi"
-          className="hidden md:block shrink-0 brightness-125 hover:brightness-150 transition-all"
-        >
-          <img src="/kofi_brandasset/kofi_logo.svg" alt="Ko-fi" className="h-5 w-auto" />
-        </a>
 
         {/* Right side */}
         <div className="ml-auto flex items-center gap-3">
