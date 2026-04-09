@@ -225,6 +225,15 @@ export default function Navbar() {
 
         {/* Right side */}
         <div className="ml-auto flex items-center gap-3">
+          <a
+            href="https://ko-fi.com/bybl0s"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Support me on Ko-fi"
+            className="shrink-0 opacity-80 hover:opacity-100 transition-opacity"
+          >
+            <img src="/kofi_brandasset/kofi_symbol.svg" alt="Ko-fi" className="w-5 h-5" />
+          </a>
           <ThemeToggle />
           {searchBox("hidden sm:block w-28 md:w-32")}
 

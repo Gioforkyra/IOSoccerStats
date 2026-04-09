@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export default function Footer() {
   return (
-    <footer className="mt-16 border-t border-chalk-100/5 bg-pitch-950">
+    <footer className="mt-6 border-t border-chalk-100/5 bg-pitch-950">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 flex flex-wrap items-center justify-center gap-4 text-xs font-body text-chalk-500">
         <div className="flex items-center gap-2 mr-1">
           <img src="/favicon/favicon-96x96.png" alt="IOSHUBv2" className="w-5 h-5 object-contain opacity-70" />

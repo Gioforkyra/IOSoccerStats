@@ -13,12 +13,12 @@ export default function KofiSupportButton({
       target="_blank"
       rel="noopener noreferrer"
       aria-label={label}
-      className="flex w-full items-center transition-opacity hover:opacity-90"
+      className="block w-full transition-opacity hover:opacity-90"
     >
       <img
-        src="/kofi_brandasset/support_me_on_kofi_blue.png"
+        src="/kofi_brandasset/support_me_on_kofi_badge_blue.png"
         alt={label}
-        className="h-auto w-full rounded-md"
+        className="block h-auto w-full"
       />
     </a>
   );

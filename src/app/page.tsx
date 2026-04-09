@@ -1,13 +1,11 @@
 import Link from "next/link";
 import HomeSearchPanel from "@/components/HomeSearchPanel";
-import KofiSupportButton from "@/components/KofiSupportButton";
 
 export const dynamic = "force-dynamic";
 
 import {
   getMatches,
   getActiveTeams,
-  getPastTournaments,
   getCurrentTournaments,
   getPlayers,
   badgeSmallUrl,
@@ -15,6 +13,9 @@ import {
 } from "@/lib/iosoccer-api";
 import { prisma } from "@/lib/prisma";
 import ParticlesBackground from "@/components/ParticlesBackground";
+import Footer from "@/components/Footer";
+import KofiSupportButton from "@/components/KofiSupportButton";
+import ThemeToggle from "@/components/ThemeToggle";
 
 
 export default async function HomePage() {
@@ -22,20 +23,16 @@ export default async function HomePage() {
     matchData,
     playerData,
     activeTeams,
-    pastTournaments,
     currentTournaments,
   ] = await Promise.all([
-    getMatches({ page: 1, pageSize: 7, matchType: 1, regionId: 1 }),
+    getMatches({ page: 1, pageSize: 6, matchType: 1, regionId: 1 }),
     getPlayers({ page: 1, pageSize: 1 }),
     getActiveTeams(1, 1),
-    getPastTournaments(),
     getCurrentTournaments(),
   ]);
 
-  const matchesCount = matchData.totalItems;
   const playersCount = playerData.totalItems;
   const teamsCount = activeTeams.length;
-  const tournamentsCount = pastTournaments.length + currentTournaments.length;
   const recentMatches = matchData.items;
 
   // Top teams by avg rating
@@ -78,18 +75,12 @@ export default async function HomePage() {
         <section>
           <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-12 pb-12">
             {/* Header */}
-            <div className="mb-6 grid items-center gap-3 lg:grid-cols-[1.6fr_1fr]">
-              {/* Left: title */}
+            <div className="mb-6">
               <div className="min-w-0">
-                <h1 className="flex items-center gap-3 font-display text-5xl font-black uppercase leading-[0.95] tracking-tight text-chalk-100 md:text-7xl">
+                <h1 className="flex items-center justify-center gap-3 text-center font-display text-6xl font-black uppercase leading-[0.95] tracking-tight text-chalk-100 md:text-8xl">
                   <img src="/favicon/favicon-96x96.png" alt="IOSHUBv2" className="w-12 h-12 md:w-16 md:h-16 object-contain" />
                   <span>IOS<span className="text-[#F4119E]">HUB</span>V2</span>
                 </h1>
-              </div>
-
-              {/* Right: Ko-fi button */}
-              <div className="w-full">
-                <KofiSupportButton username="bybl0s" label="Support me on Ko-fi" />
               </div>
             </div>
 
@@ -98,7 +89,7 @@ export default async function HomePage() {
               <HomeSearchPanel playersCount={playersCount} teamsCount={teamsCount} />
 
               {/* Best Teams card */}
-              <div className="rounded-xl border border-chalk-100/8 bg-pitch-900/50 p-4 hover:border-[#F4119E]/30 transition-colors">
+              <div className="home-card rounded-xl border border-chalk-100/8 bg-pitch-900/50 p-3 hover:border-[#F4119E]/30 transition-colors">
                 <div className="text-[10px] font-mono uppercase tracking-[0.22em] text-chalk-400 mb-3">
                   Best Teams
                 </div>
@@ -144,7 +135,7 @@ export default async function HomePage() {
             {/* Bottom row: Leaderboards, Recent Matches, Live Scores, Teams */}
             <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               {/* Active Tournaments */}
-              <div className="rounded-xl border border-chalk-100/8 bg-pitch-900/50 p-4 hover:border-[#F4119E]/30 transition-colors">
+              <div className="home-card rounded-xl border border-chalk-100/8 bg-pitch-900/50 p-3 hover:border-[#F4119E]/30 transition-colors">
                 <div className="text-[10px] font-mono uppercase tracking-[0.22em] text-chalk-400 mb-3">
                   Active Tournaments
                 </div>
@@ -182,7 +173,7 @@ export default async function HomePage() {
               </div>
 
               {/* Recent Matches */}
-              <div className="rounded-xl border border-chalk-100/8 bg-pitch-900/50 p-4 hover:border-[#F4119E]/30 transition-colors">
+              <div className="home-card rounded-xl border border-chalk-100/8 bg-pitch-900/50 p-3 hover:border-[#F4119E]/30 transition-colors">
                 <div className="text-[10px] font-mono uppercase tracking-[0.22em] text-chalk-400 mb-3">
                   Recent Matches
                 </div>
@@ -228,7 +219,7 @@ export default async function HomePage() {
               </div>
 
               {/* Top Rated Players */}
-              <div className="rounded-xl border border-chalk-100/8 bg-pitch-900/50 p-4 hover:border-[#F4119E]/30 transition-colors">
+              <div className="home-card rounded-xl border border-chalk-100/8 bg-pitch-900/50 p-4 hover:border-[#F4119E]/30 transition-colors">
                 <div className="text-[10px] font-mono uppercase tracking-[0.22em] text-chalk-400 mb-3">
                   Top Rated Players
                 </div>
@@ -270,11 +261,12 @@ export default async function HomePage() {
                 </Link>
               </div>
 
-              {/* Live Scores + Tournaments + DB Stats */}
+              {/* Ko-fi + Live Scores + Theme Toggle */}
               <div className="space-y-3">
+                <KofiSupportButton username="bybl0s" label="Support me on Ko-fi" />
                 <Link
                   href="/matches/live"
-                  className="group block rounded-xl border border-chalk-100/8 bg-pitch-900/50 p-4 hover:border-[#F4119E]/30 transition-colors"
+                  className="home-card group block rounded-xl border border-chalk-100/8 bg-pitch-900/50 p-4 hover:border-[#F4119E]/30 transition-colors"
                 >
                   <div className="text-[10px] font-mono uppercase tracking-[0.22em] text-chalk-400 mb-1">
                     Live
@@ -287,56 +279,14 @@ export default async function HomePage() {
                     Open Live {"->"}
                   </span>
                 </Link>
-                <Link
-                  href="/tournaments"
-                  className="group block rounded-xl border border-chalk-100/8 bg-pitch-900/50 p-4 hover:border-[#F4119E]/30 transition-colors"
-                >
-                  <div className="text-[10px] font-mono uppercase tracking-[0.22em] text-chalk-400 mb-1">
-                    Tournaments
-                  </div>
-                  <div className="font-display text-base font-700 text-chalk-100">
-                    Leagues & Cups
-                  </div>
-                  <span className="mt-1.5 inline-block text-xs font-mono text-[#F4119E] group-hover:text-[#F4119E]/70 transition-colors">
-                    Browse {"->"}
-                  </span>
-                </Link>
-                {/* DB Stats */}
-                <div className="rounded-xl border border-chalk-100/8 bg-pitch-900/50 px-4 py-3">
-                  <div className="text-[10px] font-mono uppercase tracking-[0.22em] text-chalk-400 mb-2">
-                    Database
-                  </div>
-                  <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
-                    <div>
-                      <div className="font-display text-base font-800 text-chalk-100">
-                        {playersCount.toLocaleString("en-GB")}
-                      </div>
-                      <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-chalk-400">Players</div>
-                    </div>
-                    <div>
-                      <div className="font-display text-base font-800 text-chalk-100">
-                        {teamsCount.toLocaleString("en-GB")}
-                      </div>
-                      <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-chalk-400">Teams</div>
-                    </div>
-                    <div>
-                      <div className="font-display text-base font-800 text-chalk-100">
-                        {matchesCount.toLocaleString("en-GB")}
-                      </div>
-                      <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-chalk-400">Matches</div>
-                    </div>
-                    <div>
-                      <div className="font-display text-base font-800 text-chalk-100">
-                        {tournamentsCount.toLocaleString("en-GB")}
-                      </div>
-                      <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-chalk-400">Tournaments</div>
-                    </div>
-                  </div>
+                <div className="flex justify-start">
+                  <ThemeToggle />
                 </div>
               </div>
             </div>
           </div>
         </section>
+        <Footer />
       </div>
     </div>
   );

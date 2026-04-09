@@ -82,7 +82,7 @@ export default function HomeSearchPanel({
   return (
     <div
       ref={panelRef}
-      className="relative rounded-xl border border-chalk-100/8 bg-pitch-900/50 p-6 hover:border-[#F4119E]/30 transition-colors"
+      className="home-card relative rounded-xl border border-chalk-100/8 bg-pitch-900/50 p-6 hover:border-[#F4119E]/30 transition-colors"
     >
       <div className="text-[10px] font-mono uppercase tracking-[0.22em] text-chalk-400">
         Search
@@ -96,7 +96,7 @@ export default function HomeSearchPanel({
       </p>
 
       <div className="relative mt-5">
-        <div className="flex items-center gap-3 rounded-lg border border-chalk-100/8 bg-pitch-800/60 px-4 py-3 focus-within:border-[#F4119E]/50 transition-colors">
+        <div className="home-search-bar flex items-center gap-3 rounded-lg border border-chalk-100/8 bg-pitch-800/60 px-4 py-3 focus-within:border-[#F4119E]/50 transition-colors">
           <svg
             viewBox="0 0 24 24"
             className="h-4 w-4 shrink-0 text-chalk-400"
@@ -168,7 +168,7 @@ export default function HomeSearchPanel({
           <Link
             key={link.label}
             href={link.href}
-            className="rounded border border-chalk-100/8 bg-pitch-800/40 px-2.5 py-1.5 text-[10px] font-mono uppercase tracking-wider text-chalk-300 hover:border-[#F4119E]/30 hover:text-chalk-100 transition-colors"
+            className="home-pill rounded border border-chalk-100/8 bg-pitch-800/40 px-2.5 py-1.5 text-[10px] font-mono uppercase tracking-wider text-chalk-300 hover:border-[#F4119E]/30 hover:text-chalk-100 transition-colors"
           >
             {link.label}
           </Link>
