@@ -553,19 +553,28 @@ html.light tr:hover .trow-even { background-color: rgba(244,17,158,0.10) !import
 .circle-label { fill: white; }
 html.light .circle-label { fill: #1a1a1a; }
 
-/* ── Home cards & rows pink hover in light mode ── */
-html.light .pink-hover:hover {
-  background: rgba(244, 17, 158, 0.10) !important;
+/* ── Home cards & rows in light mode ── */
+html.light .home-card {
+  border-color: rgba(0, 0, 0, 0.35) !important;
 }
 html.light .home-card:hover {
-  border-color: rgba(244, 17, 158, 0.30) !important;
+  border-color: rgba(244, 17, 158, 0.50) !important;
+}
+html.light .home-search-bar {
+  border-color: rgba(0, 0, 0, 0.35) !important;
 }
 html.light .home-search-bar:focus-within {
   border-color: rgba(244, 17, 158, 0.50) !important;
 }
+html.light .home-pill {
+  border-color: rgba(0, 0, 0, 0.65) !important;
+}
 html.light .home-pill:hover {
   border-color: rgba(244, 17, 158, 0.30) !important;
   color: #1a1a1a !important;
+}
+html.light .pink-hover:hover {
+  background: rgba(244, 17, 158, 0.30) !important;
 }
 
 /* ── Navbar hover in light mode ── */

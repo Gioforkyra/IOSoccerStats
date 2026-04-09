@@ -3,9 +3,11 @@
 import { useEffect, useState } from "react";
 import Particles, { initParticlesEngine } from "@tsparticles/react";
 import { loadSlim } from "@tsparticles/slim";
+import { useTheme } from "@/contexts/ThemeContext";
 
 export default function ParticlesBackground() {
   const [ready, setReady] = useState(false);
+  const { theme } = useTheme();
 
   useEffect(() => {
     initParticlesEngine(async (engine) => {
@@ -15,8 +17,11 @@ export default function ParticlesBackground() {
 
   if (!ready) return null;
 
+  const linksColor = theme === "light" ? "#000000" : "#ffffff";
+
   return (
     <Particles
+      key={theme}
       id="tsparticles"
       className="absolute inset-0 z-0"
       options={{
@@ -31,7 +36,7 @@ export default function ParticlesBackground() {
           links: {
             enable: true,
             distance: 120,
-            color: "#ffffff",
+            color: linksColor,
             opacity: 0.3,
             width: 1,
           },
