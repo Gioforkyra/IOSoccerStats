@@ -588,32 +588,31 @@ export default async function H2HPage({
 
           {/* Match list */}
           <div className="rounded-lg border border-chalk-100/8 bg-pitch-900/40 overflow-x-auto mb-4">
-            <div className="w-max min-w-full">
-            <div className="grid grid-cols-[160px_1fr_70px_140px_70px] gap-2 px-4 py-3 border-b border-chalk-100/12 text-[11px] font-mono text-chalk-400 uppercase tracking-wide">
+            <div
+              className="grid gap-2 px-4 py-3 border-b border-chalk-100/12 text-[11px] font-mono text-chalk-400 uppercase tracking-wide min-w-[820px]"
+              style={{ gridTemplateColumns: "160px minmax(280px,1fr) 70px 140px 56px 72px" }}
+            >
               <div>Date</div>
               <div>Match</div>
               <div>Type</div>
               <div>POTM</div>
-              <div>Location</div>
+              <div className="text-center">Location</div>
+              <div className="text-right pr-2">View</div>
             </div>
-            <div className="divide-y divide-chalk-100/20">
+            <div className="divide-y divide-chalk-100/20 min-w-[820px]">
               {matches.map((m) => {
                 const t1IsHome = m.home_team_id === team1Id;
                 const t1Score = t1IsHome ? m.home_score : m.away_score;
                 const t2Score = t1IsHome ? m.away_score : m.home_score;
                 const t1Won = t1Score > t2Score;
                 const isDraw = t1Score === t2Score;
-                const rowTone = isDraw ? "bg-[#2B3443]" : t1Won ? "bg-[#1F5A42]" : "bg-[#5A2730]";
-                const rowBorder = isDraw
-                  ? "border-l-2 border-l-chalk-400"
-                  : t1Won
-                    ? "border-l-2 border-l-green-500"
-                    : "border-l-2 border-l-red-500";
+                const rowTone = isDraw ? "h2h-row-draw" : t1Won ? "h2h-row-win" : "h2h-row-loss";
 
                 return (
                   <div
                     key={m.match_id}
-                    className={`relative grid grid-cols-[160px_1fr_70px_140px_70px] items-center gap-2 px-4 py-2.5 hover:brightness-125 transition ${rowTone} ${rowBorder}`}
+                    className={`relative grid items-center gap-2 px-4 py-2.5 hover:brightness-125 transition ${rowTone}`}
+                    style={{ gridTemplateColumns: "160px minmax(280px,1fr) 70px 140px 56px 72px" }}
                   >
                     <Link href={`/matches/${m.match_id}`} className="absolute inset-0 z-0" />
 
@@ -666,13 +665,21 @@ export default async function H2HPage({
                       ) : "-"}
                     </div>
 
-                    <div className="relative z-10 text-sm font-mono text-chalk-200 pointer-events-none">
-                      {getServerFlag(m.server)}
+                    <div className="relative z-10 text-sm font-mono text-chalk-200 pointer-events-none flex justify-center">
+                      <span>{getServerFlag(m.server)}</span>
+                    </div>
+
+                    <div className="relative z-10 pointer-events-auto flex justify-end pr-2">
+                      <Link
+                        href={`/matches/${m.match_id}`}
+                        className="inline-flex items-center justify-center rounded-md border border-[#F4119E] bg-transparent px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-[#F4119E] transition-colors hover:bg-[#F4119E] hover:text-white"
+                      >
+                        View
+                      </Link>
                     </div>
                   </div>
                 );
               })}
-            </div>
             </div>
           </div>
 

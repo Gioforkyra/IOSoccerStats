@@ -137,6 +137,15 @@ body {
   background-color: #2d1625 !important;
 }
 
+/* Team H2H match rows — dark defaults, lighter tones in light mode
+   (matches the translucent feel of the player H2H rows). */
+.h2h-row-win  { background-color: #1F5A42; }
+.h2h-row-loss { background-color: #5A2730; }
+.h2h-row-draw { background-color: #2B3443; }
+html.light .h2h-row-win  { background-color: rgba(74, 222, 128, 0.22); }
+html.light .h2h-row-loss { background-color: rgba(248, 113, 113, 0.22); }
+html.light .h2h-row-draw { background-color: rgba(148, 163, 184, 0.22); }
+
 /* Team results grid rows — dark mode only zebra */
 html:not(.light) .results-rows-container > div:nth-child(even):not(:hover) {
   background-color: rgba(255,255,255,0.05);
