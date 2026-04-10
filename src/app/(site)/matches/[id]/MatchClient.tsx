@@ -158,6 +158,20 @@ export default function MatchClient({
     const homeMeanNy = homeShots.reduce((sum, s) => sum + s.ny, 0) / homeShots.length;
     return homeMeanNy > 0.5; // true = flip (home attacks right → show left)
   })();
+  const shotZoneCols = 8;
+  const shotZoneRows = 3;
+  const shotZoneVisibleAttackingHalfRatio = 0.6;
+  const pitchLeftPct = 4;
+  const pitchRightPct = 96;
+  const pitchTopPct = 6;
+  const pitchBottomPct = 94;
+  const pitchWidthPct = pitchRightPct - pitchLeftPct;
+  const pitchHeightPct = pitchBottomPct - pitchTopPct;
+  const shotZoneDepthPct = pitchWidthPct * 0.5 * shotZoneVisibleAttackingHalfRatio;
+  const leftZoneStartPct = pitchLeftPct;
+  const leftZoneEndPct = pitchLeftPct + shotZoneDepthPct;
+  const rightZoneStartPct = pitchRightPct - shotZoneDepthPct;
+  const rightZoneEndPct = pitchRightPct;
   const serverFlag = match.server ? getServerFlag(match.server) : "";
 
   const homeGoals = shots.filter((s) => s.team_side === "home" && s.is_goal).sort((a, b) => (a.minute ?? 0) - (b.minute ?? 0));
@@ -508,6 +522,79 @@ export default function MatchClient({
               {/* Goals */}
               <rect x="2" y="26" width="2" height="16" fill="rgba(255,255,255,0.55)" rx="0.5" />
               <rect x="101" y="26" width="2" height="16" fill="rgba(255,255,255,0.55)" rx="0.5" />
+            </svg>
+            {/* Shot-zone guides (thin outlines, no fill) */}
+            <svg className="absolute inset-0 w-full h-full pointer-events-none" preserveAspectRatio="none" viewBox="0 0 100 100" aria-hidden="true">
+              {/* Left and right zone outer boxes */}
+              <rect
+                x={leftZoneStartPct}
+                y={pitchTopPct}
+                width={leftZoneEndPct - leftZoneStartPct}
+                height={pitchHeightPct}
+                fill="none"
+                stroke="rgba(255,255,255,0.15)"
+                strokeWidth="0.18"
+              />
+              <rect
+                x={rightZoneStartPct}
+                y={pitchTopPct}
+                width={rightZoneEndPct - rightZoneStartPct}
+                height={pitchHeightPct}
+                fill="none"
+                stroke="rgba(255,255,255,0.15)"
+                strokeWidth="0.18"
+              />
+
+              {/* Depth splits: 3 rows from each goal toward center */}
+              {Array.from({ length: shotZoneRows - 1 }).map((_, i) => {
+                const xL = leftZoneStartPct + ((i + 1) / shotZoneRows) * (leftZoneEndPct - leftZoneStartPct);
+                const xR = rightZoneStartPct + ((i + 1) / shotZoneRows) * (rightZoneEndPct - rightZoneStartPct);
+                return (
+                  <g key={`depth-${i}`}>
+                    <line
+                      x1={xL}
+                      y1={pitchTopPct}
+                      x2={xL}
+                      y2={pitchBottomPct}
+                      stroke="rgba(255,255,255,0.12)"
+                      strokeWidth="0.14"
+                    />
+                    <line
+                      x1={xR}
+                      y1={pitchTopPct}
+                      x2={xR}
+                      y2={pitchBottomPct}
+                      stroke="rgba(255,255,255,0.12)"
+                      strokeWidth="0.14"
+                    />
+                  </g>
+                );
+              })}
+
+              {/* Width splits: 8 columns across pitch width */}
+              {Array.from({ length: shotZoneCols - 1 }).map((_, i) => {
+                const y = pitchTopPct + ((i + 1) / shotZoneCols) * pitchHeightPct;
+                return (
+                  <g key={`width-${i}`}>
+                    <line
+                      x1={leftZoneStartPct}
+                      y1={y}
+                      x2={leftZoneEndPct}
+                      y2={y}
+                      stroke="rgba(255,255,255,0.1)"
+                      strokeWidth="0.14"
+                    />
+                    <line
+                      x1={rightZoneStartPct}
+                      y1={y}
+                      x2={rightZoneEndPct}
+                      y2={y}
+                      stroke="rgba(255,255,255,0.1)"
+                      strokeWidth="0.14"
+                    />
+                  </g>
+                );
+              })}
             </svg>
             {/* Team logos inside field, bottom near center line */}
             {/* Home logo LEFT, away logo RIGHT — shots are flipped so home attacks LEFT */}
