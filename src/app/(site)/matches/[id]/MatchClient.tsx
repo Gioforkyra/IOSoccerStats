@@ -564,7 +564,7 @@ export default function MatchClient({
                     top: `${py}%`,
                     transform: `translate(-50%, -50%)${isSelected ? " scale(1.3)" : ""}`,
                     opacity: selectedMapEventId !== null && !isSelected ? 0.4 : 1,
-                    fontSize: "22px",
+                    fontSize: "clamp(12px, 2.6vw, 22px)",
                     lineHeight: 1,
                   }}
                   title={title}
@@ -584,7 +584,7 @@ export default function MatchClient({
               const px = Math.max(4, Math.min(96, (shotMapFlip ? 1 - ny : ny) * 92 + 4));
               const py = Math.max(6, Math.min(94, nx * 88 + 6));
               const above = py > 50;
-              const anchor = px > 84 ? 'right' : px < 16 ? 'left' : 'center';
+              const anchor = px > 70 ? 'right' : px < 30 ? 'left' : 'center';
               const left = anchor === 'right' ? `${px - 2}%` : anchor === 'left' ? `${px + 2}%` : `${px}%`;
               const transformX = anchor === 'right' ? '-100%' : anchor === 'left' ? '0' : '-50%';
 
@@ -597,9 +597,9 @@ export default function MatchClient({
                     top: above ? `calc(${py}% - 12px)` : `calc(${py}% + 12px)`,
                     transform: `translate(${transformX}, ${above ? "-100%" : "0"})`,
                   }}>
-                    <div className="max-w-[260px] bg-pitch-950/95 border border-chalk-100/15 rounded-lg px-3 py-2 text-xs font-mono whitespace-normal break-words shadow-lg">
-                      <div className="font-medium text-chalk-100">{evt.extra!.username}</div>
-                      <div className="flex items-center gap-2 mt-0.5">
+                    <div className="w-max max-w-[150px] sm:max-w-[260px] bg-pitch-950/95 border border-chalk-100/15 rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 text-[10px] sm:text-xs font-mono leading-snug whitespace-normal break-words shadow-lg">
+                      <div className="font-medium text-chalk-100 break-all">{evt.extra!.username}</div>
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
                         <span className={color}>{label}</span>
                         {evt.minute != null && <span className="text-chalk-400">{evt.minute}&apos;</span>}
                       </div>
@@ -615,9 +615,9 @@ export default function MatchClient({
                   top: above ? `calc(${py}% - 12px)` : `calc(${py}% + 12px)`,
                   transform: `translate(${transformX}, ${above ? "-100%" : "0"})`,
                 }}>
-                  <div className="max-w-[260px] bg-pitch-950/95 border border-chalk-100/15 rounded-lg px-3 py-2 text-xs font-mono whitespace-normal break-words shadow-lg">
-                    <div className="font-medium text-chalk-100">{s.is_save ? getSaveKeeperName(s) : s.username}</div>
-                    <div className="flex items-center gap-2 mt-0.5">
+                  <div className="w-max max-w-[150px] sm:max-w-[260px] bg-pitch-950/95 border border-chalk-100/15 rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 text-[10px] sm:text-xs font-mono leading-snug whitespace-normal break-words shadow-lg">
+                    <div className="font-medium text-chalk-100 break-all">{s.is_save ? getSaveKeeperName(s) : s.username}</div>
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
                       <span className={s.is_goal ? "text-green-400" : s.is_save ? "text-amber-400" : "text-red-400"}>
                         {s.is_goal ? "Goal" : s.is_save ? "Saved" : "Missed"}
                       </span>
@@ -625,13 +625,13 @@ export default function MatchClient({
                       {s.minute != null && <span className="text-chalk-400">{s.minute}&apos;</span>}
                     </div>
                     {s.is_goal && s.assist_username && (
-                      <div className="text-chalk-400 mt-0.5">
+                      <div className="text-chalk-400 mt-0.5 break-words">
                         Assist by {s.assist_username}
                       </div>
                     )}
                     {s.is_save && (
-                      <div className="text-chalk-400 mt-0.5">
-                        Shot by {s.username} - Saved by {getSaveKeeperName(s)}
+                      <div className="text-chalk-400 mt-0.5 break-words">
+                        Shot by {s.username} · Saved by {getSaveKeeperName(s)}
                       </div>
                     )}
                   </div>
@@ -868,7 +868,7 @@ function ShotZoneHeatmap({ shots, teamSide, teamColor, teamName }: {
                 >
                   {pct > 0 && (
                     <span
-                      className="text-[16px] font-mono font-bold select-none leading-none"
+                      className="text-[9px] sm:text-[13px] md:text-[16px] font-mono font-bold select-none leading-none"
                       style={{ color: luminance > 0.55 && intensity > 0.5 ? "rgba(0,0,0,0.85)" : "rgba(255,255,255,0.92)" }}
                     >
                       {pct}%
@@ -1505,7 +1505,7 @@ function SortablePlayerTable({
   return (
     <div className="mb-6">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="font-display font-700 text-base tracking-wider text-chalk-100 flex items-center gap-2">
+        <h2 className="font-display font-700 text-base tracking-wider text-chalk-100 flex flex-wrap items-center gap-x-2 gap-y-1">
           {team.logo && <img src={team.logo} alt="" className="w-5 h-5 object-contain" />}
           {team.label}
           {team.avgRating != null && Number.isFinite(team.avgRating) && (
@@ -1514,7 +1514,7 @@ function SortablePlayerTable({
             </span>
           )}
           {team.avgHint && (
-            <span className="text-[10px] font-mono text-slate-600 dark:text-chalk-400 uppercase tracking-wide">
+            <span className="basis-full sm:basis-auto text-[10px] font-mono text-slate-600 dark:text-chalk-400 uppercase tracking-wide">
               {team.avgHint}
             </span>
           )}
