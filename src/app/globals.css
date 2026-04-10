@@ -127,13 +127,14 @@ body {
   transition: background 0.15s ease;
   border-bottom: 1px solid rgba(138, 157, 196, 0.08);
 }
-.stat-row:hover {
-  background: rgba(244, 17, 158, 0.10);
-}
-/* Sticky cells inside stat-row must also change on hover */
-.stat-row:hover .trow-odd,
-.stat-row:hover .trow-even {
-  background-color: rgba(244, 17, 158, 0.10) !important;
+/* TR and sticky TD on hover — use the SAME opaque color so they match
+   visually. Higher-specificity selectors so !important zebra rules don't
+   win over hover in light mode. */
+.stat-row.trow-odd:hover,
+.stat-row.trow-even:hover,
+.stat-row:hover > .trow-odd,
+.stat-row:hover > .trow-even {
+  background-color: #2d1625 !important;
 }
 
 /* Team results grid rows — dark mode only zebra */
@@ -542,12 +543,16 @@ html.light table tbody tr:nth-child(even) { background-color: #f2f2f2 !important
 html.light table tbody tr:hover           { background-color: rgba(244,17,158,0.10) !important; }
 
 /* Named row background classes for sticky columns */
-.trow-odd  { background-color: #1c1c1c; }
-.trow-even { background-color: #181818; }
+.trow-odd  { background-color: #1c1c1c; transition: background-color 0.15s ease; }
+.trow-even { background-color: #181818; transition: background-color 0.15s ease; }
 html.light .trow-odd  { background-color: #ffffff !important; }
 html.light .trow-even { background-color: #f2f2f2 !important; }
-html.light tr:hover .trow-odd,
-html.light tr:hover .trow-even { background-color: rgba(244,17,158,0.10) !important; }
+/* Opaque composite of rgba(244,17,158,0.10) over light body #edeff4.
+   Apply to BOTH tr and sticky td so they blend seamlessly. */
+html.light .stat-row.trow-odd:hover,
+html.light .stat-row.trow-even:hover,
+html.light .stat-row:hover > .trow-odd,
+html.light .stat-row:hover > .trow-even { background-color: #edd9eb !important; }
 
 /* AccuracyCircle text — dark mode white, light mode dark */
 .circle-label { fill: white; }
