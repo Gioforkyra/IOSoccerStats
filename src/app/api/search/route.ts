@@ -35,10 +35,25 @@ export async function GET(req: NextRequest) {
 
   const results = await prisma.$queryRaw<SearchRow[]>`
     (
-      SELECT 'player' AS type, p.steam_id AS id, p.username AS name, p.position AS extra
+      SELECT
+        'player' AS type,
+        p.steam_id AS id,
+        p.username AS name,
+        COALESCE(
+          (
+            SELECT mps.position
+            FROM match_player_stats mps
+            WHERE mps.player_steam_id = p.steam_id AND mps.position IS NOT NULL
+            GROUP BY mps.position
+            ORDER BY COUNT(*) DESC
+            LIMIT 1
+          ),
+          p.position
+        ) AS extra
       FROM players p
       WHERE p.username ILIKE ${containsPattern}
-      ORDER BY p.username
+        AND p.iosoccer_id IS NOT NULL
+      ORDER BY (SELECT COUNT(*) FROM match_player_stats mps2 WHERE mps2.player_steam_id = p.steam_id) DESC, p.username
       LIMIT 20
     )
     UNION ALL

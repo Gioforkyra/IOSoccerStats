@@ -16,7 +16,7 @@ export default function TeamTabs({ teamId }: { teamId: number }) {
   const basePath = `/teams/${teamId}`;
 
   return (
-    <div className="flex border-b border-chalk-100/8 mb-6 overflow-x-auto">
+    <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
       {TABS.map((tab) => {
         const fullPath = basePath + tab.href;
         const isActive =
@@ -28,10 +28,10 @@ export default function TeamTabs({ teamId }: { teamId: number }) {
           <Link
             key={tab.label}
             href={fullPath}
-            className={`px-6 py-3 font-display font-700 text-sm uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${
+            className={`px-5 py-2.5 rounded-lg font-display font-700 text-sm uppercase tracking-wider border transition-all whitespace-nowrap ${
               isActive
-                ? "border-[#F4119E] text-chalk-100"
-                : "border-transparent text-chalk-400 hover:text-chalk-200 hover:border-chalk-100/20"
+                ? "border-[#F4119E] text-chalk-100 shadow-[0_0_12px_rgba(244,17,158,0.55),inset_0_0_8px_rgba(244,17,158,0.15)]"
+                : "border-transparent text-chalk-400 hover:text-chalk-200"
             }`}
           >
             {tab.label}
