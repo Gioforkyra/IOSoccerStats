@@ -101,6 +101,22 @@ export default async function TeamLayout({
 
   const teamRatingAvg = team.avgRating ?? null;
 
+  // Team form — last 5 matches
+  type TeamFormRow = { home_team_id: number; home_score: number; away_score: number };
+  const formRows = await prisma.$queryRaw<TeamFormRow[]>`
+    SELECT home_team_id, home_score, away_score
+    FROM matches
+    WHERE home_team_id = ${teamId} OR away_team_id = ${teamId}
+    ORDER BY date DESC
+    LIMIT 5
+  `;
+  const teamForm = formRows.map((m) => {
+    const isHome = m.home_team_id === teamId;
+    const won = isHome ? m.home_score > m.away_score : m.away_score > m.home_score;
+    const draw = m.home_score === m.away_score;
+    return draw ? "D" : won ? "W" : "L";
+  });
+
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
       {/* Breadcrumb */}
@@ -141,13 +157,31 @@ export default async function TeamLayout({
                 <span className="font-display font-900 text-3xl text-[#F4119E]">{teamRatingAvg.toFixed(2)}</span>
               )}
             </div>
-            <div className="flex items-center gap-3 mt-2 text-sm font-mono text-chalk-400">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mt-2 text-sm font-mono text-chalk-400">
               <span className="bg-pitch-800/60 px-2 py-0.5 rounded text-chalk-300">
                 {team.slug}
               </span>
               {team.region && <span>{team.region}</span>}
               {team.inactive && (
                 <span className="text-red-400/80 text-xs">Inactive</span>
+              )}
+              {teamForm.length > 0 && (
+                <span className="flex items-center gap-1.5 sm:ml-2">
+                  {teamForm.map((r, i) => (
+                    <span
+                      key={i}
+                      className={`w-6 h-6 rounded text-xs font-mono font-700 flex items-center justify-center ${
+                        r === "W"
+                          ? "bg-grass-500/20 text-grass-500"
+                          : r === "D"
+                            ? "bg-chalk-400/20 text-chalk-400"
+                            : "bg-red-400/20 text-red-400"
+                      }`}
+                    >
+                      {r}
+                    </span>
+                  ))}
+                </span>
               )}
             </div>
           </div>

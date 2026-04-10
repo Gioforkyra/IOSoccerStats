@@ -93,6 +93,19 @@ export default async function PlayerLayout({
     currentTeam = currentTeams[0] || null;
   }
 
+  // Most played position across all matches (hub shows preferred position,
+  // but the API returns it as null for most players — derive it from full match history instead)
+  const positionRows = await prisma.$queryRaw<{ position: string; cnt: number }[]>`
+    SELECT position, COUNT(*)::int AS cnt
+    FROM match_player_stats
+    WHERE player_steam_id = ANY(${steamIds})
+      AND position IS NOT NULL
+    GROUP BY position
+    ORDER BY cnt DESC
+    LIMIT 1
+  `;
+  const derivedPosition = positionRows[0]?.position ?? null;
+
   // Form (last 5)
   const formResults = await prisma.$queryRaw<FormResult[]>`
     SELECT m.home_score, m.away_score, mps.team_side
@@ -184,10 +197,10 @@ export default async function PlayerLayout({
             </div>
 
             <div className="flex flex-wrap items-center gap-x-6 gap-y-1.5 mt-2">
-              {player.position && (
+              {derivedPosition && (
                 <div>
                   <div className="text-[10px] font-mono text-chalk-400 uppercase">Position</div>
-                  <div className="text-lg font-display font-700 text-chalk-100">{player.position}</div>
+                  <div className="text-lg font-display font-700 text-chalk-100">{derivedPosition}</div>
                 </div>
               )}
 
@@ -214,27 +227,29 @@ export default async function PlayerLayout({
                   <div className="text-lg font-display font-700 text-chalk-400">None</div>
                 )}
               </div>
-            </div>
 
-            {form.length > 0 && (
-              <div className="mt-2 flex items-center gap-1.5">
-                <span className="text-[10px] font-mono text-chalk-400 uppercase mr-1">Form</span>
-                {form.map((r, i) => (
-                  <span
-                    key={i}
-                    className={`w-6 h-6 rounded text-xs font-mono font-700 flex items-center justify-center ${
-                      r === "W"
-                        ? "bg-grass-500/20 text-grass-500"
-                        : r === "D"
-                          ? "bg-chalk-400/20 text-chalk-400"
-                          : "bg-red-400/20 text-red-400"
-                    }`}
-                  >
-                    {r}
-                  </span>
-                ))}
-              </div>
-            )}
+              {form.length > 0 && (
+                <div>
+                  <div className="text-[10px] font-mono text-chalk-400 uppercase">Form</div>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    {form.map((r, i) => (
+                      <span
+                        key={i}
+                        className={`w-6 h-6 rounded text-xs font-mono font-700 flex items-center justify-center ${
+                          r === "W"
+                            ? "bg-grass-500/20 text-grass-500"
+                            : r === "D"
+                              ? "bg-chalk-400/20 text-chalk-400"
+                              : "bg-red-400/20 text-red-400"
+                        }`}
+                      >
+                        {r}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Team logo on the right */}
