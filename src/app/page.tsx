@@ -67,12 +67,12 @@ export default async function HomePage() {
   `;
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-pitch-950">
+    <div className="min-h-screen relative overflow-hidden bg-pitch-950 flex flex-col">
       <ParticlesBackground />
 
       {/* Content */}
-      <div className="relative z-10">
-        <section>
+      <div className="relative z-10 flex flex-1 flex-col">
+        <section className="flex-1">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-12 pb-12">
             {/* Header */}
             <div className="mb-6">
