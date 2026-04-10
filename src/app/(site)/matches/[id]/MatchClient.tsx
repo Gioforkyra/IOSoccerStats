@@ -776,6 +776,8 @@ function ShotZoneHeatmap({ shots, teamSide, teamColor, teamName }: {
 }) {
   const COLS = 8;
   const ROWS = 3; // top 3 rows of attacking half (near goal)
+  const VISIBLE_ATTACKING_HALF_RATIO = 0.6; // rendered SVG shows roughly top 3/5 of attacking half
+  const MAX_VISIBLE_DIST_TO_GOAL = 0.5 * VISIBLE_ATTACKING_HALF_RATIO;
 
   const hex = teamColor?.match(/^#([0-9a-f]{6})$/i);
   const [cr, cg, cb] = hex
@@ -800,17 +802,22 @@ function ShotZoneHeatmap({ shots, teamSide, teamColor, teamName }: {
   const grid: { count: number; goals: number }[][] = Array.from({ length: ROWS }, () =>
     Array.from({ length: COLS }, () => ({ count: 0, goals: 0 }))
   );
+  let visibleShotsCount = 0;
   for (const s of corrected) {
+    if (s.distToGoal > MAX_VISIBLE_DIST_TO_GOAL) continue;
+
     const col = Math.min(COLS - 1, Math.floor(s.x * COLS));
-    // map distToGoal [0 → 0.5] to row [0 → ROWS-1], only show shots within attacking half
-    const row = Math.floor(s.distToGoal * ROWS * 2);
-    if (row >= ROWS) continue; // beyond the shown area
+    // map visible distToGoal [0 -> MAX_VISIBLE_DIST_TO_GOAL] to row [0 -> ROWS-1]
+    const row = Math.min(ROWS - 1, Math.floor((s.distToGoal / MAX_VISIBLE_DIST_TO_GOAL) * ROWS));
+
+    visibleShotsCount++;
     grid[row][col].count++;
     if (s.isGoal) grid[row][col].goals++;
   }
 
   const total = teamShots.length;
   const goals = teamShots.filter((s) => s.is_goal).length;
+  const zoneTotal = Math.max(1, visibleShotsCount);
   const maxCount = Math.max(1, ...grid.flatMap((r) => r.map((c) => c.count)));
 
   // Row 0 = goal line (attackY≈1.0) displayed at top, row ROWS-1 = center at bottom
@@ -857,7 +864,7 @@ function ShotZoneHeatmap({ shots, teamSide, teamColor, teamName }: {
         >
           {displayRows.map((row, ri) =>
             row.map((cell, ci) => {
-              const pct = total > 0 ? Math.round((cell.count / total) * 100) : 0;
+              const pct = visibleShotsCount > 0 ? Math.round((cell.count / zoneTotal) * 100) : 0;
               const intensity = cell.count / maxCount;
               return (
                 <div
