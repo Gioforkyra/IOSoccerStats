@@ -124,8 +124,9 @@ export default async function PlayerLayout({
   });
 
   const avatarUrl = await getSteamAvatar(player.steamId, player.avatar, player.avatarUpdatedAt);
-  const teamColor = currentTeam?.team_color || null;
-  const cardPalette = getCardContrastPalette(teamColor);
+  const teamColor = currentTeam?.team_color ?? null;
+  const isNoTeam = currentTeam == null;
+  const cardPalette = getCardContrastPalette(teamColor ?? "#171717");
 
   type ActivityRow = { day: string; count: number };
   const activityRows = await prisma.$queryRaw<ActivityRow[]>`
@@ -154,9 +155,9 @@ export default async function PlayerLayout({
 
       {/* Hero Card */}
       <div
-        className="relative rounded-xl border border-chalk-100/8 overflow-hidden mb-6"
+        className={`relative rounded-xl border border-chalk-100/8 overflow-hidden mb-6 ${isNoTeam ? "player-no-team-card" : ""}`}
         style={{
-          backgroundColor: cardPalette.background,
+          backgroundColor: isNoTeam ? "var(--player-no-team-card-bg, #171717)" : cardPalette.background,
         }}
       >
         <div className="relative flex flex-col md:flex-row items-start md:items-center gap-4 p-4 md:p-5">
@@ -183,7 +184,7 @@ export default async function PlayerLayout({
             <div className="flex items-center gap-3">
               <h1
                 className="font-display font-900 text-3xl md:text-3xl tracking-tight uppercase"
-                style={{ color: cardPalette.primaryText }}
+                style={{ color: isNoTeam ? "var(--player-no-team-primary, #ffffff)" : cardPalette.primaryText }}
               >
                 {player.username}
               </h1>
@@ -194,8 +195,12 @@ export default async function PlayerLayout({
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border text-[11px] font-mono hover:text-[#F4119E] hover:border-[#F4119E]/30 transition-colors"
                   style={{
-                    color: cardPalette.mutedText,
-                    borderColor: cardPalette.isBright ? "rgba(17,24,39,0.2)" : "rgba(255,255,255,0.15)",
+                    color: isNoTeam ? "var(--player-no-team-muted, rgba(209,213,219,0.9))" : cardPalette.mutedText,
+                    borderColor: isNoTeam
+                      ? "var(--player-no-team-border, rgba(255,255,255,0.15))"
+                      : cardPalette.isBright
+                        ? "rgba(17,24,39,0.2)"
+                        : "rgba(255,255,255,0.15)",
                   }}
                   title="View on IOSoccer Hub"
                 >
@@ -208,25 +213,25 @@ export default async function PlayerLayout({
             <div className="flex flex-wrap items-center gap-x-6 gap-y-1.5 mt-2">
               {derivedPosition && (
                 <div>
-                  <div className="text-[10px] font-mono uppercase" style={{ color: cardPalette.mutedText }}>Position</div>
-                  <div className="text-lg font-display font-700" style={{ color: cardPalette.primaryText }}>{derivedPosition}</div>
+                  <div className="text-[10px] font-mono uppercase" style={{ color: isNoTeam ? "var(--player-no-team-muted, rgba(209,213,219,0.9))" : cardPalette.mutedText }}>Position</div>
+                  <div className="text-lg font-display font-700" style={{ color: isNoTeam ? "var(--player-no-team-primary, #ffffff)" : cardPalette.primaryText }}>{derivedPosition}</div>
                 </div>
               )}
 
               {player.rating != null && (
                 <div>
-                  <div className="text-[10px] font-mono uppercase" style={{ color: cardPalette.mutedText }}>Rating</div>
-                  <div className="text-lg font-display font-700" style={{ color: cardPalette.primaryText }}>{player.rating.toFixed(1)}</div>
+                  <div className="text-[10px] font-mono uppercase" style={{ color: isNoTeam ? "var(--player-no-team-muted, rgba(209,213,219,0.9))" : cardPalette.mutedText }}>Rating</div>
+                  <div className="text-lg font-display font-700" style={{ color: isNoTeam ? "var(--player-no-team-primary, #ffffff)" : cardPalette.primaryText }}>{player.rating.toFixed(1)}</div>
                 </div>
               )}
 
               <div>
-                <div className="text-[10px] font-mono uppercase" style={{ color: cardPalette.mutedText }}>Club Team</div>
+                <div className="text-[10px] font-mono uppercase" style={{ color: isNoTeam ? "var(--player-no-team-muted, rgba(209,213,219,0.9))" : cardPalette.mutedText }}>Club Team</div>
                 {currentTeam ? (
                   <Link
                     href={`/teams/${currentTeam.team_id}`}
                     className="flex items-center gap-2 text-lg font-display font-700 hover:text-[#F4119E] transition-colors"
-                    style={{ color: cardPalette.primaryText }}
+                    style={{ color: isNoTeam ? "var(--player-no-team-primary, #ffffff)" : cardPalette.primaryText }}
                   >
                     {currentTeam.team_logo && (
                       <img src={proxyImg(currentTeam.team_logo)!} alt="" className="w-8 h-8 object-contain" />
@@ -234,13 +239,13 @@ export default async function PlayerLayout({
                     {currentTeam.team_name}
                   </Link>
                 ) : (
-                  <div className="text-lg font-display font-700" style={{ color: cardPalette.mutedText }}>None</div>
+                  <div className="text-lg font-display font-700" style={{ color: isNoTeam ? "var(--player-no-team-muted, rgba(209,213,219,0.9))" : cardPalette.mutedText }}>None</div>
                 )}
               </div>
 
               {form.length > 0 && (
                 <div>
-                  <div className="text-[10px] font-mono uppercase" style={{ color: cardPalette.mutedText }}>Form</div>
+                  <div className="text-[10px] font-mono uppercase" style={{ color: isNoTeam ? "var(--player-no-team-muted, rgba(209,213,219,0.9))" : cardPalette.mutedText }}>Form</div>
                   <div className="flex items-center gap-1.5 mt-1">
                     {form.map((r, i) => (
                       <span

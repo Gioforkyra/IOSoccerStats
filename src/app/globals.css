@@ -523,6 +523,20 @@ html.light .matches-table tbody tr:hover   td { background-color: rgba(244,17,15
   transform: translateX(1.5em);
 }
 
+/* Player card fallback colors when the player has no current team */
+.player-no-team-card {
+  --player-no-team-card-bg: #171717;
+  --player-no-team-primary: #ffffff;
+  --player-no-team-muted: rgba(209, 213, 219, 0.9);
+  --player-no-team-border: rgba(255, 255, 255, 0.15);
+}
+html.light .player-no-team-card {
+  --player-no-team-card-bg: #f5f5f5;
+  --player-no-team-primary: #111827;
+  --player-no-team-muted: rgba(17, 24, 39, 0.72);
+  --player-no-team-border: rgba(17, 24, 39, 0.22);
+}
+
 /* ------------------------------------------------------------------ */
 /*  Light mode overrides                                               */
 /* ------------------------------------------------------------------ */
@@ -539,7 +553,7 @@ html.light [class*="bg-pitch-700"] { background-color: #e0e0e0 !important; }
 html.light [class*="bg-pitch-600"] { background-color: #d5d5d5 !important; }
 
 /* Borders → subtle dark instead of subtle light */
-html.light [class*="border-chalk-100"] { border-color: rgba(0,0,0,0.10) !important; }
+html.light [class*="border-chalk-100"] { border-color: rgba(0,0,0,0.24) !important; }
 
 /* Text → dark */
 html.light [class*="text-chalk-100"] { color: #1a1a1a; }
