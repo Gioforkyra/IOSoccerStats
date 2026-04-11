@@ -159,6 +159,23 @@ const BOARDS: Board[] = [
     unit: "titles",
     format: () => "",
   },
+  {
+    key: "potm",
+    title: "POTM",
+    subtitle: "Player of the Match awards",
+    sortBy: "",
+    unit: "potm",
+    format: () => "",
+  },
+  {
+    key: "potmPerApp",
+    title: "POTM / App",
+    subtitle: "POTM per appearance · Europe only (min 500 apps)",
+    sortBy: "",
+    unit: "p/app",
+    minApps: 500,
+    format: () => "",
+  },
 ];
 
 type LeaderboardRow = { steamID: string; name: string; value: string };
@@ -217,6 +234,76 @@ async function fetchBoard(
       `[leaderboards] ${board.key} (sortBy=${board.sortBy}) failed:`,
       err
     );
+    return [];
+  }
+}
+
+async function fetchPotmBoard(
+  mode: "total" | "perApp"
+): Promise<LeaderboardRow[]> {
+  try {
+    const rows =
+      mode === "total"
+        ? await prisma.$queryRaw<
+            { steam_id: string; potm_count: bigint; app_count: bigint }[]
+          >`
+            SELECT
+              mps.player_steam_id AS steam_id,
+              COUNT(*) FILTER (WHERE mps.is_potm) AS potm_count,
+              COUNT(DISTINCT mps.match_id) AS app_count
+            FROM match_player_stats mps
+            GROUP BY mps.player_steam_id
+            HAVING COUNT(*) FILTER (WHERE mps.is_potm) > 0
+            ORDER BY potm_count DESC
+            LIMIT 10
+          `
+        : await prisma.$queryRaw<
+            { steam_id: string; potm_count: bigint; app_count: bigint }[]
+          >`
+            SELECT
+              mps.player_steam_id AS steam_id,
+              COUNT(*) FILTER (WHERE mps.is_potm) AS potm_count,
+              COUNT(DISTINCT mps.match_id) AS app_count
+            FROM match_player_stats mps
+            JOIN matches m ON m.id = mps.match_id
+            JOIN teams t ON t.id = CASE
+              WHEN mps.team_side = 'home' THEN m.home_team_id
+              WHEN mps.team_side = 'away' THEN m.away_team_id
+            END
+            WHERE t.region_id = 1
+            GROUP BY mps.player_steam_id
+            HAVING COUNT(DISTINCT mps.match_id) >= 500
+            ORDER BY (COUNT(*) FILTER (WHERE mps.is_potm))::float
+                     / NULLIF(COUNT(DISTINCT mps.match_id), 0) DESC
+            LIMIT 10
+          `;
+
+    if (rows.length === 0) return [];
+
+    const steamIds = rows.map((r) => r.steam_id);
+    const players = await prisma.player.findMany({
+      where: { steamId: { in: steamIds } },
+      select: { steamId: true, username: true },
+    });
+    const nameBySteam = new Map(players.map((p) => [p.steamId, p.username]));
+
+    return rows.map((r) => {
+      const potm = Number(r.potm_count);
+      const apps = Number(r.app_count);
+      const value =
+        mode === "total"
+          ? potm.toLocaleString()
+          : apps > 0
+            ? (potm / apps).toFixed(3)
+            : "0.000";
+      return {
+        steamID: r.steam_id,
+        name: nameBySteam.get(r.steam_id) ?? r.steam_id,
+        value,
+      };
+    });
+  } catch (err) {
+    console.error(`[leaderboards] potm (${mode}) failed:`, err);
     return [];
   }
 }
@@ -314,11 +401,15 @@ export default async function LeaderboardsPage({
   const rows: LeaderboardRow[] =
     selected.key === "titles"
       ? await fetchTitlesBoard()
-      : (await fetchBoard(selected)).map((p) => ({
-          steamID: p.steamID,
-          name: p.nickname || p.name || p.steamID,
-          value: selected.format(p),
-        }));
+      : selected.key === "potm"
+        ? await fetchPotmBoard("total")
+        : selected.key === "potmPerApp"
+          ? await fetchPotmBoard("perApp")
+          : (await fetchBoard(selected)).map((p) => ({
+              steamID: p.steamID,
+              name: p.nickname || p.name || p.steamID,
+              value: selected.format(p),
+            }));
 
   const steamIds = Array.from(
     new Set(
