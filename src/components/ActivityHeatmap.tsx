@@ -76,13 +76,15 @@ export function ActivityHeatmap({ data, color = "#F4119E" }: Props) {
   const fgRgb = hexToRgbArr(safeColor);
   const resolvedEmptyFill = theme === "light" ? "#edeff4" : "#171717";
   // Solid (pre-blended) colors so rendering is identical regardless of wrapper bg
-  const BLEND_BASE: [number, number, number] = [26, 29, 43]; // #1a1d2b
+  const BLEND_BASE: [number, number, number] =
+    theme === "light" ? [237, 239, 244] : [26, 29, 43]; // light: #edeff4, dark: #1a1d2b
+  const topFill = theme === "light" ? blend(fgRgb, BLEND_BASE, 0.85) : safeColor;
   const getColor = (count: number): string => {
     if (count === 0) return resolvedEmptyFill;
-    if (count === 1) return blend(fgRgb, BLEND_BASE, 0.25);
-    if (count <= 3) return blend(fgRgb, BLEND_BASE, 0.5);
-    if (count <= 6) return blend(fgRgb, BLEND_BASE, 0.75);
-    return safeColor;
+    if (count === 1) return blend(fgRgb, BLEND_BASE, 0.2);
+    if (count <= 3) return blend(fgRgb, BLEND_BASE, 0.4);
+    if (count <= 6) return blend(fgRgb, BLEND_BASE, 0.6);
+    return topFill;
   };
   const STROKE_PAD = 1;
   const W = weeks.length;
