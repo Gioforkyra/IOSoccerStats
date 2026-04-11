@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { proxyImg } from "@/lib/img";
+import { getCardContrastPalette } from "@/lib/card-contrast";
 import TeamTabs from "./TeamTabs";
 import { ActivityHeatmap } from "@/components/ActivityHeatmap";
 
@@ -85,6 +86,7 @@ export default async function TeamLayout({
   const lossPctBar = matches > 0 ? (losses / matches) * 100 : 0;
 
   const teamColor = team.color || null;
+  const cardPalette = getCardContrastPalette(teamColor);
 
   type ActivityRow = { day: string; count: number };
   const activityRows = await prisma.$queryRaw<ActivityRow[]>`
@@ -132,7 +134,7 @@ export default async function TeamLayout({
       <div
         className="relative rounded-xl border border-chalk-100/8 overflow-hidden mb-6"
         style={{
-          backgroundColor: teamColor ? `${teamColor}35` : "rgb(var(--pitch-900))",
+          backgroundColor: cardPalette.background,
         }}
       >
         <div className="relative flex items-center gap-4 p-4 md:p-5">
@@ -150,32 +152,56 @@ export default async function TeamLayout({
 
           <div className="flex-1 min-w-0">
             <div className="flex items-baseline gap-3 flex-wrap">
-              <h1 className="font-display font-900 text-3xl md:text-3xl tracking-tight text-chalk-100 uppercase">
+              <h1
+                className="font-display font-900 text-3xl md:text-3xl tracking-tight uppercase"
+                style={{ color: cardPalette.primaryText }}
+              >
                 {team.name}
               </h1>
               {teamRatingAvg != null && (
-                <span className="font-display font-900 text-3xl text-[#F4119E]">{teamRatingAvg.toFixed(2)}</span>
+                <span
+                  className="font-display font-900 text-3xl"
+                  style={{
+                    color: cardPalette.accentValue,
+                    textShadow: cardPalette.isBright
+                      ? "0 1px 0 rgba(255,255,255,0.35)"
+                      : "0 1px 2px rgba(0,0,0,0.5)",
+                  }}
+                >
+                  {teamRatingAvg.toFixed(2)}
+                </span>
               )}
             </div>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mt-2 text-sm font-mono text-chalk-400">
-              <span className="bg-pitch-800/60 px-2 py-0.5 rounded text-chalk-300">
+            <div
+              className="flex flex-wrap items-center gap-x-3 gap-y-2 mt-2 text-sm font-mono"
+              style={{ color: cardPalette.secondaryText }}
+            >
+              <span
+                className="px-2 py-0.5 rounded"
+                style={{ backgroundColor: cardPalette.chipBackground, color: cardPalette.chipText }}
+              >
                 {team.slug}
               </span>
-              {team.region && <span>{team.region}</span>}
+              {team.region && <span style={{ color: cardPalette.secondaryText }}>{team.region}</span>}
               {team.inactive && (
-                <span className="text-red-400/80 text-xs">Inactive</span>
+                <span
+                  className="text-xs"
+                  style={{ color: cardPalette.isBright ? "#7f1d1d" : "#fecaca" }}
+                >
+                  Inactive
+                </span>
               )}
               {teamForm.length > 0 && (
                 <span className="flex items-center gap-1.5 sm:ml-2">
                   {teamForm.map((r, i) => (
                     <span
                       key={i}
-                      className={`w-6 h-6 rounded text-xs font-mono font-700 flex items-center justify-center ${
+                      className={`w-6 h-6 rounded text-xs font-mono font-700 flex items-center justify-center border border-black/20 ${
                         r === "W"
-                          ? "bg-grass-500/20 text-grass-500"
+                          ? "bg-[#15803d] text-white"
                           : r === "D"
-                            ? "bg-chalk-400/20 text-chalk-400"
-                            : "bg-red-400/20 text-red-400"
+                            ? "bg-[#4b5563] text-white"
+                            : "bg-[#b91c1c] text-white"
                       }`}
                     >
                       {r}

@@ -14,9 +14,17 @@ type Props = {
   color?: string;               // hex, defaults to pink
 };
 
-function hexToRgb(hex: string): string {
+function hexToRgbArr(hex: string): [number, number, number] {
   const h = hex.replace("#", "");
-  return `${parseInt(h.slice(0,2),16)},${parseInt(h.slice(2,4),16)},${parseInt(h.slice(4,6),16)}`;
+  return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+}
+
+// Blend fg onto bg with given alpha — returns solid rgb string
+function blend(fg: [number, number, number], bg: [number, number, number], alpha: number): string {
+  const r = Math.round(fg[0] * alpha + bg[0] * (1 - alpha));
+  const g = Math.round(fg[1] * alpha + bg[1] * (1 - alpha));
+  const b = Math.round(fg[2] * alpha + bg[2] * (1 - alpha));
+  return `rgb(${r},${g},${b})`;
 }
 
 // Deterministic formatter — no locale dependency, avoids hydration mismatch
@@ -33,6 +41,7 @@ function playHover() {
 
 export function ActivityHeatmap({ data, color = "#F4119E" }: Props) {
   const { theme } = useTheme();
+  const cellStroke = "#000000";
   // All date math in UTC so server/client produce identical output
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
@@ -64,19 +73,21 @@ export function ActivityHeatmap({ data, color = "#F4119E" }: Props) {
   });
 
   const safeColor = /^#[0-9a-fA-F]{6}$/.test(color) ? color : "#F4119E";
-  const rgb = hexToRgb(safeColor);
-  const emptyColor = theme === "light" ? "#d1d5db" : "#1a1d2b";
+  const fgRgb = hexToRgbArr(safeColor);
+  const resolvedEmptyFill = theme === "light" ? "#edeff4" : "#171717";
+  // Solid (pre-blended) colors so rendering is identical regardless of wrapper bg
+  const BLEND_BASE: [number, number, number] = [26, 29, 43]; // #1a1d2b
   const getColor = (count: number): string => {
-    if (count === 0) return emptyColor;
-    if (count === 1) return `rgba(${rgb},0.25)`;
-    if (count <= 3) return `rgba(${rgb},0.5)`;
-    if (count <= 6) return `rgba(${rgb},0.75)`;
+    if (count === 0) return resolvedEmptyFill;
+    if (count === 1) return blend(fgRgb, BLEND_BASE, 0.25);
+    if (count <= 3) return blend(fgRgb, BLEND_BASE, 0.5);
+    if (count <= 6) return blend(fgRgb, BLEND_BASE, 0.75);
     return safeColor;
   };
-
+  const STROKE_PAD = 1;
   const W = weeks.length;
-  const svgW = LEFT_PAD + W * STRIDE - GAP;
-  const svgH = TOP_PAD + 7 * STRIDE - GAP;
+  const svgW = LEFT_PAD + W * STRIDE - GAP + STROKE_PAD;
+  const svgH = TOP_PAD + 7 * STRIDE - GAP + STROKE_PAD;
 
   const DAY_LABELS: [string, number][] = [["Mon", 0], ["Wed", 2], ["Fri", 4], ["Sun", 6]];
 
@@ -134,6 +145,9 @@ export function ActivityHeatmap({ data, color = "#F4119E" }: Props) {
                 rx={2}
                 ry={2}
                 fill={isFuture ? "transparent" : getColor(day.count)}
+                stroke={isFuture ? undefined : cellStroke}
+                strokeWidth={isFuture ? undefined : 1}
+                strokeOpacity={isFuture ? undefined : 1}
                 className={isFuture ? undefined : "hm-cell"}
                 onMouseEnter={isFuture ? undefined : playHover}
               >

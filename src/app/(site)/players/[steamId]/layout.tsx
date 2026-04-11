@@ -5,6 +5,7 @@ import { proxyImg } from "@/lib/img";
 import { getSteamAvatar } from "@/lib/steam-avatar";
 import { getRelatedSteamIds } from "@/lib/player-aliases";
 import { getPlayerTeams } from "@/lib/iosoccer-api";
+import { getCardContrastPalette } from "@/lib/card-contrast";
 import PlayerTabs from "./PlayerTabs";
 import { ActivityHeatmap } from "@/components/ActivityHeatmap";
 
@@ -124,6 +125,7 @@ export default async function PlayerLayout({
 
   const avatarUrl = await getSteamAvatar(player.steamId, player.avatar, player.avatarUpdatedAt);
   const teamColor = currentTeam?.team_color || null;
+  const cardPalette = getCardContrastPalette(teamColor);
 
   type ActivityRow = { day: string; count: number };
   const activityRows = await prisma.$queryRaw<ActivityRow[]>`
@@ -154,7 +156,7 @@ export default async function PlayerLayout({
       <div
         className="relative rounded-xl border border-chalk-100/8 overflow-hidden mb-6"
         style={{
-          backgroundColor: teamColor ? `${teamColor}35` : "rgb(var(--pitch-900))",
+          backgroundColor: cardPalette.background,
         }}
       >
         <div className="relative flex flex-col md:flex-row items-start md:items-center gap-4 p-4 md:p-5">
@@ -179,7 +181,10 @@ export default async function PlayerLayout({
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3">
-              <h1 className="font-display font-900 text-3xl md:text-3xl tracking-tight text-chalk-100 uppercase">
+              <h1
+                className="font-display font-900 text-3xl md:text-3xl tracking-tight uppercase"
+                style={{ color: cardPalette.primaryText }}
+              >
                 {player.username}
               </h1>
               {player.iosoccerId && (
@@ -187,7 +192,11 @@ export default async function PlayerLayout({
                   href={`https://www.iosoccer.com/player-profile/${player.iosoccerId}/statistics`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-chalk-100/10 text-[11px] font-mono text-chalk-400 hover:text-[#F4119E] hover:border-[#F4119E]/30 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border text-[11px] font-mono hover:text-[#F4119E] hover:border-[#F4119E]/30 transition-colors"
+                  style={{
+                    color: cardPalette.mutedText,
+                    borderColor: cardPalette.isBright ? "rgba(17,24,39,0.2)" : "rgba(255,255,255,0.15)",
+                  }}
                   title="View on IOSoccer Hub"
                 >
                   HUB #{player.iosoccerId}
@@ -199,24 +208,25 @@ export default async function PlayerLayout({
             <div className="flex flex-wrap items-center gap-x-6 gap-y-1.5 mt-2">
               {derivedPosition && (
                 <div>
-                  <div className="text-[10px] font-mono text-chalk-400 uppercase">Position</div>
-                  <div className="text-lg font-display font-700 text-chalk-100">{derivedPosition}</div>
+                  <div className="text-[10px] font-mono uppercase" style={{ color: cardPalette.mutedText }}>Position</div>
+                  <div className="text-lg font-display font-700" style={{ color: cardPalette.primaryText }}>{derivedPosition}</div>
                 </div>
               )}
 
               {player.rating != null && (
                 <div>
-                  <div className="text-[10px] font-mono text-chalk-400 uppercase">Rating</div>
-                  <div className="text-lg font-display font-700 text-chalk-100">{player.rating.toFixed(1)}</div>
+                  <div className="text-[10px] font-mono uppercase" style={{ color: cardPalette.mutedText }}>Rating</div>
+                  <div className="text-lg font-display font-700" style={{ color: cardPalette.primaryText }}>{player.rating.toFixed(1)}</div>
                 </div>
               )}
 
               <div>
-                <div className="text-[10px] font-mono text-chalk-400 uppercase">Club Team</div>
+                <div className="text-[10px] font-mono uppercase" style={{ color: cardPalette.mutedText }}>Club Team</div>
                 {currentTeam ? (
                   <Link
                     href={`/teams/${currentTeam.team_id}`}
-                    className="flex items-center gap-2 text-lg font-display font-700 text-chalk-100 hover:text-[#F4119E] transition-colors"
+                    className="flex items-center gap-2 text-lg font-display font-700 hover:text-[#F4119E] transition-colors"
+                    style={{ color: cardPalette.primaryText }}
                   >
                     {currentTeam.team_logo && (
                       <img src={proxyImg(currentTeam.team_logo)!} alt="" className="w-8 h-8 object-contain" />
@@ -224,23 +234,23 @@ export default async function PlayerLayout({
                     {currentTeam.team_name}
                   </Link>
                 ) : (
-                  <div className="text-lg font-display font-700 text-chalk-400">None</div>
+                  <div className="text-lg font-display font-700" style={{ color: cardPalette.mutedText }}>None</div>
                 )}
               </div>
 
               {form.length > 0 && (
                 <div>
-                  <div className="text-[10px] font-mono text-chalk-400 uppercase">Form</div>
+                  <div className="text-[10px] font-mono uppercase" style={{ color: cardPalette.mutedText }}>Form</div>
                   <div className="flex items-center gap-1.5 mt-1">
                     {form.map((r, i) => (
                       <span
                         key={i}
-                        className={`w-6 h-6 rounded text-xs font-mono font-700 flex items-center justify-center ${
+                        className={`w-6 h-6 rounded text-xs font-mono font-700 flex items-center justify-center border border-black/20 ${
                           r === "W"
-                            ? "bg-grass-500/20 text-grass-500"
+                            ? "bg-[#15803d] text-white"
                             : r === "D"
-                              ? "bg-chalk-400/20 text-chalk-400"
-                              : "bg-red-400/20 text-red-400"
+                              ? "bg-[#4b5563] text-white"
+                              : "bg-[#b91c1c] text-white"
                         }`}
                       >
                         {r}
