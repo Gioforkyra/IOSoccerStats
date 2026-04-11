@@ -22,6 +22,7 @@ const NAV: NavItem[] = [
     exact: false,
     dropdown: [
       { label: "Statistics", href: "/players" },
+      { label: "Leaderboards", href: "/players/leaderboards" },
       { label: "Transfers", href: "/players/transfers" },
       { label: "Head2Head", href: "/players/h2h" },
     ],

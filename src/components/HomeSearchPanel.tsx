@@ -161,9 +161,9 @@ export default function HomeSearchPanel({
           { href: "/teams", label: "Teams" },
           { href: "/matches", label: "Matches" },
           { href: "/matches/live", label: "Live" },
-          { href: "/tournaments", label: "Tournaments" },
+          { href: "/players/transfers", label: "Transfers" },
           { href: "/ratings", label: "Ratings" },
-          { href: "/teams?view=list", label: "Team List" },
+          { href: "/players/leaderboards", label: "Leaderboards" },
         ].map((link) => (
           <Link
             key={link.label}

@@ -254,10 +254,10 @@ export default async function HomePage() {
                   )}
                 </div>
                 <Link
-                  href="/ratings"
+                  href="/players/leaderboards?stat=rating"
                   className="mt-3 inline-block text-xs font-mono text-[#F4119E] hover:text-[#F4119E]/70 transition-colors"
                 >
-                  View Ratings {"->"}
+                  View Leaderboards {"->"}
                 </Link>
               </div>
 

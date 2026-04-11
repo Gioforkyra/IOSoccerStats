@@ -10,7 +10,7 @@ export default function NotFound() {
           4<span className="text-[#F4119E]">0</span>4
         </h1>
         <p className="mt-4 font-body text-lg md:text-xl text-chalk-300">
-          Oh my days mate, you aight? Nothing to see here...
+          Oh my days mate, you aight? Nuffin to see hya...
         </p>
         <Link
           href="/"

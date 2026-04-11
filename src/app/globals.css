@@ -611,6 +611,22 @@ html.light .pink-hover:hover {
   background: rgba(244, 17, 158, 0.30) !important;
 }
 
+/* ── Leaderboards slow-API warning callout ── */
+.lb-warning {
+  border-color: rgba(234, 179, 8, 0.3);
+  background-color: rgba(234, 179, 8, 0.05);
+}
+.lb-warning-icon { color: #facc15; }
+.lb-warning-text { color: rgba(254, 240, 138, 0.9); }
+.lb-warning-strong { color: #fde047; }
+html.light .lb-warning {
+  border-color: rgba(154, 97, 0, 0.55);
+  background-color: rgba(250, 204, 21, 0.22);
+}
+html.light .lb-warning-icon { color: #8a5a00; }
+html.light .lb-warning-text { color: #5c3d00; }
+html.light .lb-warning-strong { color: #3d2900; }
+
 /* ── Navbar hover in light mode ── */
 html.light .nav-link:hover {
   color: #F4119E !important;
