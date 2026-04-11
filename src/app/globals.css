@@ -114,6 +114,12 @@ body {
   color: transparent;
 }
 
+/* Position-based card background: pink → dark gradient */
+.stat-card-position {
+  background-image: linear-gradient(90deg, hsla(323, 91%, 51%, 0.22) 0%, hsla(329, 20%, 24%, 0.35) 100%);
+  border-color: hsla(323, 91%, 51%, 0.4);
+}
+
 /* Pink gradient hover for player/team rows */
 .pink-hover {
   transition: background 0.15s ease;

@@ -1,7 +1,19 @@
 import { getPlayerStatisticsForProfile } from "@/lib/iosoccer-api";
 import { prisma } from "@/lib/prisma";
+import { getRelatedSteamIds } from "@/lib/player-aliases";
 
 export const revalidate = 120;
+
+const POSITION_CARD: Record<string, string> = {
+  LW: "Attacking",
+  RW: "Attacking",
+  CF: "Attacking",
+  CM: "Teamplay",
+  RB: "Defending",
+  CB: "Defending",
+  LB: "Defending",
+  GK: "Goalkeeping",
+};
 
 export default async function PlayerStatisticsPage({
   params,
@@ -15,6 +27,16 @@ export default async function PlayerStatisticsPage({
     where: { steamId },
     select: { iosoccerId: true, username: true },
   });
+
+  // Derive position card highlight from most-played position (matches layout.tsx logic)
+  const steamIds = await getRelatedSteamIds(steamId);
+  const positionRows = await prisma.$queryRaw<{ position: string }[]>`
+    SELECT position FROM match_player_stats
+    WHERE player_steam_id = ANY(${steamIds}) AND position IS NOT NULL
+    GROUP BY position ORDER BY COUNT(*) DESC LIMIT 1
+  `;
+  const derivedPosition = positionRows[0]?.position ?? null;
+  const positionCard = (derivedPosition && POSITION_CARD[derivedPosition]) || null;
 
   let stats = null;
   try {
@@ -75,28 +97,6 @@ export default async function PlayerStatisticsPage({
 
   return (
     <>
-      {/* Key Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-8">
-        {[
-          { label: "Appearances", value: apps.toLocaleString(), colorClass: "text-chalk-100" },
-          { label: "Goals", value: goals.toLocaleString(), colorClass: "text-chalk-100" },
-          { label: "Assists", value: assists.toLocaleString(), colorClass: "text-chalk-100" },
-          {
-            label: "Win Rate", value: `${winPct}%`,
-            colorClass: Number(winPct) > 51 ? "wr-elite" : Number(winPct) >= 45 ? "text-green-400" : "text-red-400",
-          },
-          { label: "Goals/App", value: perApp(goals), colorClass: "text-chalk-100" },
-          { label: "Shot Accuracy", value: `${shotAcc}%`, colorClass: "text-chalk-100" },
-        ].map((s) => (
-          <div key={s.label} className="bg-pitch-900/60 border border-chalk-100/8 rounded-lg p-4">
-            <div className="text-[10px] font-mono text-chalk-400 uppercase mb-1">{s.label}</div>
-            <div className={`text-2xl font-display font-800 ${s.colorClass}`}>
-              {s.value}
-            </div>
-          </div>
-        ))}
-      </div>
-
       {/* Detailed Stats - 3 column grid */}
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* General */}
@@ -106,7 +106,11 @@ export default async function PlayerStatisticsPage({
           { label: "Wins", value: wins.toLocaleString(), color: "text-grass-500" },
           { label: "Draws", value: draws.toLocaleString() },
           { label: "Losses", value: losses.toLocaleString(), color: "text-red-400" },
-          { label: "Win Rate", value: `${winPct}%` },
+          {
+            label: "Win Rate",
+            value: `${winPct}%`,
+            color: Number(winPct) > 55 ? "wr-elite" : Number(winPct) >= 50 ? "text-green-400" : "text-red-400",
+          },
         ]}
           footer={apps > 0 ? (
             <div className="mt-3">
@@ -141,7 +145,7 @@ export default async function PlayerStatisticsPage({
         />
 
         {/* Teamplay */}
-        <StatCard title="Teamplay" rows={[
+        <StatCard positionCard={positionCard} title="Teamplay" rows={[
           { label: "Assists", value: `${assists.toLocaleString()} (${perApp(assists)})` },
           { label: "Passes", value: `${passes.toLocaleString()} (${perApp(passes)})` },
           { label: "Passes Completed", value: `${passesCompleted.toLocaleString()} (${perApp(passesCompleted)})` },
@@ -161,7 +165,7 @@ export default async function PlayerStatisticsPage({
         ]} />
 
         {/* Goalkeeping */}
-        <StatCard title="Goalkeeping" rows={[
+        <StatCard positionCard={positionCard} title="Goalkeeping" rows={[
           { label: "Saves", value: `${saves.toLocaleString()} (${perApp(saves)})` },
           { label: "Saves Caught", value: `${savesCaught.toLocaleString()} (${perApp(savesCaught)})` },
           { label: "Save Percentage", value: `${savePct}%` },
@@ -170,7 +174,7 @@ export default async function PlayerStatisticsPage({
         ]} />
 
         {/* Defending */}
-        <StatCard title="Defending" rows={[
+        <StatCard positionCard={positionCard} title="Defending" rows={[
           { label: "Interceptions", value: `${interceptions.toLocaleString()} (${perApp(interceptions)})` },
           { label: "Tackles", value: `${tackles.toLocaleString()} (${perApp(tackles)})` },
           { label: "Tackles Completed", value: `${tacklesCompleted.toLocaleString()} (${perApp(tacklesCompleted)})` },
@@ -179,33 +183,39 @@ export default async function PlayerStatisticsPage({
         ]} />
 
         {/* Attacking */}
-        <StatCard title="Attacking" rows={[
+        <StatCard positionCard={positionCard} title="Attacking" rows={[
           { label: "Goals", value: `${goals.toLocaleString()} (${perApp(goals)})` },
           { label: "Shots", value: `${shots.toLocaleString()} (${perApp(shots)})` },
           { label: "Shots on Target", value: `${shotsOnTarget.toLocaleString()} (${perApp(shotsOnTarget)})` },
           { label: "Shot Accuracy", value: `${shotAcc}%` },
-          { label: "Offsides", value: `${offsides.toLocaleString()} (${perApp(offsides)})` },
+          { label: "Goals/App", value: perApp(goals) },
         ]} />
       </div>
     </>
   );
 }
 
-function StatCard({ title, rows, footer }: {
+function StatCard({ title, rows, footer, positionCard }: {
   title: string;
   rows: { label: string; value: string; color?: string }[];
   footer?: React.ReactNode;
+  positionCard?: string | null;
 }) {
+  const isPositionCard = positionCard === title;
   return (
-    <div className="bg-pitch-900/40 border border-chalk-100/8 rounded-lg p-5">
+    <div className={`border rounded-lg p-5 ${isPositionCard ? "stat-card-position" : "bg-pitch-900/40 border-chalk-100/8"}`}>
       <h3 className="font-display font-700 text-sm tracking-wider text-[#F4119E] uppercase mb-4">{title}</h3>
       <div className="space-y-3">
-        {rows.map((r) => (
-          <div key={r.label} className="flex justify-between text-sm">
-            <span className="font-body text-chalk-400">{r.label}</span>
-            <span className={`font-mono ${r.color || "text-chalk-200"}`}>{r.value}</span>
-          </div>
-        ))}
+        {rows.map((r) => {
+          const labelClass = r.color || "text-chalk-400";
+          const valueClass = r.color || "text-chalk-200";
+          return (
+            <div key={r.label} className="flex justify-between text-sm">
+              <span className={`font-body ${labelClass}`}>{r.label}</span>
+              <span className={`font-mono ${valueClass}`}>{r.value}</span>
+            </div>
+          );
+        })}
       </div>
       {footer}
     </div>
