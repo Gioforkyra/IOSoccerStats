@@ -122,10 +122,8 @@ export default function PrivacyPage() {
 
         <Section title="9. Contact">
           <p>
-            For privacy-related questions, requests, or general feedback about the site, contact:{" "}
-            <a href="mailto:gaf.develop@protonmail.com" className="text-[#F4119E] hover:underline">
-              gaf.develop@protonmail.com
-            </a>
+            For privacy-related questions, requests, or general feedback about the site, contact{" "}
+            <span className="text-[#F4119E]">@plzenjoygame1</span> on discord.
           </p>
         </Section>
       </div>

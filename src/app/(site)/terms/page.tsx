@@ -119,10 +119,8 @@ export default function TermsPage() {
 
         <Section title="11. Contact">
           <p>
-            For questions or concerns regarding these terms, contact:{" "}
-            <a href="mailto:gaf.develop@protonmail.com" className="text-[#F4119E] hover:underline">
-              gaf.develop@protonmail.com
-            </a>
+            For questions or concerns regarding these terms, contact{" "}
+            <span className="text-[#F4119E]">@plzenjoygame1</span> on discord.
           </p>
         </Section>
       </div>

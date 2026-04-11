@@ -57,7 +57,7 @@ export default function AboutPage() {
         <section>
           <h2 className="font-display font-bold text-lg uppercase tracking-wide text-chalk-100 mb-2">Who built it?</h2>
           <p>
-            IOSHUBv2 is a solo side project built by SELF_MADE, a member of the IOSoccer community. It is maintained
+            IOSHUBv2 is a solo side project built by SELF_MADE <span className="text-[#F4119E]">(@plzenjoygame1)</span>, a member of the IOSoccer community. It is maintained
             independently with no commercial interest.
           </p>
         </section>
