@@ -560,6 +560,7 @@ html.light [class*="text-chalk-100"] { color: #1a1a1a; }
 html.light [class*="text-chalk-200"] { color: #333; }
 html.light [class*="text-chalk-300"] { color: #555; }
 html.light [class*="text-chalk-400"] { color: #777; }
+html.light [class*="text-chalk-400"][class*="hover:text-[#F4119E]"]:hover { color: #F4119E; }
 
 /* Zebra tables */
 html.light .stat-row:nth-child(odd)  { background-color: #ffffff !important; }

@@ -446,11 +446,20 @@ export default async function TeamStatisticsPage({
                       </span>
                     </Link>
                   </td>
-                  {columns.map((col) => (
-                    <td key={col.key} className="px-3 py-1.5 text-right font-mono text-[12px] text-chalk-300">
-                      {col.format(row)}
-                    </td>
-                  ))}
+                  {columns.map((col) => {
+                    let cellClass = "px-3 py-1.5 text-right font-mono text-[12px] text-chalk-300";
+                    if (col.key === "win_pct") {
+                      const wr = Number(row.win_pct) || 0;
+                      if (wr > 55) cellClass = "px-3 py-1.5 text-right font-mono text-[12px] wr-elite";
+                      else if (wr >= 50) cellClass = "px-3 py-1.5 text-right font-mono text-[12px] text-green-400";
+                      else cellClass = "px-3 py-1.5 text-right font-mono text-[12px] text-red-400";
+                    }
+                    return (
+                      <td key={col.key} className={cellClass}>
+                        {col.format(row)}
+                      </td>
+                    );
+                  })}
                   <td className="px-3 py-1.5">
                     <div className="flex items-center gap-0.5 justify-end">
                       {form.length > 0

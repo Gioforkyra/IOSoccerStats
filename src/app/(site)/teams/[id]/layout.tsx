@@ -224,7 +224,7 @@ export default async function TeamLayout({
           {
             label: "Win%",
             value: `${winPct}%`,
-            colorClass: Number(winPct) > 51 ? "wr-elite" : Number(winPct) >= 45 ? "text-green-400" : "text-red-400",
+            colorClass: Number(winPct) > 55 ? "wr-elite" : Number(winPct) >= 50 ? "text-green-400" : "text-red-400",
           },
           { label: "GF", value: gf.toLocaleString(), colorClass: "text-chalk-100" },
           {

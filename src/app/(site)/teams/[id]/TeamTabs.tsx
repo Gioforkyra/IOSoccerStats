@@ -31,7 +31,7 @@ export default function TeamTabs({ teamId }: { teamId: number }) {
             className={`px-5 py-2.5 rounded-lg font-display font-700 text-sm uppercase tracking-wider border transition-all whitespace-nowrap ${
               isActive
                 ? "border-[#F4119E] text-chalk-100 shadow-[0_0_12px_rgba(244,17,158,0.55),inset_0_0_8px_rgba(244,17,158,0.15)]"
-                : "border-transparent text-chalk-400 hover:text-chalk-200"
+                : "border-transparent text-chalk-400 hover:text-[#F4119E]"
             }`}
           >
             {tab.label}

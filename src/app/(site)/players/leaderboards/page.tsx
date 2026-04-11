@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { ApiPlayerStatisticsTotalsItem } from "@/lib/iosoccer-api";
+import { getPastTournaments } from "@/lib/iosoccer-api";
 import { prisma } from "@/lib/prisma";
 import { PendingLink } from "../PendingLink";
 import { LeaderboardsLoadingBar } from "./LeaderboardsLoadingBar";
@@ -150,7 +151,17 @@ const BOARDS: Board[] = [
     unit: "reds",
     format: (p) => Number(p.redCards ?? 0).toLocaleString(),
   },
+  {
+    key: "titles",
+    title: "Titles",
+    subtitle: "Tournaments won with a team",
+    sortBy: "",
+    unit: "titles",
+    format: () => "",
+  },
 ];
+
+type LeaderboardRow = { steamID: string; name: string; value: string };
 
 // The upstream API is slow (~30s for sort keys like Appearances / Goals).
 // We use Next.js fetch with a 90s abort timeout and rely on Next's fetch
@@ -210,6 +221,87 @@ async function fetchBoard(
   }
 }
 
+async function fetchTitlesBoard(): Promise<LeaderboardRow[]> {
+  try {
+    const pastTournaments = await getPastTournaments();
+    const winning = pastTournaments.filter(
+      (t) => t.winningTeamId != null
+    );
+    if (winning.length === 0) return [];
+
+    const winningTeamIds = Array.from(
+      new Set(winning.map((t) => t.winningTeamId as number))
+    );
+
+    const stints = await prisma.$queryRaw<
+      { steam_id: string; team_id: number; join_date: Date; leave_date: Date }[]
+    >`
+      SELECT
+        tr.player_steam_id AS steam_id,
+        tr.to_team_id AS team_id,
+        tr.date AS join_date,
+        COALESCE(
+          (SELECT MIN(tr2.date) FROM transfers tr2
+           WHERE tr2.player_steam_id = tr.player_steam_id
+             AND tr2.from_team_id = tr.to_team_id
+             AND tr2.type = 'leave'
+             AND tr2.date > tr.date),
+          NOW()
+        ) AS leave_date
+      FROM transfers tr
+      WHERE tr.type = 'join'
+        AND tr.to_team_id = ANY(${winningTeamIds}::int[])
+    `;
+
+    const stintsByTeam = new Map<number, typeof stints>();
+    for (const s of stints) {
+      const arr = stintsByTeam.get(s.team_id) ?? [];
+      arr.push(s);
+      stintsByTeam.set(s.team_id, arr);
+    }
+
+    const counts = new Map<string, number>();
+    for (const t of winning) {
+      const teamStints = stintsByTeam.get(t.winningTeamId as number);
+      if (!teamStints) continue;
+      const tStart = t.startDate ? new Date(t.startDate).getTime() : 0;
+      const tEnd = t.endDate ? new Date(t.endDate).getTime() : Date.now();
+      const winners = new Set<string>();
+      for (const s of teamStints) {
+        const sJoin = new Date(s.join_date).getTime();
+        const sLeave = new Date(s.leave_date).getTime();
+        if (tStart <= sLeave && tEnd >= sJoin) {
+          winners.add(s.steam_id);
+        }
+      }
+      for (const w of winners) {
+        counts.set(w, (counts.get(w) ?? 0) + 1);
+      }
+    }
+
+    const top = Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10);
+    if (top.length === 0) return [];
+
+    const topSteamIds = top.map(([id]) => id);
+    const players = await prisma.player.findMany({
+      where: { steamId: { in: topSteamIds } },
+      select: { steamId: true, username: true },
+    });
+    const nameBySteam = new Map(players.map((p) => [p.steamId, p.username]));
+
+    return top.map(([steamID, count]) => ({
+      steamID,
+      name: nameBySteam.get(steamID) ?? steamID,
+      value: String(count),
+    }));
+  } catch (err) {
+    console.error("[leaderboards] titles failed:", err);
+    return [];
+  }
+}
+
 export default async function LeaderboardsPage({
   searchParams,
 }: {
@@ -219,7 +311,14 @@ export default async function LeaderboardsPage({
   const selected =
     BOARDS.find((b) => b.key === params.stat) ?? BOARDS[0]; // default: appearances
 
-  const rows = await fetchBoard(selected);
+  const rows: LeaderboardRow[] =
+    selected.key === "titles"
+      ? await fetchTitlesBoard()
+      : (await fetchBoard(selected)).map((p) => ({
+          steamID: p.steamID,
+          name: p.nickname || p.name || p.steamID,
+          value: selected.format(p),
+        }));
 
   const steamIds = Array.from(
     new Set(
@@ -305,9 +404,9 @@ export default async function LeaderboardsPage({
         ) : (
           <ul>
             {rows.map((p, i) => {
-              const name = p.nickname || p.name || p.steamID;
+              const name = p.name;
               const avatar = avatarBySteam.get(p.steamID);
-              const value = selected.format(p);
+              const value = p.value;
               return (
                 <li
                   key={`${selected.key}-${p.steamID}-${i}`}

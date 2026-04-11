@@ -455,8 +455,8 @@ export default async function PlayersPage({
                   let cellClass = "px-3 py-1.5 text-right font-mono text-[12px] text-chalk-300";
                   if (col.key === "winPct") {
                     const wr = p.apps > 0 ? (p.wins / p.apps) * 100 : 0;
-                    if (wr > 51) cellClass = "px-3 py-1.5 text-right font-mono text-[12px] wr-elite";
-                    else if (wr >= 45) cellClass = "px-3 py-1.5 text-right font-mono text-[12px] text-green-400";
+                    if (wr > 55) cellClass = "px-3 py-1.5 text-right font-mono text-[12px] wr-elite";
+                    else if (wr >= 50) cellClass = "px-3 py-1.5 text-right font-mono text-[12px] text-green-400";
                     else cellClass = "px-3 py-1.5 text-right font-mono text-[12px] text-red-400";
                   }
                   return (
