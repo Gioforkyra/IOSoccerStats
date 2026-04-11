@@ -175,9 +175,9 @@ export default async function PlayerMatchesPage({
               return (
                 <tr key={`${m.match_id}-${m.team_side}`} className={rowIdx % 2 === 0 ? "bg-pitch-600/15" : ""}>
                   <td className="px-3 py-2.5 font-mono text-[11px] text-chalk-400">
-                    {new Date(m.date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                    {new Date(m.date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Europe/Rome" })}
                     <span className="text-[11px] text-chalk-100 font-700 ml-5">
-                      {new Date(m.date).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                      {new Date(m.date).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Rome" })}
                     </span>
                     {m.is_substitute && (
                       <span className="ml-1.5 text-[#F4119E] text-[11px]" title="Substitute">▶</span>

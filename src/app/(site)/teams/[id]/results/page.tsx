@@ -133,10 +133,11 @@ export default async function TeamResultsPage({
                         day: "2-digit",
                         month: "short",
                         year: "numeric",
+                        timeZone: "Europe/Rome",
                       })}
                     </span>
                     <span className="text-[10px] font-mono text-chalk-500">
-                      {new Date(m.date).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                      {new Date(m.date).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Rome" })}
                     </span>
                   </div>
 

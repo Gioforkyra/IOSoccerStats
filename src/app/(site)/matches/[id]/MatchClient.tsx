@@ -174,8 +174,22 @@ export default function MatchClient({
   const rightZoneEndPct = pitchRightPct;
   const serverFlag = match.server ? getServerFlag(match.server) : "";
 
-  const homeGoals = shots.filter((s) => s.team_side === "home" && s.is_goal).sort((a, b) => (a.minute ?? 0) - (b.minute ?? 0));
-  const awayGoals = shots.filter((s) => s.team_side === "away" && s.is_goal).sort((a, b) => (a.minute ?? 0) - (b.minute ?? 0));
+  type GoalEntry = { username: string; minute: number | null; isOwnGoal: boolean };
+  const homeShotGoals: GoalEntry[] = shots
+    .filter((s) => s.team_side === "home" && s.is_goal)
+    .map((s) => ({ username: s.username, minute: s.minute, isOwnGoal: false }));
+  const awayShotGoals: GoalEntry[] = shots
+    .filter((s) => s.team_side === "away" && s.is_goal)
+    .map((s) => ({ username: s.username, minute: s.minute, isOwnGoal: false }));
+  // Own goals count for the OPPOSING team. The scorer's team_side is on extra event.
+  const homeOwnGoals: GoalEntry[] = extraEvents
+    .filter((e) => e.event_type === "OWN_GOAL" && e.team_side === "away")
+    .map((e) => ({ username: e.username, minute: e.minute, isOwnGoal: true }));
+  const awayOwnGoals: GoalEntry[] = extraEvents
+    .filter((e) => e.event_type === "OWN_GOAL" && e.team_side === "home")
+    .map((e) => ({ username: e.username, minute: e.minute, isOwnGoal: true }));
+  const homeGoals = [...homeShotGoals, ...homeOwnGoals].sort((a, b) => (a.minute ?? 0) - (b.minute ?? 0));
+  const awayGoals = [...awayShotGoals, ...awayOwnGoals].sort((a, b) => (a.minute ?? 0) - (b.minute ?? 0));
 
   const timeline = useMemo(() => {
     const shotTimeline = shots
@@ -200,7 +214,7 @@ export default function MatchClient({
         id: `extra-${index}`,
         minute: ev.minute,
         team_side: ev.team_side,
-        icon: ev.event_type === "OWN_GOAL" ? "\u26BD" : ev.event_type === "YELLOW_CARD" ? "\u{1F7E8}" : "\u{1F7E5}",
+        icon: ev.event_type === "OWN_GOAL" ? "\u{1F926}" : ev.event_type === "YELLOW_CARD" ? "\u{1F7E8}" : "\u{1F7E5}",
         label: ev.event_type === "OWN_GOAL" ? "OWN GOAL" : ev.event_type === "YELLOW_CARD" ? "YELLOW CARD" : "RED CARD",
         color: ev.event_type === "OWN_GOAL" ? "text-orange-400" : ev.event_type === "YELLOW_CARD" ? "text-yellow-400" : "text-red-400",
         actor: ev.username,
@@ -432,13 +446,23 @@ export default function MatchClient({
           <div className="flex items-start justify-center gap-2 sm:gap-4 md:gap-8 mt-4">
             <div className="flex-1 text-right min-w-0">
               <div className="text-[11px] sm:text-xs font-mono text-chalk-300 space-y-0.5">
-                {homeGoals.map((g, i) => <div key={i} className="whitespace-nowrap">{g.username} ({g.minute}&apos;)</div>)}
+                {homeGoals.map((g, i) => (
+                  <div key={i} className="whitespace-nowrap">
+                    {g.isOwnGoal && <span className="mr-1 text-[10px] font-mono text-red-400">OG</span>}
+                    {g.username} ({g.minute}&apos;)
+                  </div>
+                ))}
               </div>
             </div>
             <div className="shrink-0 w-8 sm:w-16 text-center"><span className="text-[10px] font-mono text-chalk-400">FT</span></div>
             <div className="flex-1 text-left min-w-0">
               <div className="text-[11px] sm:text-xs font-mono text-chalk-300 space-y-0.5">
-                {awayGoals.map((g, i) => <div key={i} className="whitespace-nowrap">{g.username} ({g.minute}&apos;)</div>)}
+                {awayGoals.map((g, i) => (
+                  <div key={i} className="whitespace-nowrap">
+                    {g.isOwnGoal && <span className="mr-1 text-[10px] font-mono text-red-400">OG</span>}
+                    {g.username} ({g.minute}&apos;)
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -631,7 +655,7 @@ export default function MatchClient({
                 else marker = "\u274C";
               } else {
                 marker = evt.extra!.event_type === "OWN_GOAL"
-                  ? "\u26BD"
+                  ? "\u{1F926}"
                   : evt.extra!.event_type === "YELLOW_CARD"
                     ? "\u{1F7E8}"
                     : "\u{1F7E5}";
@@ -734,7 +758,7 @@ export default function MatchClient({
             { key: "miss" as const, icon: "\u274C", label: "Miss" },
             { key: "yellow_card" as const, icon: "\u{1F7E8}", label: "Yellow Card" },
             { key: "red_card" as const, icon: "\u{1F7E5}", label: "Red Card" },
-            { key: "own_goal" as const, icon: "\u26BD", label: "Own Goal" },
+            { key: "own_goal" as const, icon: "\u{1F926}", label: "Own Goal" },
           ]).map((item) => {
             const enabled = visibleMarkers[item.key];
             return (

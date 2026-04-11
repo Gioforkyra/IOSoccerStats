@@ -637,6 +637,7 @@ export default async function MatchPage({
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "Europe/Rome",
   });
 
   const homeBadge = homeTeamRaw.badgeImage?.smallUrl
