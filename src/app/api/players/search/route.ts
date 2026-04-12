@@ -20,5 +20,10 @@ export async function GET(req: NextRequest) {
     LIMIT 30
   `;
 
-  return NextResponse.json(rows);
+  return NextResponse.json(rows, {
+    headers: {
+      "Cache-Control": "public, s-maxage=60, stale-while-revalidate=30",
+      "CDN-Cache-Control": "public, s-maxage=60, stale-while-revalidate=30",
+    },
+  });
 }

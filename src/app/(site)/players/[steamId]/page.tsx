@@ -6,7 +6,7 @@ import { getRelatedSteamIds } from "@/lib/player-aliases";
 import { getPastTournaments, badgeSmallUrl } from "@/lib/iosoccer-api";
 import RatingChart from "@/components/RatingChart";
 
-export const revalidate = 0;
+export const revalidate = 120;
 
 export async function generateMetadata({
   params,

@@ -100,7 +100,12 @@ export async function GET(request: Request) {
       await persistCompletedMatches(data);
     }
 
-    return NextResponse.json(data);
+    return NextResponse.json(data, {
+      headers: {
+        "Cache-Control": "public, s-maxage=30, stale-while-revalidate=15",
+        "CDN-Cache-Control": "public, s-maxage=30, stale-while-revalidate=15",
+      },
+    });
   } catch (err) {
     console.error("[live-scores] fetch failed:", err);
     return NextResponse.json(

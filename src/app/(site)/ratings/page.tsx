@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   description: "IOSoccer player ratings leaderboard and historical rating distribution.",
 };
 
-export const revalidate = 0;
+export const revalidate = 604800; // 1 week
 
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const MIN_MATCHES_OPTIONS = [0, 10, 25, 50, 100, 200];

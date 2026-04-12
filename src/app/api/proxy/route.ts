@@ -44,7 +44,12 @@ export async function GET(request: Request) {
   try {
     const res = await fetch(`${BASE}${path}`, { headers: HEADERS, signal: AbortSignal.timeout(10000) });
     const data = await res.json();
-    return Response.json(data);
+    return Response.json(data, {
+      headers: {
+        "Cache-Control": "public, s-maxage=300, stale-while-revalidate=60",
+        "CDN-Cache-Control": "public, s-maxage=300, stale-while-revalidate=60",
+      },
+    });
   } catch {
     return Response.json({ error: "Upstream error" }, { status: 502 });
   }

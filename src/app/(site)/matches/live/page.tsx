@@ -130,13 +130,24 @@ export default function LiveScoresPage() {
   const [secondsAgo, setSecondsAgo] = useState(0);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [expandedMatch, setExpandedMatch] = useState<number | null>(null);
+  const [tabVisible, setTabVisible] = useState(true);
+  const [hasLiveMatches, setHasLiveMatches] = useState(true);
+
+  // Track tab visibility
+  useEffect(() => {
+    const onVisChange = () => setTabVisible(!document.hidden);
+    document.addEventListener("visibilitychange", onVisChange);
+    return () => document.removeEventListener("visibilitychange", onVisChange);
+  }, []);
 
   const fetchLive = useCallback(async () => {
     try {
       const res = await fetch("/api/live");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: LiveMatch[] = await res.json();
-      setMatches(Array.isArray(data) ? data : []);
+      const list = Array.isArray(data) ? data : [];
+      setMatches(list);
+      setHasLiveMatches(list.length > 0);
       setError(null);
       setLastUpdated(new Date());
       setSecondsAgo(0);
@@ -149,10 +160,12 @@ export default function LiveScoresPage() {
 
   useEffect(() => {
     fetchLive();
-    if (!autoRefresh) return;
-    const id = setInterval(fetchLive, REFRESH_INTERVAL);
+    if (!autoRefresh || !tabVisible) return;
+    // Poll less frequently when no matches are live
+    const interval = hasLiveMatches ? REFRESH_INTERVAL : REFRESH_INTERVAL * 5;
+    const id = setInterval(fetchLive, interval);
     return () => clearInterval(id);
-  }, [fetchLive, autoRefresh]);
+  }, [fetchLive, autoRefresh, tabVisible, hasLiveMatches]);
 
   useEffect(() => {
     const id = setInterval(() => {

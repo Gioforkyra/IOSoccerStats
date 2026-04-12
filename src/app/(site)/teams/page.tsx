@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getActiveTeams, type ApiTeamSummary } from "@/lib/iosoccer-api";
 import TeamsGrid from "./TeamsGrid";
 
-export const revalidate = 0;
+export const revalidate = 120;
 
 export const metadata: Metadata = {
   title: "Teams — IOSHUBv2",
