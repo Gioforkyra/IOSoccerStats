@@ -4,6 +4,8 @@ import MatchClient from "./MatchClient";
 import { prisma } from "@/lib/prisma";
 import { proxyImg } from "@/lib/img";
 
+export const revalidate = 86400; // 24 hours — match data is immutable once completed
+
 export async function generateMetadata({
   params,
 }: {
@@ -214,7 +216,7 @@ async function fetchMatchApiRaw(matchId: number): Promise<any | null> {
     const res = await fetch(`${API_BASE}/match/${matchId}`, {
       headers: API_HEADERS,
       signal: AbortSignal.timeout(8000),
-      next: { revalidate: 60 },
+      next: { revalidate: 86400 },
     });
     if (!res.ok) return null;
     return await res.json();
