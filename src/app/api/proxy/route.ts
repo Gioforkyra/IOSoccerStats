@@ -46,7 +46,7 @@ export async function GET(request: Request) {
     const data = await res.json();
     return Response.json(data, {
       headers: {
-        "Cache-Control": "public, s-maxage=300, stale-while-revalidate=60",
+        "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=60",
         "CDN-Cache-Control": "public, s-maxage=300, stale-while-revalidate=60",
       },
     });

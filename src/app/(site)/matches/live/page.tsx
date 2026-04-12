@@ -158,10 +158,17 @@ export default function LiveScoresPage() {
     }
   }, []);
 
+  // Initial fetch on mount
+  useEffect(() => { fetchLive(); }, [fetchLive]);
+
+  // Fetch immediately when tab becomes visible again
   useEffect(() => {
-    fetchLive();
+    if (tabVisible && autoRefresh) fetchLive();
+  }, [tabVisible]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Polling interval — only when tab is visible and auto-refresh is on
+  useEffect(() => {
     if (!autoRefresh || !tabVisible) return;
-    // Poll less frequently when no matches are live
     const interval = hasLiveMatches ? REFRESH_INTERVAL : REFRESH_INTERVAL * 5;
     const id = setInterval(fetchLive, interval);
     return () => clearInterval(id);
