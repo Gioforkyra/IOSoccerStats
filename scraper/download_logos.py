@@ -28,7 +28,13 @@ import asyncpg
 import httpx
 from dotenv import load_dotenv
 
-HUB_RE = re.compile(r"(https?://[^\s]+/images/hub/)(\d+)_(sm|md|lg)\.(png|jpg|jpeg|webp)", re.IGNORECASE)
+HUB_RE = re.compile(
+    r"(https?://)(www\.)?(iosoccer\.com|iosoccer\.co\.uk)(/images/hub/)(\d+)_(xs|sm|md|lg)\.(png|jpg|jpeg|webp)",
+    re.IGNORECASE,
+)
+HUB_HOSTS = ("www.iosoccer.com", "www.iosoccer.co.uk")
+# _lg is never rendered by the app; skip it to keep the mirror small.
+HUB_SIZES = ("xs", "sm", "md")
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT_DIR = ROOT / "public" / "team-logos"
@@ -39,24 +45,41 @@ CONCURRENCY = 16
 TIMEOUT_SECS = 20
 
 
-def filename_for(url: str) -> str:
-    h = hashlib.sha1(url.encode("utf-8")).hexdigest()[:16]
+def ext_for(url: str) -> str:
     path = urlparse(url).path
     ext = path.rsplit(".", 1)[-1].lower() if "." in path else "png"
-    if ext not in ALLOWED_EXTS:
-        ext = "png"
+    return ext if ext in ALLOWED_EXTS else "png"
+
+
+def content_filename(content: bytes, ext: str) -> str:
+    """Hash by content so identical images from different URLs collapse
+    onto a single file on disk."""
+    h = hashlib.sha1(content).hexdigest()[:16]
     return f"{h}.{ext}"
 
 
 def expand_variants(url: str) -> list[str]:
-    """For a hub-style URL, return all three size variants (_sm/_md/_lg)
-    alongside the original so the manifest covers whichever size a page
-    helper ends up building. Non-hub URLs are returned as-is."""
+    """For a hub-style URL, generate every combination of size (_xs/_sm/_md/_lg)
+    and host (iosoccer.com/iosoccer.co.uk) so the manifest covers whichever
+    variant a page helper or upstream API ends up producing. Non-hub URLs are
+    returned as-is."""
     m = HUB_RE.match(url)
     if not m:
         return [url]
-    prefix, img_id, _size, ext = m.group(1), m.group(2), m.group(3), m.group(4)
-    return [f"{prefix}{img_id}_{s}.{ext}" for s in ("sm", "md", "lg")]
+    scheme, _www, _host, path, img_id, _size, ext = (
+        m.group(1),
+        m.group(2),
+        m.group(3),
+        m.group(4),
+        m.group(5),
+        m.group(6),
+        m.group(7),
+    )
+    out: list[str] = []
+    for host in HUB_HOSTS:
+        for size in HUB_SIZES:
+            out.append(f"{scheme}{host}{path}{img_id}_{size}.{ext}")
+    return out
 
 
 async def fetch_urls() -> list[str]:
@@ -83,12 +106,18 @@ async def fetch_urls() -> list[str]:
 
 
 async def download_one(
-    client: httpx.AsyncClient, sem: asyncio.Semaphore, url: str
+    client: httpx.AsyncClient,
+    sem: asyncio.Semaphore,
+    url: str,
+    cached_filename: str | None,
 ) -> tuple[str, str | None]:
-    filename = filename_for(url)
-    dest = OUT_DIR / filename
-    if dest.exists() and dest.stat().st_size > 0:
-        return url, filename
+    """Download url and return (url, content-hashed filename). If the URL is
+    already in the previous manifest and that file still exists on disk, skip
+    the download entirely."""
+    if cached_filename is not None:
+        cached_path = OUT_DIR / cached_filename
+        if cached_path.exists() and cached_path.stat().st_size > 0:
+            return url, cached_filename
     async with sem:
         try:
             r = await client.get(
@@ -104,7 +133,10 @@ async def download_one(
             if r.status_code != 200 or not r.content:
                 print(f"  [skip {r.status_code}] {url}")
                 return url, None
-            dest.write_bytes(r.content)
+            filename = content_filename(r.content, ext_for(url))
+            dest = OUT_DIR / filename
+            if not dest.exists() or dest.stat().st_size == 0:
+                dest.write_bytes(r.content)
             return url, filename
         except Exception as e:
             print(f"  [err] {url}: {e}")
@@ -115,13 +147,20 @@ async def main() -> int:
     load_dotenv(ROOT / ".env.local")
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
+    existing: dict[str, str] = {}
+    if MANIFEST_PATH.exists():
+        try:
+            existing = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+        except Exception:
+            existing = {}
+
     urls = await fetch_urls()
     print(f"Found {len(urls)} distinct logo URLs")
 
     sem = asyncio.Semaphore(CONCURRENCY)
     async with httpx.AsyncClient() as client:
         results = await asyncio.gather(
-            *(download_one(client, sem, u) for u in urls)
+            *(download_one(client, sem, u, existing.get(u)) for u in urls)
         )
 
     manifest: dict[str, str] = {}

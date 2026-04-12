@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { proxyImg } from "@/lib/img";
 import {
   getPastTournaments,
   getCurrentTournaments,
@@ -323,7 +324,7 @@ export default async function TournamentDetailPage({
                 </thead>
                 <tbody>
                   {apiStandings.map((s, i) => {
-                    const logoUrl = s.badgeImageUrl ? `/api/img?url=${encodeURIComponent(s.badgeImageUrl)}` : null;
+                    const logoUrl = proxyImg(s.badgeImageUrl);
                     const isWinner = tournament.winningTeamId === s.teamId;
                     const form = s.form ?? [];
                     return (

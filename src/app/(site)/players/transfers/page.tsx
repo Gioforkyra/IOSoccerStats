@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getTransfers, getPlayerById } from "@/lib/iosoccer-api";
+import { proxyImg } from "@/lib/img";
 
 export const metadata: Metadata = {
   title: "Player Transfers — IOSHUBv2",
@@ -77,8 +78,7 @@ export default async function TransfersPage({
   }
 
   function badgeImg(url: string | null): string | null {
-    if (!url) return null;
-    return `/api/img?url=${encodeURIComponent(url)}`;
+    return proxyImg(url);
   }
 
   return (

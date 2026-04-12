@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import MatchClient from "./MatchClient";
 import { prisma } from "@/lib/prisma";
+import { proxyImg } from "@/lib/img";
 
 export async function generateMetadata({
   params,
@@ -640,12 +641,8 @@ export default async function MatchPage({
     timeZone: "Europe/Rome",
   });
 
-  const homeBadge = homeTeamRaw.badgeImage?.smallUrl
-    ? `/api/img?url=${encodeURIComponent(homeTeamRaw.badgeImage.smallUrl)}`
-    : null;
-  const awayBadge = awayTeamRaw.badgeImage?.smallUrl
-    ? `/api/img?url=${encodeURIComponent(awayTeamRaw.badgeImage.smallUrl)}`
-    : null;
+  const homeBadge = proxyImg(homeTeamRaw.badgeImage?.smallUrl);
+  const awayBadge = proxyImg(awayTeamRaw.badgeImage?.smallUrl);
 
   const homeTeamId = Number(apiRaw.teamHomeId ?? 0);
   const awayTeamId = Number(apiRaw.teamAwayId ?? 0);
