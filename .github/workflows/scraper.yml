@@ -37,6 +37,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 2 * * *'
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
@@ -55,6 +57,24 @@ jobs:
         env:
           DIRECT_URL: "${{ secrets.DIRECT_URL }}"
         run: python sync_teams.py
+
+      - name: Download new team logos
+        working-directory: scraper
+        env:
+          DIRECT_URL: "${{ secrets.DIRECT_URL }}"
+        run: python download_logos.py
+
+      - name: Commit new logos + manifest
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/team-logos src/lib/local-logos.json
+          if git diff --cached --quiet; then
+            echo "No logo changes to commit."
+          else
+            git commit -m "chore(logos): sync team logos [skip ci]"
+            git push
+          fi
 
       - name: Sync tournaments
         working-directory: scraper

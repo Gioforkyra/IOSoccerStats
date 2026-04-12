@@ -1,3 +1,5 @@
+import { proxyImg } from "./img";
+
 const API_BASE = "https://iosoccer.com:44380/api";
 
 const HEADERS = {
@@ -534,14 +536,10 @@ export async function getPlayerStatisticsForProfile(opts: {
 /** Get a proxied badge URL from a badge image object or raw URL. */
 export function badgeSmallUrl(badge: ApiBadgeImage | null | undefined): string | null {
   if (!badge?.smallUrl) return null;
-  return proxyBadge(badge.smallUrl);
-}
-
-function proxyBadge(url: string): string {
-  return `/api/img?url=${encodeURIComponent(url)}`;
+  return proxyImg(badge.smallUrl);
 }
 
 export function badgeUrl(badgeImageId: string | number | null | undefined): string | null {
   if (!badgeImageId) return null;
-  return `/api/img?url=${encodeURIComponent(`https://www.iosoccer.com/images/hub/${badgeImageId}_sm.png`)}`;
+  return proxyImg(`https://www.iosoccer.com/images/hub/${badgeImageId}_sm.png`);
 }
