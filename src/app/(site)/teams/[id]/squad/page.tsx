@@ -71,7 +71,7 @@ export default async function TeamSquadPage({
 
   const metaMap = new Map(metaRows.map((r) => [r.steam_id, r]));
 
-  const ROLE_ORDER: Record<number, number> = { 6: 0, 5: 1, 2: 2, 4: 3, 3: 4, 1: 5 };
+  const ROLE_ORDER: Record<number, number> = { 6: 0, 5: 1, 4: 2, 2: 3, 3: 4, 1: 5 };
 
   const squad: SquadPlayer[] = rosterEntries
     .map((entry) => {

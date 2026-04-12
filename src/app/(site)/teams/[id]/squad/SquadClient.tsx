@@ -19,7 +19,7 @@ export type SquadPlayer = {
 
 const ROLE_LABELS: Record<number, string> = {
   1: "Reserve",
-  2: "Manager",
+  2: "Loanee",
   3: "Loaned",
   4: "Player",
   5: "Vice Captain",
@@ -28,8 +28,8 @@ const ROLE_LABELS: Record<number, string> = {
 
 const ROLE_COLORS: Record<number, string> = {
   1: "text-chalk-400/60",
-  2: "text-amber-400",
-  3: "text-orange-400",
+  2: "text-orange-400",
+  3: "text-amber-400",
   4: "text-chalk-300",
   5: "text-grass-500/70",
   6: "text-grass-500",
@@ -48,8 +48,8 @@ export default function SquadClient({ squad }: { squad: SquadPlayer[] }) {
     } else { setSortKey(key); setSortAsc(false); }
   };
 
-  // Role sort order: Captain(6)=0, Vice Captain(5)=1, Manager(2)=2, Player(4)=3, Loaned(3)=4, Reserve(1)=5
-  const ROLE_SORT: Record<number, number> = { 6: 0, 5: 1, 2: 2, 4: 3, 3: 4, 1: 5 };
+  // Role sort order: Captain(6)=0, Vice Captain(5)=1, Player(4)=2, Loanee(2)=3, Loaned(3)=4, Reserve(1)=5
+  const ROLE_SORT: Record<number, number> = { 6: 0, 5: 1, 4: 2, 2: 3, 3: 4, 1: 5 };
 
   const sorted = [...squad].sort((a, b) => {
     if (!sortKey) return 0;
