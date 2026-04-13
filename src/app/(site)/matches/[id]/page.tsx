@@ -21,11 +21,16 @@ async function findYouTubeVod(
     const matchTime = new Date(kickOff).getTime();
     const isValidDate = !isNaN(matchTime);
 
+    // Recent matches: short cache (VOD might not be uploaded yet)
+    // Old matches: long cache (VOD either exists or never will)
+    const isRecent = isValidDate && (Date.now() - matchTime) < 3 * 24 * 60 * 60 * 1000;
+    const revalidate = isRecent ? 300 : 2592000; // 5 min vs 30 days
+
     const query = `${homeTeam} vs ${awayTeam}`;
-    const url = `https://www.googleapis.com/youtube/v3/search?channelId=${YT_CHANNEL_ID}&q=${encodeURIComponent(query)}&type=video&eventType=completed&part=snippet&maxResults=5&order=date&key=${apiKey}`;
-    const res = await fetch(url, {
+    const baseUrl = `https://www.googleapis.com/youtube/v3/search?channelId=${YT_CHANNEL_ID}&q=${encodeURIComponent(query)}&type=video&eventType=completed&part=snippet&maxResults=5&order=date&key=${apiKey}`;
+    const res = await fetch(baseUrl, {
       signal: AbortSignal.timeout(5000),
-      next: { revalidate: 2592000 }, // 30 days — VOD won't change
+      next: { revalidate },
     });
     if (!res.ok) return null;
     const data = await res.json();
