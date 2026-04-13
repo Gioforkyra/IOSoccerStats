@@ -4,6 +4,56 @@ import MatchClient from "./MatchClient";
 import { prisma } from "@/lib/prisma";
 import { proxyImg } from "@/lib/img";
 
+/* ── YouTube VOD lookup ────────────────────────────────────────── */
+
+const YT_CHANNEL_ID = "UClLkVhbu_2qXPSew8896q_w";
+
+async function findYouTubeVod(
+  homeTeam: string,
+  awayTeam: string,
+  kickOff: string,
+): Promise<string | null> {
+  const apiKey = process.env.YOUTUBE_API_KEY;
+  if (!apiKey) return null;
+
+  try {
+    // Parse match date to filter results within ±2 days
+    const matchTime = new Date(kickOff).getTime();
+    const isValidDate = !isNaN(matchTime);
+
+    const query = `${homeTeam} vs ${awayTeam}`;
+    const url = `https://www.googleapis.com/youtube/v3/search?channelId=${YT_CHANNEL_ID}&q=${encodeURIComponent(query)}&type=video&eventType=completed&part=snippet&maxResults=5&order=date&key=${apiKey}`;
+    const res = await fetch(url, {
+      signal: AbortSignal.timeout(5000),
+      next: { revalidate: 2592000 }, // 30 days — VOD won't change
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const items: any[] = data.items || [];
+
+    const homeLower = homeTeam.toLowerCase();
+    const awayLower = awayTeam.toLowerCase();
+    const TWO_DAYS = 2 * 24 * 60 * 60 * 1000;
+
+    for (const item of items) {
+      const title = (item.snippet?.title || "").toLowerCase();
+      const hasBothTeams = title.includes(homeLower) && title.includes(awayLower);
+      if (!hasBothTeams) continue;
+
+      // If we have a valid match date, verify the video is within ±2 days
+      if (isValidDate) {
+        const videoTime = new Date(item.snippet?.publishedAt || "").getTime();
+        if (!isNaN(videoTime) && Math.abs(videoTime - matchTime) > TWO_DAYS) continue;
+      }
+
+      return `https://www.youtube.com/watch?v=${item.id?.videoId}`;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -650,10 +700,15 @@ export default async function MatchPage({
   // Parse player stats from API
   const playerStats = parsePlayerStatsFromApi(apiRaw);
 
-  const [shots, extraEvents, sideAvgRatings] = await Promise.all([
+  const isTournament = apiRaw.tournamentId != null;
+
+  const [shots, extraEvents, sideAvgRatings, youtubeUrl] = await Promise.all([
     fetchShotsFromApi(matchId, playerStats, apiRaw),
     fetchExtraEventsFromApi(matchId, playerStats, apiRaw),
     fetchMatchSideAverageRatings(playerStats),
+    isTournament
+      ? findYouTubeVod(homeTeamRaw.name ?? "", awayTeamRaw.name ?? "", apiRaw.kickOff || "")
+      : Promise.resolve(null),
   ]);
 
   // Determine server and POTM
@@ -668,6 +723,7 @@ export default async function MatchPage({
         map: null,
         server: serverName,
         potm: potmSteamId,
+        youtubeUrl,
         homeScore,
         awayScore,
         homeTeam: {

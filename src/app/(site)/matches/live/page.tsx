@@ -82,6 +82,7 @@ interface LiveState {
 interface LiveMatch {
   item1: MatchMeta;
   item2: LiveState;
+  youtubeUrl?: string;
 }
 
 /* ── Helpers ─────────────────────────────────────────────────────── */
@@ -275,6 +276,20 @@ export default function LiveScoresPage() {
                     )}
                   </div>
                   <div className="flex items-center gap-3">
+                    {m.youtubeUrl && (
+                      <a
+                        href={m.youtubeUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded bg-red-600/20 text-red-400 hover:bg-red-600/30 hover:text-red-300 transition-colors"
+                      >
+                        <svg viewBox="0 0 24 24" className="w-3 h-3 fill-current" aria-hidden="true">
+                          <path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2 31.5 31.5 0 0 0 0 12a31.5 31.5 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1A31.5 31.5 0 0 0 24 12a31.5 31.5 0 0 0-.5-5.8zM9.5 15.6V8.4l6.3 3.6-6.3 3.6z" />
+                        </svg>
+                        LIVE
+                      </a>
+                    )}
                     <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
                       isTournament ? "text-amber-400 bg-amber-400/10" : "text-chalk-400 bg-pitch-800"
                     }`}>

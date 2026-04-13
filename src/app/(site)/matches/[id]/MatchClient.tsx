@@ -23,6 +23,7 @@ type MatchInfo = {
   map: string | null;
   server: string | null;
   potm: string | null;
+  youtubeUrl: string | null;
   homeScore: number;
   awayScore: number;
   homeTeam: TeamInfo;
@@ -422,7 +423,22 @@ export default function MatchClient({
       <div className="bg-pitch-900/60 border border-chalk-100/8 rounded-xl p-6 md:p-8 mb-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-xs font-mono text-chalk-400 mb-5">
           <span className="whitespace-nowrap">{match.date}{match.map && <> {" \u00B7 "}{match.map}</>}</span>
-          {match.server && <span className="whitespace-nowrap">{serverFlag && <>{serverFlag} </>}{match.server}</span>}
+          <div className="flex items-center gap-3">
+            {match.server && <span className="whitespace-nowrap">{serverFlag && <>{serverFlag} </>}{match.server}</span>}
+            {match.youtubeUrl && (
+              <a
+                href={match.youtubeUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-red-600/20 text-red-400 hover:bg-red-600/30 hover:text-red-300 transition-colors"
+              >
+                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-current" aria-hidden="true">
+                  <path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2 31.5 31.5 0 0 0 0 12a31.5 31.5 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1A31.5 31.5 0 0 0 24 12a31.5 31.5 0 0 0-.5-5.8zM9.5 15.6V8.4l6.3 3.6-6.3 3.6z" />
+                </svg>
+                Watch VOD
+              </a>
+            )}
+          </div>
         </div>
 
         <div className="flex items-center justify-center gap-2 sm:gap-4 md:gap-6">

@@ -3,6 +3,74 @@ import { prisma } from "@/lib/prisma";
 
 export const revalidate = 30;
 
+/* ── YouTube stream lookup ─────────────────────────────────────── */
+
+const YT_CHANNEL_ID = "UClLkVhbu_2qXPSew8896q_w";
+const YT_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+let ytCache: { streams: YtStream[]; ts: number } = { streams: [], ts: 0 };
+
+type YtStream = { videoId: string; title: string };
+
+function isStreamingHours(): boolean {
+  const now = new Date();
+  const rome = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Europe/Rome",
+    hour: "numeric",
+    hour12: false,
+  }).format(now);
+  const hour = parseInt(rome, 10);
+  return hour >= 18 && hour <= 22; // 18:00-22:59 to catch early starts
+}
+
+async function getYouTubeStreams(): Promise<YtStream[]> {
+  const apiKey = process.env.YOUTUBE_API_KEY;
+  if (!apiKey || !isStreamingHours()) return [];
+
+  // Return cached result if fresh
+  if (Date.now() - ytCache.ts < YT_CACHE_TTL) return ytCache.streams;
+
+  try {
+    const url = `https://www.googleapis.com/youtube/v3/search?channelId=${YT_CHANNEL_ID}&eventType=live&type=video&part=snippet&maxResults=5&key=${apiKey}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+    if (!res.ok) {
+      ytCache = { streams: [], ts: Date.now() };
+      return [];
+    }
+    const data = await res.json();
+    const streams: YtStream[] = (data.items || []).map((item: any) => ({
+      videoId: item.id?.videoId,
+      title: item.snippet?.title || "",
+    }));
+    ytCache = { streams, ts: Date.now() };
+    return streams;
+  } catch {
+    ytCache = { streams: [], ts: Date.now() };
+    return [];
+  }
+}
+
+function matchStreamToGame(
+  streams: YtStream[],
+  homeTeam: string,
+  awayTeam: string,
+): string | null {
+  if (streams.length === 0) return null;
+  const homeLower = homeTeam.toLowerCase();
+  const awayLower = awayTeam.toLowerCase();
+  for (const s of streams) {
+    const titleLower = s.title.toLowerCase();
+    if (titleLower.includes(homeLower) || titleLower.includes(awayLower)) {
+      return `https://www.youtube.com/watch?v=${s.videoId}`;
+    }
+  }
+  // If only one stream is live, it's probably the current match
+  if (streams.length === 1) {
+    return `https://www.youtube.com/watch?v=${streams[0].videoId}`;
+  }
+  return null;
+}
+
 function shouldPersistMatches(req: Request): boolean {
   const url = new URL(req.url);
   if (url.searchParams.get("persist") !== "1") return false;
@@ -98,6 +166,22 @@ export async function GET(request: Request) {
     // Keep live polling fast/cheap for users; persist only via authenticated cron/job call.
     if (shouldPersistMatches(request)) {
       await persistCompletedMatches(data);
+    }
+
+    // Attach YouTube stream links to competitive matches
+    if (Array.isArray(data)) {
+      const compMatches = data.filter((m: any) => m.item1?.tournamentId != null);
+      if (compMatches.length > 0) {
+        const streams = await getYouTubeStreams();
+        for (const m of compMatches) {
+          const link = matchStreamToGame(
+            streams,
+            m.item1.teamHome?.name || "",
+            m.item1.teamAway?.name || "",
+          );
+          if (link) m.youtubeUrl = link;
+        }
+      }
     }
 
     return NextResponse.json(data, {
