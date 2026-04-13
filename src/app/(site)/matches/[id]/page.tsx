@@ -8,6 +8,11 @@ import { proxyImg } from "@/lib/img";
 
 const YT_CHANNEL_ID = "UClLkVhbu_2qXPSew8896q_w";
 
+/** Get the calendar date string (YYYY-MM-DD) in Europe/Rome timezone */
+function toRomeDate(date: Date): string {
+  return date.toLocaleDateString("sv-SE", { timeZone: "Europe/Rome" }); // sv-SE gives YYYY-MM-DD
+}
+
 async function findYouTubeVod(
   homeTeam: string,
   awayTeam: string,
@@ -17,9 +22,9 @@ async function findYouTubeVod(
   if (!apiKey) return null;
 
   try {
-    // Parse match date to filter results within ±2 days
     const matchTime = new Date(kickOff).getTime();
     const isValidDate = !isNaN(matchTime);
+    const matchDate = isValidDate ? toRomeDate(new Date(matchTime)) : null;
 
     // Recent matches: short cache (VOD might not be uploaded yet)
     // Old matches: long cache (VOD either exists or never will)
@@ -32,29 +37,36 @@ async function findYouTubeVod(
       signal: AbortSignal.timeout(5000),
       next: { revalidate },
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.warn(`[yt-vod] API error: ${res.status} for "${query}"`);
+      return null;
+    }
     const data = await res.json();
     const items: any[] = data.items || [];
+    console.log(`[yt-vod] query="${query}" matchDate=${matchDate} results=${items.length}`);
 
     const homeLower = homeTeam.toLowerCase();
     const awayLower = awayTeam.toLowerCase();
-    const TWO_DAYS = 2 * 24 * 60 * 60 * 1000;
 
     for (const item of items) {
       const title = (item.snippet?.title || "").toLowerCase();
       const hasBothTeams = title.includes(homeLower) && title.includes(awayLower);
       if (!hasBothTeams) continue;
 
-      // If we have a valid match date, verify the video is within ±2 days
-      if (isValidDate) {
-        const videoTime = new Date(item.snippet?.publishedAt || "").getTime();
-        if (!isNaN(videoTime) && Math.abs(videoTime - matchTime) > TWO_DAYS) continue;
+      // Only match VODs published on the same calendar day (Europe/Rome)
+      if (matchDate) {
+        const videoDate = toRomeDate(new Date(item.snippet?.publishedAt || ""));
+        if (videoDate !== matchDate) continue;
       }
 
-      return `https://www.youtube.com/watch?v=${item.id?.videoId}`;
+      const vodUrl = `https://www.youtube.com/watch?v=${item.id?.videoId}`;
+      console.log(`[yt-vod] found: "${item.snippet?.title}" → ${vodUrl}`);
+      return vodUrl;
     }
+    console.log(`[yt-vod] no match found for "${query}" on ${matchDate}`);
     return null;
-  } catch {
+  } catch (err) {
+    console.error(`[yt-vod] error:`, err);
     return null;
   }
 }
