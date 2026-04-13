@@ -27,7 +27,7 @@ async function findYouTubeVod(
     const revalidate = isRecent ? 300 : 2592000; // 5 min vs 30 days
 
     const query = `${homeTeam} vs ${awayTeam}`;
-    const baseUrl = `https://www.googleapis.com/youtube/v3/search?channelId=${YT_CHANNEL_ID}&q=${encodeURIComponent(query)}&type=video&eventType=completed&part=snippet&maxResults=5&order=date&key=${apiKey}`;
+    const baseUrl = `https://www.googleapis.com/youtube/v3/search?channelId=${YT_CHANNEL_ID}&q=${encodeURIComponent(query)}&type=video&part=snippet&maxResults=5&order=date&key=${apiKey}`;
     const res = await fetch(baseUrl, {
       signal: AbortSignal.timeout(5000),
       next: { revalidate },
