@@ -432,9 +432,7 @@ export default function MatchClient({
                 rel="noopener noreferrer"
                 className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-red-600/20 text-red-400 hover:bg-red-600/30 hover:text-red-300 transition-colors"
               >
-                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-current" aria-hidden="true">
-                  <path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2 31.5 31.5 0 0 0 0 12a31.5 31.5 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1A31.5 31.5 0 0 0 24 12a31.5 31.5 0 0 0-.5-5.8zM9.5 15.6V8.4l6.3 3.6-6.3 3.6z" />
-                </svg>
+                <img src="/logos/yt-logo.png" alt="YouTube" className="w-4 h-4 object-contain" />
                 Watch VOD
               </a>
             )}
