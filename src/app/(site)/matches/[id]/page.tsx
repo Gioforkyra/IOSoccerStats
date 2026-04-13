@@ -214,7 +214,7 @@ async function fetchMatchApiRaw(matchId: number): Promise<any | null> {
     const res = await fetch(`${API_BASE}/match/${matchId}`, {
       headers: API_HEADERS,
       signal: AbortSignal.timeout(8000),
-      next: { revalidate: 86400 },
+      next: { revalidate: 2592000 }, // 30 days — match data is immutable
     });
     if (!res.ok) return null;
     return await res.json();
