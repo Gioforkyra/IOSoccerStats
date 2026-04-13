@@ -32,8 +32,8 @@ async function findYouTubeVod(
     const revalidate = isRecent ? 300 : 2592000; // 5 min vs 30 days
 
     const query = `${homeTeam} vs ${awayTeam}`;
-    const baseUrl = `https://www.googleapis.com/youtube/v3/search?channelId=${YT_CHANNEL_ID}&q=${encodeURIComponent(query)}&type=video&part=snippet&maxResults=5&order=date&key=${apiKey}`;
-    const res = await fetch(baseUrl, {
+    const searchUrl = `https://www.googleapis.com/youtube/v3/search?channelId=${YT_CHANNEL_ID}&q=${encodeURIComponent(query)}&type=video&part=snippet&maxResults=5&order=date&key=${apiKey}`;
+    const res = await fetch(searchUrl, {
       signal: AbortSignal.timeout(5000),
       next: { revalidate },
     });
@@ -48,21 +48,53 @@ async function findYouTubeVod(
     const homeLower = homeTeam.toLowerCase();
     const awayLower = awayTeam.toLowerCase();
 
+    // Collect candidate video IDs (title matches both teams)
+    const candidates: { videoId: string; title: string }[] = [];
     for (const item of items) {
       const title = (item.snippet?.title || "").toLowerCase();
-      const hasBothTeams = title.includes(homeLower) && title.includes(awayLower);
-      if (!hasBothTeams) continue;
+      if (title.includes(homeLower) && title.includes(awayLower)) {
+        candidates.push({ videoId: item.id?.videoId, title: item.snippet?.title });
+      }
+    }
+    if (candidates.length === 0) {
+      console.log(`[yt-vod] no title match for "${query}"`);
+      return null;
+    }
 
-      // Only match VODs published on the same calendar day (Europe/Rome)
-      if (matchDate) {
-        const videoDate = toRomeDate(new Date(item.snippet?.publishedAt || ""));
-        if (videoDate !== matchDate) continue;
+    // Fetch liveStreamingDetails to get the actual broadcast date
+    const videoIds = candidates.map((c) => c.videoId).join(",");
+    const detailsUrl = `https://www.googleapis.com/youtube/v3/videos?id=${videoIds}&part=liveStreamingDetails&key=${apiKey}`;
+    const detailsRes = await fetch(detailsUrl, {
+      signal: AbortSignal.timeout(5000),
+      next: { revalidate },
+    });
+    const detailsData = detailsRes.ok ? await detailsRes.json() : { items: [] };
+    const detailsMap = new Map<string, any>();
+    for (const v of detailsData.items || []) {
+      detailsMap.set(v.id, v.liveStreamingDetails || {});
+    }
+
+    const THREE_HOURS = 3 * 60 * 60 * 1000;
+
+    for (const c of candidates) {
+      const details = detailsMap.get(c.videoId);
+      // Use actualStartTime (when it actually aired), fallback to scheduledStartTime
+      const airedAt = details?.actualStartTime || details?.scheduledStartTime;
+
+      if (isValidDate && airedAt) {
+        const airedTime = new Date(airedAt).getTime();
+        const diff = Math.abs(airedTime - matchTime);
+        if (diff > THREE_HOURS) {
+          console.log(`[yt-vod] skip (time mismatch): aired=${airedAt} kickOff=${kickOff} diff=${Math.round(diff/60000)}min "${c.title}"`);
+          continue;
+        }
       }
 
-      const vodUrl = `https://www.youtube.com/watch?v=${item.id?.videoId}`;
-      console.log(`[yt-vod] found: "${item.snippet?.title}" → ${vodUrl}`);
+      const vodUrl = `https://www.youtube.com/watch?v=${c.videoId}`;
+      console.log(`[yt-vod] found: "${c.title}" aired=${airedAt} → ${vodUrl}`);
       return vodUrl;
     }
+
     console.log(`[yt-vod] no match found for "${query}" on ${matchDate}`);
     return null;
   } catch (err) {
