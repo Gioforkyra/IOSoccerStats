@@ -201,6 +201,7 @@ export default function MatchClient({
         team_side: s.team_side,
         icon: s.is_goal ? "\u26BD" : s.is_save ? "\u{1F9E4}" : "\u274C",
         label: s.is_goal ? "GOAL" : s.is_save ? "SAVE" : "MISS",
+        isHeader: s.is_header,
         color: s.is_goal ? "text-green-400" : s.is_save ? "text-amber-400" : "text-red-400",
         actor: s.is_save ? getSaveKeeperName(s) : s.username,
         secondaryText: s.is_goal && s.assist_username
@@ -220,6 +221,7 @@ export default function MatchClient({
         color: ev.event_type === "OWN_GOAL" ? "text-orange-400" : ev.event_type === "YELLOW_CARD" ? "text-yellow-400" : "text-red-400",
         actor: ev.username,
         secondaryText: null,
+        isHeader: false,
       }));
 
     return [...shotTimeline, ...extraTimeline].sort((a, b) => (a.minute ?? 999) - (b.minute ?? 999));
@@ -679,7 +681,7 @@ export default function MatchClient({
               }
 
               const title = evt.kind === "shot"
-                ? `${evt.shot!.is_goal ? `Goal by ${evt.shot!.username}` : evt.shot!.is_save ? `Save by ${getSaveKeeperName(evt.shot!)} (shot by ${evt.shot!.username})` : `Missed by ${evt.shot!.username}`} (xG: ${evt.shot!.xg.toFixed(2)})`
+                ? `${evt.shot!.is_goal ? `Goal${evt.shot!.is_header ? " (Header)" : ""} by ${evt.shot!.username}` : evt.shot!.is_save ? `Save by ${getSaveKeeperName(evt.shot!)} (${evt.shot!.is_header ? "header" : "shot"} by ${evt.shot!.username})` : `Missed${evt.shot!.is_header ? " header" : ""} by ${evt.shot!.username}`} (xG: ${evt.shot!.xg.toFixed(2)})`
                 : `${evt.extra!.event_type === "OWN_GOAL" ? "Own goal" : evt.extra!.event_type === "YELLOW_CARD" ? "Yellow card" : "Red card"} by ${evt.extra!.username}`;
 
               return (
@@ -749,6 +751,7 @@ export default function MatchClient({
                       <span className={s.is_goal ? "text-green-400" : s.is_save ? "text-amber-400" : "text-red-400"}>
                         {s.is_goal ? "Goal" : s.is_save ? "Saved" : "Missed"}
                       </span>
+                      {s.is_header && <span className="text-sky-400">Header</span>}
                       <span className="text-pink-400">xG: {s.xg.toFixed(2)}</span>
                       {s.minute != null && <span className="text-chalk-400">{s.minute}&apos;</span>}
                     </div>
@@ -848,9 +851,10 @@ export default function MatchClient({
                     <span className="text-xs font-mono text-chalk-400 w-8 shrink-0">{ev.minute != null ? `${ev.minute}'` : "-"}</span>
                     <span className="text-base shrink-0">{ev.icon}</span>
                     <div className="flex-1 min-w-0">
-                      <div>
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0">
                         <span className={`text-xs font-mono font-bold ${ev.color}`}>{ev.label}</span>
-                        <span className="text-xs font-mono text-chalk-200 ml-2">{ev.actor}</span>
+                        {ev.isHeader && <span className="text-[10px] font-mono text-sky-400 border border-sky-400/30 rounded px-1">Header</span>}
+                        <span className="text-xs font-mono text-chalk-200">{ev.actor}</span>
                       </div>
                       {ev.secondaryText && (
                         <div className="text-[10px] font-mono text-chalk-400">{ev.secondaryText}</div>

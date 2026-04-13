@@ -123,6 +123,7 @@ export type MatchShot = {
   xg: number;
   minute: number | null;
   period: "FIRST HALF" | "SECOND HALF" | null;
+  is_header: boolean;
 };
 
 export type MatchExtraEvent = {
@@ -493,6 +494,7 @@ async function fetchShotsFromApi(
         xg,
         minute,
         period,
+        is_header: evt.bodyPart === 4,
       });
     }
 
