@@ -261,13 +261,27 @@ function safeStat(stats: number[], idx: number): number {
 
 async function fetchMatchApiRaw(matchId: number): Promise<any | null> {
   try {
+    // First fetch with short cache to check if data is complete
     const res = await fetch(`${API_BASE}/match/${matchId}`, {
       headers: API_HEADERS,
       signal: AbortSignal.timeout(8000),
-      next: { revalidate: 2592000 }, // 30 days — match data is immutable
+      next: { revalidate: 120 }, // 2 min — short cache for incomplete matches
     });
     if (!res.ok) return null;
-    return await res.json();
+    const data = await res.json();
+
+    // If match has player stats, data is complete — refetch with long cache
+    const hasPlayers = (data?.matchStatistics?.matchData?.players?.length ?? 0) > 0;
+    if (hasPlayers) {
+      const longRes = await fetch(`${API_BASE}/match/${matchId}?full=1`, {
+        headers: API_HEADERS,
+        signal: AbortSignal.timeout(8000),
+        next: { revalidate: 2592000 }, // 30 days — match data is immutable
+      });
+      if (longRes.ok) return await longRes.json();
+    }
+
+    return data;
   } catch {
     return null;
   }
