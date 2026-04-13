@@ -330,10 +330,13 @@ export type ApiPlayerStatisticsTotalsItem = {
   goals: number;
   assists: number;
   secondAssists: number;
+  secondAssistsAverage: number;
   shots: number;
   shotsOnGoal: number;
   keyPasses: number;
+  keyPassesAverage: number;
   chancesCreated: number;
+  chancesCreatedAverage: number;
   offsides: number;
   ownGoals: number;
   passes: number;

@@ -65,12 +65,15 @@ export default async function PlayerStatisticsPage({
   const goals = Number(stats.goals ?? 0);
   const assists = Number(stats.assists ?? 0);
   const secondAssists = Number(stats.secondAssists ?? 0);
+  const avgSecondAssists = Number(stats.secondAssistsAverage ?? 0);
   const shots = Number(stats.shots ?? 0);
   const shotsOnTarget = Number(stats.shotsOnGoal ?? 0);
   const passes = Number(stats.passes ?? 0);
   const passesCompleted = Number(stats.passesCompleted ?? 0);
   const keyPasses = Number(stats.keyPasses ?? 0);
+  const avgKeyPasses = Number(stats.keyPassesAverage ?? 0);
   const chancesCreated = Number(stats.chancesCreated ?? 0);
+  const avgChancesCreated = Number(stats.chancesCreatedAverage ?? 0);
   const saves = Number(stats.keeperSaves ?? 0);
   const savesCaught = Math.round(Number(stats.keeperSavesCaughtAverage ?? 0) * apps);
   const goalsConceded = Number(stats.goalsConceded ?? 0);
@@ -150,9 +153,9 @@ export default async function PlayerStatisticsPage({
           { label: "Passes", value: `${passes.toLocaleString()} (${perApp(passes)})` },
           { label: "Passes Completed", value: `${passesCompleted.toLocaleString()} (${perApp(passesCompleted)})` },
           { label: "Pass Accuracy", value: `${passAcc}%` },
-          { label: "Key Passes", value: `${keyPasses.toLocaleString()} (${perApp(keyPasses)})` },
-          { label: "Chances Created", value: `${chancesCreated.toLocaleString()} (${perApp(chancesCreated)})` },
-          { label: "Second Assists", value: `${secondAssists.toLocaleString()} (${perApp(secondAssists)})` },
+          { label: "Key Passes", value: `${keyPasses.toLocaleString()} (${avgKeyPasses.toFixed(2)})` },
+          { label: "Chances Created", value: `${chancesCreated.toLocaleString()} (${avgChancesCreated.toFixed(2)})` },
+          { label: "Second Assists", value: `${secondAssists.toLocaleString()} (${avgSecondAssists.toFixed(2)})` },
         ]} />
 
         {/* Discipline */}

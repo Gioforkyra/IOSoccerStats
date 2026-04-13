@@ -16,7 +16,18 @@ export const revalidate = 120;
 
 const PAGE_SIZE = 10;
 
-const UNSUPPORTED_SORT_KEYS = new Set(["tackles", "tacklesComp", "tackleAcc"]);
+// IOSoccer API only supports sortBy=PlayerId — all other sort keys timeout.
+// Disable sorting on all stat columns until the official API is fixed.
+const UNSUPPORTED_SORT_KEYS = new Set([
+  "rating", "apps", "asSub", "winPct", "wins", "losses", "draws",
+  "goals", "goalsAvg", "shotAcc", "assists", "assistsAvg",
+  "passes", "passAcc", "poss", "yellows", "reds", "dist",
+  "saves", "saveRate", "savesCaught", "goalsConceded", "gcAvg",
+  "interceptions", "intAvg", "tackles", "tacklesComp", "tackleAcc",
+  "fouls", "foulsSuffered", "ownGoals",
+  "secondAssists", "secondAssistsAvg", "shots", "shotsOT", "shotConv",
+  "keyPasses", "chancesCreated", "offsides",
+]);
 
 type StatView = "general" | "gk" | "defending" | "attacking";
 
@@ -40,10 +51,13 @@ type PlayerRow = {
   total_goals: number;
   total_assists: number;
   total_second_assists: number;
+  avg_second_assists: number;
   total_shots: number;
   total_shots_on_target: number;
   total_key_passes: number;
+  avg_key_passes: number;
   total_chances_created: number;
+  avg_chances_created: number;
   total_offsides: number;
   total_own_goals: number;
   total_passes: number;
@@ -103,10 +117,13 @@ function toPlayerRow(item: ApiPlayerStatisticsTotalsItem): PlayerRow {
     total_goals: Number(item.goals ?? 0),
     total_assists: Number(item.assists ?? 0),
     total_second_assists: Number(item.secondAssists ?? 0),
+    avg_second_assists: Number(item.secondAssistsAverage ?? 0),
     total_shots: Number(item.shots ?? 0),
     total_shots_on_target: Number(item.shotsOnGoal ?? 0),
     total_key_passes: Number(item.keyPasses ?? 0),
+    avg_key_passes: Number(item.keyPassesAverage ?? 0),
     total_chances_created: Number(item.chancesCreated ?? 0),
+    avg_chances_created: Number(item.chancesCreatedAverage ?? 0),
     total_offsides: Number(item.offsides ?? 0),
     total_own_goals: Number(item.ownGoals ?? 0),
     total_passes: Number(item.passes ?? 0),
@@ -185,38 +202,36 @@ function buildColumns(view: StatView): ColDef[] {
 
     case "defending":
       return [
-        rating, apps, asSub, winRate, wins, losses, draws,
-        { key: "interceptions", label: "INT", title: "Interceptions", apiSortBy: "Interceptions", format: (r) => r.total_interceptions.toLocaleString() },
-        { key: "intAvg", label: "INT", title: "Interceptions / App (avg)", apiSortBy: "InterceptionsAverage", format: (r) => avg(r.total_interceptions, r.apps), avg: true },
-        { key: "tackles", label: "TKL", title: "Tackles", apiSortBy: "SlidingTackles", format: (r) => r.total_tackles.toLocaleString() },
-        { key: "tacklesComp", label: "TKL✓", title: "Tackles Completed", apiSortBy: "SlidingTacklesCompleted", format: (r) => r.total_tackles_completed.toLocaleString() },
-        { key: "tackleAcc", label: "TKL%", title: "Tackle Accuracy", apiSortBy: "TackleAccuracyPercentage", format: (r) => pct(r.total_tackles_completed, r.total_tackles) },
-        { key: "fouls", label: "FLS", title: "Fouls", apiSortBy: "Fouls", format: (r) => r.total_fouls.toLocaleString() },
-        { key: "foulsSuffered", label: "FLS+", title: "Fouls Suffered", apiSortBy: "FoulsSuffered", format: (r) => r.total_fouls_suffered.toLocaleString() },
+        rating, apps,
+        { key: "passes", label: "PASSES", title: "Passes (avg)", apiSortBy: "PassesAverage", format: (r) => avg(r.total_passes, r.apps), avg: true },
+        { key: "passAcc", label: "PASS%", title: "Pass Completion", apiSortBy: "PassCompletionPercentageAverage", format: (r) => r.pass_accuracy.toFixed(2) + "%" },
+        { key: "poss", label: "POSS", title: "Possession", apiSortBy: "PossessionPercentageAverage", format: (r) => r.avg_possession_pct.toFixed(2) + "%", avg: true },
         { key: "yellows", label: "YEL", title: "Yellow Cards", apiSortBy: "YellowCards", format: (r) => r.total_yellow_cards.toLocaleString() },
         { key: "reds", label: "RED", title: "Red Cards", apiSortBy: "RedCards", format: (r) => r.total_red_cards.toLocaleString() },
-        { key: "ownGoals", label: "OG", title: "Own Goals", apiSortBy: "OwnGoals", format: (r) => r.total_own_goals.toLocaleString() },
-        { key: "goalsConceded", label: "GC", title: "Goals Conceded", apiSortBy: "GoalsConceded", format: (r) => r.total_goals_conceded.toLocaleString() },
-        { key: "gcAvg", label: "GC", title: "Goals Conceded / App (avg)", apiSortBy: "GoalsConcededAverage", format: (r) => avg(r.total_goals_conceded, r.apps), avg: true },
+        { key: "intAvg", label: "INT", title: "Interceptions (avg)", apiSortBy: "InterceptionsAverage", format: (r) => avg(r.total_interceptions, r.apps), avg: true },
+        { key: "fouls", label: "FLS", title: "Fouls (avg)", apiSortBy: "FoulsAverage", format: (r) => avg(r.total_fouls, r.apps), avg: true },
+        { key: "tacklesComp", label: "TKL✓", title: "Sliding Tackles Completed (avg)", apiSortBy: "SlidingTacklesCompletedAverage", format: (r) => avg(r.total_tackles_completed, r.apps), avg: true },
+        { key: "ownGoals", label: "OG", title: "Own Goals (avg)", apiSortBy: "OwnGoalsAverage", format: (r) => avg(r.total_own_goals, r.apps), avg: true },
+        { key: "gcAvg", label: "GC", title: "Goals Conceded (avg)", apiSortBy: "GoalsConcededAverage", format: (r) => avg(r.total_goals_conceded, r.apps), avg: true },
       ];
 
     case "attacking":
       return [
-        rating, apps, asSub, winRate, wins, losses, draws,
+        rating, apps,
         { key: "goals", label: "GOALS", title: "Goals", apiSortBy: "Goals", format: (r) => r.total_goals.toLocaleString() },
         { key: "goalsAvg", label: "GOALS", title: "Goals / App (avg)", apiSortBy: "GoalsAverage", format: (r) => avg(r.total_goals, r.apps), avg: true },
+        { key: "shots", label: "SHT", title: "Shots (avg)", apiSortBy: "ShotsAverage", format: (r) => avg(r.total_shots, r.apps), avg: true },
+        { key: "shotConv", label: "CONV%", title: "Shot Conversion", apiSortBy: "ShotConversionPercentage", format: (r) => pct(r.total_goals, r.total_shots) },
+        { key: "shotAcc", label: "SHOT%", title: "Shot Accuracy", apiSortBy: "ShotAccuracyPercentage", format: (r) => r.shot_accuracy.toFixed(2) + "%" },
         { key: "assists", label: "AST", title: "Assists", apiSortBy: "Assists", format: (r) => r.total_assists.toLocaleString() },
         { key: "assistsAvg", label: "AST", title: "Assists / App (avg)", apiSortBy: "AssistsAverage", format: (r) => avg(r.total_assists, r.apps), avg: true },
         { key: "secondAssists", label: "2ND", title: "Second Assists", apiSortBy: "SecondAssists", format: (r) => r.total_second_assists.toLocaleString() },
-        { key: "shots", label: "SHT", title: "Shots", apiSortBy: "Shots", format: (r) => r.total_shots.toLocaleString() },
-        { key: "shotsOT", label: "SOT", title: "Shots on Target", apiSortBy: "ShotsOnGoal", format: (r) => r.total_shots_on_target.toLocaleString() },
-        { key: "shotAcc", label: "SHOT%", title: "Shot Accuracy", apiSortBy: "ShotAccuracyPercentage", format: (r) => r.shot_accuracy.toFixed(2) + "%" },
-        { key: "shotConv", label: "CONV%", title: "Shot Conversion", apiSortBy: "ShotConversionPercentage", format: (r) => pct(r.total_goals, r.total_shots) },
-        { key: "keyPasses", label: "KP", title: "Key Passes", apiSortBy: "KeyPasses", format: (r) => r.total_key_passes.toLocaleString() },
-        { key: "chancesCreated", label: "CC", title: "Chances Created", apiSortBy: "ChancesCreated", format: (r) => r.total_chances_created.toLocaleString() },
-        { key: "offsides", label: "OFF", title: "Offsides", apiSortBy: "Offsides", format: (r) => r.total_offsides.toLocaleString() },
-        { key: "passes", label: "PASS", title: "Passes", apiSortBy: "Passes", format: (r) => r.total_passes.toLocaleString() },
+        { key: "secondAssistsAvg", label: "2ND", title: "Second Assists (avg)", apiSortBy: "SecondAssistsAverage", format: (r) => r.avg_second_assists.toFixed(2), avg: true },
+        { key: "keyPasses", label: "KP", title: "Key Passes (avg)", apiSortBy: "KeyPassesAverage", format: (r) => r.avg_key_passes.toFixed(2), avg: true },
+        { key: "chancesCreated", label: "CC", title: "Chances Created (avg)", apiSortBy: "ChancesCreatedAverage", format: (r) => r.avg_chances_created.toFixed(2), avg: true },
+        { key: "passes", label: "PASSES", title: "Passes (avg)", apiSortBy: "PassesAverage", format: (r) => avg(r.total_passes, r.apps), avg: true },
         { key: "passAcc", label: "PASS%", title: "Pass Completion", apiSortBy: "PassCompletionPercentageAverage", format: (r) => r.pass_accuracy.toFixed(2) + "%" },
+        { key: "offsides", label: "OFF", title: "Offsides (avg)", apiSortBy: "OffsidesAverage", format: (r) => avg(r.total_offsides, r.apps), avg: true },
       ];
   }
 }
@@ -245,7 +260,8 @@ export default async function PlayersPage({
   const dir = params.dir === "desc" ? "DESC" : sortKey === "hubId" && !params.dir ? "ASC" : params.dir === "asc" ? "ASC" : "DESC";
   const page = Math.max(1, parseInt(params.page || "1", 10));
   const nameQuery = params.q?.trim() || "";
-  const minApps = MIN_APPS_OPTIONS.includes(parseInt(params.minApps || "0", 10)) ? parseInt(params.minApps || "0", 10) : 0;
+  // minApps filter disabled — IOSoccer API times out with minimumAppearances
+  const minApps = 0;
   const offset = (page - 1) * PAGE_SIZE;
 
   const sortBy = sortKey === "hubId" ? "PlayerId" : (cMap[sortKey]?.apiSortBy || "PlayerId");
@@ -392,9 +408,7 @@ export default async function PlayersPage({
           </PendingLink>
         ))}
 
-        <div className="ml-auto">
-          <MinAppsSelect view={view} sortKey={sortKey} dir={dir.toLowerCase()} nameQuery={nameQuery} minApps={minApps} />
-        </div>
+        {/* MinAppsSelect hidden — IOSoccer API times out with minimumAppearances filter */}
       </div>
 
       <PlayersNavProgress />
@@ -408,17 +422,17 @@ export default async function PlayersPage({
               {columns.map((col) => (
                 <th key={col.key} className="px-3 py-3 font-mono text-[11px] text-chalk-400 text-right">
                   {UNSUPPORTED_SORT_KEYS.has(col.key) ? (
-                    <span className="flex items-center justify-end gap-1 text-chalk-500 cursor-not-allowed" title={`${col.title} (sorting not supported by official API)`}>
+                    <span className="flex items-center justify-end gap-1" title={col.title}>
                       <span className="flex flex-col items-end leading-tight">
                         <span>{col.label}</span>
-                        {col.avg && <span className="text-[9px] text-chalk-500">AVERAGE</span>}
+                        {col.avg && <span className="text-[9px] text-[#F4119E]">AVERAGE</span>}
                       </span>
                     </span>
                   ) : (
                     <PendingLink href={sortUrl(col.key)} className="flex items-center justify-end gap-1 hover:text-chalk-100 transition-colors cursor-help" title={col.title} showSpinner>
                       <span className="flex flex-col items-end leading-tight">
                         <span>{col.label}</span>
-                        {col.avg && <span className="text-[9px] text-chalk-500">AVERAGE</span>}
+                        {col.avg && <span className="text-[9px] text-[#F4119E]">AVERAGE</span>}
                       </span>
                       {sortKey === col.key && <span className={dir === "DESC" ? "text-red-400" : "text-green-400"}>{dir === "DESC" ? "\u2193" : "\u2191"}</span>}
                     </PendingLink>
