@@ -706,9 +706,9 @@ export default async function MatchPage({
     fetchShotsFromApi(matchId, playerStats, apiRaw),
     fetchExtraEventsFromApi(matchId, playerStats, apiRaw),
     fetchMatchSideAverageRatings(playerStats),
-    // TEMP: uncomment the line below and comment the next to test locally
-    // isTournament ? findYouTubeVod(...) : Promise.resolve(null),
-    Promise.resolve("https://www.youtube.com/watch?v=test"),
+    isTournament
+      ? findYouTubeVod(homeTeamRaw.name ?? "", awayTeamRaw.name ?? "", apiRaw.kickOff || "")
+      : Promise.resolve(null),
   ]);
 
   // Determine server and POTM
