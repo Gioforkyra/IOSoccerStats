@@ -20,6 +20,78 @@ const nextConfig = {
         source: "/:path*",
         headers: securityHeaders,
       },
+      // ── Edge / CDN caching for dynamic pages (Prisma blocks ISR) ──
+      // CDN-Cache-Control is read by Cloudflare but NOT sent to browsers
+      {
+        source: "/players/:steamId",
+        headers: [
+          { key: "CDN-Cache-Control", value: "public, s-maxage=120, stale-while-revalidate=60" },
+          { key: "Cache-Control", value: "public, max-age=60, stale-while-revalidate=30" },
+        ],
+      },
+      {
+        source: "/players/:steamId/matches",
+        headers: [
+          { key: "CDN-Cache-Control", value: "public, s-maxage=120, stale-while-revalidate=60" },
+          { key: "Cache-Control", value: "public, max-age=60, stale-while-revalidate=30" },
+        ],
+      },
+      {
+        source: "/teams/:id",
+        headers: [
+          { key: "CDN-Cache-Control", value: "public, s-maxage=120, stale-while-revalidate=60" },
+          { key: "Cache-Control", value: "public, max-age=60, stale-while-revalidate=30" },
+        ],
+      },
+      {
+        source: "/matches/:id",
+        headers: [
+          { key: "CDN-Cache-Control", value: "public, s-maxage=300, stale-while-revalidate=60" },
+          { key: "Cache-Control", value: "public, max-age=120, stale-while-revalidate=60" },
+        ],
+      },
+      {
+        source: "/tournaments/:id",
+        headers: [
+          { key: "CDN-Cache-Control", value: "public, s-maxage=300, stale-while-revalidate=60" },
+          { key: "Cache-Control", value: "public, max-age=120, stale-while-revalidate=60" },
+        ],
+      },
+      {
+        source: "/matches",
+        headers: [
+          { key: "CDN-Cache-Control", value: "public, s-maxage=120, stale-while-revalidate=60" },
+          { key: "Cache-Control", value: "public, max-age=60, stale-while-revalidate=30" },
+        ],
+      },
+      {
+        source: "/tournaments",
+        headers: [
+          { key: "CDN-Cache-Control", value: "public, s-maxage=300, stale-while-revalidate=60" },
+          { key: "Cache-Control", value: "public, max-age=120, stale-while-revalidate=60" },
+        ],
+      },
+      {
+        source: "/players/transfers",
+        headers: [
+          { key: "CDN-Cache-Control", value: "public, s-maxage=300, stale-while-revalidate=60" },
+          { key: "Cache-Control", value: "public, max-age=120, stale-while-revalidate=60" },
+        ],
+      },
+      {
+        source: "/players/h2h",
+        headers: [
+          { key: "CDN-Cache-Control", value: "public, s-maxage=300, stale-while-revalidate=60" },
+          { key: "Cache-Control", value: "public, max-age=120, stale-while-revalidate=60" },
+        ],
+      },
+      {
+        source: "/ratings",
+        headers: [
+          { key: "CDN-Cache-Control", value: "public, s-maxage=600, stale-while-revalidate=120" },
+          { key: "Cache-Control", value: "public, max-age=300, stale-while-revalidate=60" },
+        ],
+      },
     ];
   },
 };
