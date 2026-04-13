@@ -78,8 +78,15 @@ async function findYouTubeVod(
 
     for (const c of candidates) {
       const details = detailsMap.get(c.videoId);
-      // Use actualStartTime (when it actually aired), fallback to scheduledStartTime
-      const airedAt = details?.actualStartTime || details?.scheduledStartTime;
+
+      // Skip streams that haven't aired yet (only scheduled, no actualStartTime)
+      if (details && !details.actualStartTime) {
+        console.log(`[yt-vod] skip (not aired yet): "${c.title}"`);
+        continue;
+      }
+
+      // Use actualStartTime (when it actually aired)
+      const airedAt = details?.actualStartTime;
 
       if (isValidDate && airedAt) {
         const airedTime = new Date(airedAt).getTime();
