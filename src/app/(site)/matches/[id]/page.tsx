@@ -1,22 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { unstable_cache } from "next/cache";
 import MatchClient from "./MatchClient";
 import { prisma } from "@/lib/prisma";
 import { proxyImg } from "@/lib/img";
-
-export const revalidate = 86400; // 24 hours — match data is immutable once completed
-
-const getMatchMeta = unstable_cache(
-  async (matchId: number) => {
-    return prisma.match.findUnique({
-      where: { id: matchId },
-      select: { homeScore: true, awayScore: true, homeTeam: { select: { name: true } }, awayTeam: { select: { name: true } } },
-    });
-  },
-  ["match-meta"],
-  { revalidate: 86400 },
-);
 
 export async function generateMetadata({
   params,
@@ -26,7 +12,10 @@ export async function generateMetadata({
   const { id } = await params;
   const matchId = parseInt(id, 10);
   if (isNaN(matchId)) return { title: "Match — IOSHUBv2" };
-  const row = await getMatchMeta(matchId);
+  const row = await prisma.match.findUnique({
+    where: { id: matchId },
+    select: { homeScore: true, awayScore: true, homeTeam: { select: { name: true } }, awayTeam: { select: { name: true } } },
+  });
   if (!row) return { title: "Match — IOSHUBv2" };
   const title = `${row.homeTeam?.name ?? "?"} ${row.homeScore ?? "?"}–${row.awayScore ?? "?"} ${row.awayTeam?.name ?? "?"} — IOSHUBv2`;
   return {
