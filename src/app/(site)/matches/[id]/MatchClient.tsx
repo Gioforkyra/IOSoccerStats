@@ -421,22 +421,25 @@ export default function MatchClient({
 
       {/* Score header */}
       <div className="bg-pitch-900/60 border border-chalk-100/8 rounded-xl p-6 md:p-8 mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-xs font-mono text-chalk-400 mb-5">
-          <span className="whitespace-nowrap">{match.date}{match.map && <> {" \u00B7 "}{match.map}</>}</span>
-          <div className="flex items-center gap-3">
+        <div className="text-xs font-mono text-chalk-400 mb-5 space-y-1">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+            <span className="whitespace-nowrap">{match.date}{match.map && <> {" \u00B7 "}{match.map}</>}</span>
             {match.server && <span className="whitespace-nowrap">{serverFlag && <>{serverFlag} </>}{match.server}</span>}
-            {match.youtubeUrl && (
-              <a
-                href={match.youtubeUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-red-600/20 text-red-400 hover:bg-red-600/30 hover:text-red-300 transition-colors"
-              >
-                <img src="/logos/yt-logo.png" alt="YouTube" className="w-4 h-4 object-contain" />
-                Watch VOD
-              </a>
-            )}
           </div>
+          {match.youtubeUrl && (
+            <a
+              href={match.youtubeUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-red-600/20 text-red-400 hover:bg-red-600/30 hover:text-red-300 transition-colors"
+            >
+              <svg viewBox="0 0 24 24" className="w-4 h-4 shrink-0" aria-hidden="true">
+                <path fill="#FF0000" d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2 31.5 31.5 0 0 0 0 12a31.5 31.5 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1A31.5 31.5 0 0 0 24 12a31.5 31.5 0 0 0-.5-5.8z" />
+                <path fill="#FFF" d="M9.5 15.6V8.4l6.3 3.6-6.3 3.6z" />
+              </svg>
+              Watch VOD
+            </a>
+          )}
         </div>
 
         <div className="flex items-center justify-center gap-2 sm:gap-4 md:gap-6">
