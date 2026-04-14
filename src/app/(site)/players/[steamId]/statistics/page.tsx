@@ -1,6 +1,7 @@
 import { getPlayerStatisticsForProfile } from "@/lib/iosoccer-api";
 import { prisma } from "@/lib/prisma";
 import { getRelatedSteamIds } from "@/lib/player-aliases";
+import PerformanceTracker, { type TrackerDataPoint } from "@/components/PerformanceTracker";
 
 export const revalidate = 120;
 
@@ -37,6 +38,172 @@ export default async function PlayerStatisticsPage({
   `;
   const derivedPosition = positionRows[0]?.position ?? null;
   const positionCard = (derivedPosition && POSITION_CARD[derivedPosition]) || null;
+
+  // ── Performance Tracker data ──
+  type PerfRow = {
+    period: string;
+    wins: bigint;
+    draws: bigint;
+    losses: bigint;
+    total_goals: bigint;
+    total_assists: bigint;
+    total_goals_conceded: bigint;
+    clean_sheets: bigint;
+    potm: bigint;
+    apps: bigint;
+  };
+
+  const buildPerfQuery = (groupExpr: string, dateFilter: string) =>
+    prisma.$queryRawUnsafe<PerfRow[]>(
+      `SELECT
+         ${groupExpr} AS period,
+         SUM(CASE WHEN (
+           CASE WHEN mps.team_side = 'home' THEN m.home_score > m.away_score
+                ELSE m.away_score > m.home_score END
+         ) THEN 1 ELSE 0 END)::bigint AS wins,
+         SUM(CASE WHEN m.home_score = m.away_score THEN 1 ELSE 0 END)::bigint AS draws,
+         SUM(CASE WHEN (
+           CASE WHEN mps.team_side = 'home' THEN m.home_score < m.away_score
+                ELSE m.away_score < m.home_score END
+         ) THEN 1 ELSE 0 END)::bigint AS losses,
+         SUM(mps.goals)::bigint AS total_goals,
+         SUM(mps.assists)::bigint AS total_assists,
+         SUM(mps.goals_conceded)::bigint AS total_goals_conceded,
+         SUM(CASE WHEN mps.goals_conceded = 0 THEN 1 ELSE 0 END)::bigint AS clean_sheets,
+         SUM(CASE WHEN mps.is_potm = true THEN 1 ELSE 0 END)::bigint AS potm,
+         COUNT(*)::bigint AS apps
+       FROM match_player_stats mps
+       JOIN matches m ON m.id = mps.match_id
+       WHERE mps.player_steam_id = ANY($1)
+         ${dateFilter}
+       GROUP BY period
+       ORDER BY period`,
+      steamIds,
+    );
+
+  const [monthlyRaw, weeklyRaw, last30Raw] = await Promise.all([
+    buildPerfQuery(
+      "TO_CHAR(m.date, 'YYYY-MM')",
+      "AND m.date >= NOW() - INTERVAL '12 months'",
+    ),
+    buildPerfQuery(
+      "TO_CHAR(m.date, 'IYYY-\"W\"IW')",
+      "AND m.date >= NOW() - INTERVAL '52 weeks'",
+    ),
+    buildPerfQuery(
+      "TO_CHAR(m.date, 'YYYY-MM-DD')",
+      "AND m.date >= NOW() - INTERVAL '30 days'",
+    ),
+  ]);
+
+  const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+  function toTracker(rows: PerfRow[], labelFn: (p: string) => string): TrackerDataPoint[] {
+    return rows.map((r) => {
+      const apps = Number(r.apps);
+      return {
+        label: labelFn(r.period),
+        wins: Number(r.wins),
+        draws: Number(r.draws),
+        losses: Number(r.losses),
+        avgGoals: apps > 0 ? Number(r.total_goals) / apps : 0,
+        avgAssists: apps > 0 ? Number(r.total_assists) / apps : 0,
+        avgGoalsConceded: apps > 0 ? Number(r.total_goals_conceded) / apps : 0,
+        cleanSheets: Number(r.clean_sheets),
+        potm: Number(r.potm),
+        appearances: apps,
+      };
+    });
+  }
+
+  const emptyPoint: TrackerDataPoint = { label: "", wins: 0, draws: 0, losses: 0, avgGoals: 0, avgAssists: 0, avgGoalsConceded: 0, cleanSheets: 0, potm: 0, appearances: 0 };
+
+  // Fill gaps so spacing is uniform on X axis
+  function fillMonthly(rows: PerfRow[]): TrackerDataPoint[] {
+    if (rows.length === 0) return [];
+    const map = new Map<string, TrackerDataPoint>();
+    for (const r of rows) {
+      const [y, m] = r.period.split("-");
+      const label = `${m}/${y.slice(2)}`;
+      const apps = Number(r.apps);
+      map.set(r.period, {
+        label, wins: Number(r.wins), draws: Number(r.draws), losses: Number(r.losses),
+        avgGoals: apps > 0 ? Number(r.total_goals) / apps : 0,
+        avgAssists: apps > 0 ? Number(r.total_assists) / apps : 0,
+        avgGoalsConceded: apps > 0 ? Number(r.total_goals_conceded) / apps : 0,
+        cleanSheets: Number(r.clean_sheets), potm: Number(r.potm), appearances: apps,
+      });
+    }
+    const first = rows[0].period;
+    const last = rows[rows.length - 1].period;
+    const result: TrackerDataPoint[] = [];
+    let [cy, cm] = first.split("-").map(Number);
+    const [ly, lm] = last.split("-").map(Number);
+    while (cy < ly || (cy === ly && cm <= lm)) {
+      const key = `${cy}-${String(cm).padStart(2, "0")}`;
+      const label = `${String(cm).padStart(2, "0")}/${String(cy).slice(2)}`;
+      result.push(map.get(key) ?? { ...emptyPoint, label });
+      cm++;
+      if (cm > 12) { cm = 1; cy++; }
+    }
+    return result;
+  }
+
+  // Convert ISO year+week to the Monday date of that week
+  function isoWeekToDate(year: number, week: number): Date {
+    const jan4 = new Date(Date.UTC(year, 0, 4));
+    const dayOfWeek = jan4.getUTCDay() || 7; // Mon=1 ... Sun=7
+    const monday = new Date(jan4);
+    monday.setUTCDate(jan4.getUTCDate() - dayOfWeek + 1 + (week - 1) * 7);
+    return monday;
+  }
+
+  function weekLabel(year: number, week: number): string {
+    const d = isoWeekToDate(year, week);
+    const day = String(d.getUTCDate()).padStart(2, "0");
+    const mon = MONTH_NAMES[d.getUTCMonth()];
+    return `${mon} ${day}`;
+  }
+
+  function fillWeekly(rows: PerfRow[]): TrackerDataPoint[] {
+    if (rows.length === 0) return [];
+    const map = new Map<string, TrackerDataPoint>();
+    const parseISOWeek = (s: string) => {
+      const [y, w] = s.split("-W").map(Number);
+      return { year: y, week: w };
+    };
+    for (const r of rows) {
+      const { year, week } = parseISOWeek(r.period);
+      const label = weekLabel(year, week);
+      const apps = Number(r.apps);
+      map.set(r.period, {
+        label, wins: Number(r.wins), draws: Number(r.draws), losses: Number(r.losses),
+        avgGoals: apps > 0 ? Number(r.total_goals) / apps : 0,
+        avgAssists: apps > 0 ? Number(r.total_assists) / apps : 0,
+        avgGoalsConceded: apps > 0 ? Number(r.total_goals_conceded) / apps : 0,
+        cleanSheets: Number(r.clean_sheets), potm: Number(r.potm), appearances: apps,
+      });
+    }
+    const first = parseISOWeek(rows[0].period);
+    const last = parseISOWeek(rows[rows.length - 1].period);
+    const result: TrackerDataPoint[] = [];
+    let { year: cy, week: cw } = first;
+    while (cy < last.year || (cy === last.year && cw <= last.week)) {
+      const key = `${cy}-W${String(cw).padStart(2, "0")}`;
+      const label = weekLabel(cy, cw);
+      result.push(map.get(key) ?? { ...emptyPoint, label });
+      cw++;
+      if (cw > 52) { cw = 1; cy++; }
+    }
+    return result;
+  }
+
+  const monthlyData = fillMonthly(monthlyRaw);
+  const weeklyData = fillWeekly(weeklyRaw);
+  const last30Data = toTracker(last30Raw, (p) => {
+    const d = new Date(p + "T00:00:00Z");
+    return `${String(d.getUTCDate()).padStart(2, "0")}/${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+  });
 
   let stats = null;
   try {
@@ -100,6 +267,13 @@ export default async function PlayerStatisticsPage({
 
   return (
     <>
+      {/* Performance Tracker */}
+      <PerformanceTracker
+        monthly={monthlyData}
+        weekly={weeklyData}
+        last30={last30Data}
+      />
+
       {/* Detailed Stats - 3 column grid */}
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* General */}
