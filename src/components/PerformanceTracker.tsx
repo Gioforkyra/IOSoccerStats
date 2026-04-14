@@ -32,7 +32,7 @@ type MetricDef = {
   lines: { dataKey: string; name: string; color: string }[];
 };
 
-const METRICS: MetricDef[] = [
+const PLAYER_METRICS: MetricDef[] = [
   {
     key: "outcomes",
     label: "Match Outcomes",
@@ -74,6 +74,38 @@ const METRICS: MetricDef[] = [
   },
 ];
 
+const TEAM_METRICS: MetricDef[] = [
+  {
+    key: "outcomes",
+    label: "Match Outcomes",
+    lines: [
+      { dataKey: "wins", name: "Wins", color: "#22c55e" },
+      { dataKey: "draws", name: "Draws", color: "#6b7280" },
+      { dataKey: "losses", name: "Losses", color: "#ef4444" },
+    ],
+  },
+  {
+    key: "avgGoals",
+    label: "Average Goals",
+    lines: [{ dataKey: "avgGoals", name: "Goals/Match", color: "#F4119E" }],
+  },
+  {
+    key: "avgGoalsConceded",
+    label: "Average Goals Conceded",
+    lines: [{ dataKey: "avgGoalsConceded", name: "GC/Match", color: "#F4119E" }],
+  },
+  {
+    key: "cleanSheets",
+    label: "Clean Sheets",
+    lines: [{ dataKey: "cleanSheets", name: "Clean Sheets", color: "#F4119E" }],
+  },
+  {
+    key: "appearances",
+    label: "Played",
+    lines: [{ dataKey: "appearances", name: "Played", color: "#F4119E" }],
+  },
+];
+
 const PERIOD_OPTIONS = [
   { key: "monthly", label: "Monthly" },
   { key: "weekly", label: "Weekly" },
@@ -111,11 +143,14 @@ export default function PerformanceTracker({
   monthly,
   weekly,
   last30,
+  variant = "player",
 }: {
   monthly: TrackerDataPoint[];
   weekly: TrackerDataPoint[];
   last30: TrackerDataPoint[];
+  variant?: "player" | "team";
 }) {
+  const METRICS = variant === "team" ? TEAM_METRICS : PLAYER_METRICS;
   const [metric, setMetric] = useState("outcomes");
   const [period, setPeriod] = useState<PeriodKey>("monthly");
 
