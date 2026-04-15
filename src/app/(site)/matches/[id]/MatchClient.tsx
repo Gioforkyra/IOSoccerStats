@@ -1268,7 +1268,7 @@ function PlayerCard({
           {showTitles && titleLabels.length > 0 && (
             <div className="absolute top-1/2 -translate-y-1/2 left-[calc(100%-8px)] flex flex-col gap-1 items-start" style={{ minWidth: "56px" }}>
               {titleLabels.map((lbl) => (
-                lbl.text === "MVP"
+                lbl.text === "POTM"
                   ? (
                     <span
                       key={lbl.text}
@@ -1470,9 +1470,9 @@ function getPlayerLabels(
   const labels: PlayerLabel[] = [];
   const isGK = (p.position || "").toUpperCase() === "GK";
 
-  // MVP → match by steamID for accuracy
+  // POTM → match by steamID for accuracy
   if (potm && (p.profile_steam_id === potm || p.player_steam_id === potm)) {
-    labels.push({ text: "MVP", sentiment: "positive" });
+    labels.push({ text: "POTM", sentiment: "positive" });
   }
 
   if (isGK) {
@@ -1522,8 +1522,8 @@ function getPlayerLabels(
     labels.push({ text: "Dictator", sentiment: "positive" });
   }
 
-  // Skip negative labels for MVP
-  if (!labels.some((l) => l.text === "MVP")) {
+  // Skip negative labels for POTM
+  if (!labels.some((l) => l.text === "POTM")) {
     // Profligate: very high xG but no goals
     if (pxg >= 2 && p.goals === 0) {
       labels.push({ text: "Profligate", sentiment: "negative" });

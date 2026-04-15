@@ -404,7 +404,7 @@ export default async function TeamStatisticsPage({
                   >
                     <span className="flex flex-col items-end leading-tight">
                       <span>{col.label}</span>
-                      {col.avg && <span className="text-[9px] text-chalk-500">AVERAGE</span>}
+                      {col.avg && <span className="text-[9px] text-[#F4119E]">AVERAGE</span>}
                     </span>
                     {sortKey === col.key && (
                       <span className={dir === "DESC" ? "text-red-400" : "text-green-400"}>
