@@ -176,7 +176,7 @@ export default function Navbar() {
                 <Link
                   href={item.href}
                   className={clsx(
-                    "nav-link flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-body font-medium transition-colors",
+                    "nav-link flex items-center gap-0.5 px-3 py-1.5 rounded text-sm font-body font-medium transition-colors",
                     isActive(path, item)
                       ? "text-[#F4119E]"
                       : "text-chalk-400 hover:text-[#F4119E]"
@@ -209,14 +209,14 @@ export default function Navbar() {
                 key={item.href}
                 href={item.href}
                 className={clsx(
-                  "nav-link flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-body font-medium transition-colors",
+                  "nav-link flex items-center gap-0.5 px-3 py-1.5 rounded text-sm font-body font-medium transition-colors",
                   isActive(path, item)
                     ? "text-[#F4119E]"
                     : "text-chalk-400 hover:text-[#F4119E]"
                 )}
               >
                 {item.live && (
-                  <span className="live-dot w-1.5 h-1.5 rounded-full bg-grass-500 inline-block" />
+                  <span className="live-dot w-1.5 h-1.5 rounded-full bg-grass-500 inline-block mr-1" />
                 )}
                 {item.label}
               </Link>
@@ -268,7 +268,7 @@ export default function Navbar() {
                   )}
                 >
                   {item.live && (
-                    <span className="live-dot w-1.5 h-1.5 rounded-full bg-grass-500 inline-block" />
+                    <span className="live-dot w-1.5 h-1.5 rounded-full bg-grass-500 inline-block mr-1" />
                   )}
                   {item.label}
                 </Link>
