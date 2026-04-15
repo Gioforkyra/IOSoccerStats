@@ -145,6 +145,14 @@ export const NormalDistributionChart = memo(function NormalDistributionChart({
   mean: number; min: number; max: number; xPad: number;
   totalPlayers: number;
 }) {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
   const { chartData, stdDev, maxVal, histTicks, lo, hi, percentileLines } = useMemo(() => {
     const ratings = binsArray.flatMap(([, group]) => group.map((p) => p.rating));
     const stdDev = Math.sqrt(ratings.reduce((sum, r) => sum + (r - mean) ** 2, 0) / ratings.length);
@@ -206,17 +214,24 @@ export const NormalDistributionChart = memo(function NormalDistributionChart({
     return { chartData, stdDev, maxVal, histTicks: histBins, lo, hi, percentileLines: pLines };
   }, [binsArray, mean, min, max, xPad, totalPlayers]);
 
+  // On mobile, only show 50% (mean) line to avoid overlap
+  const visiblePercentiles = isMobile
+    ? percentileLines.filter((p) => p.label === "50%")
+    : percentileLines;
+
   return (
-    <div className="rounded-lg border border-chalk-100/8 bg-pitch-900/40 p-4">
+    <div className="rounded-lg border border-chalk-100/8 bg-pitch-900/40 p-3 sm:p-4">
       <div className="mb-3">
-        <h3 className="text-sm font-mono font-600 text-chalk-300 uppercase tracking-wider">Normal Distribution</h3>
-        <p className="text-xs font-mono text-chalk-500 mt-1">
+        <h3 className="text-xs sm:text-sm font-mono font-600 text-chalk-300 uppercase tracking-wider">Normal Distribution</h3>
+        <p className="text-[10px] sm:text-xs font-mono text-chalk-500 mt-1 leading-relaxed">
           mean {mean.toFixed(2)} · std dev {stdDev.toFixed(2)} · {totalPlayers} players
-          · 68% between {(mean - stdDev).toFixed(1)}–{(mean + stdDev).toFixed(1)}
+          <br className="sm:hidden" />
+          <span className="hidden sm:inline"> · </span>
+          68% between {(mean - stdDev).toFixed(1)}–{(mean + stdDev).toFixed(1)}
         </p>
       </div>
-      <ResponsiveContainer width="100%" height={400}>
-        <ComposedChart data={chartData} margin={{ top: 24, right: 24, left: 0, bottom: 8 }}>
+      <ResponsiveContainer width="100%" height={isMobile ? 280 : 400}>
+        <ComposedChart data={chartData} margin={isMobile ? { top: 16, right: 8, left: -8, bottom: 4 } : { top: 24, right: 24, left: 0, bottom: 8 }}>
           <defs>
             <linearGradient id="normalFillGrad" x1="0" y1="0" x2="1" y2="0">
               {COLOR_STOPS.map((c, i) => (
@@ -235,19 +250,19 @@ export const NormalDistributionChart = memo(function NormalDistributionChart({
             dataKey="x"
             type="number"
             domain={[lo, hi]}
-            tick={{ fontSize: 11, fill: "#9ca3af", fontFamily: "monospace" }}
+            tick={{ fontSize: isMobile ? 9 : 11, fill: "#9ca3af", fontFamily: "monospace" }}
             tickLine={false}
             axisLine={{ stroke: "#ffffff10" }}
             tickFormatter={(v: number) => v.toFixed(1)}
-            ticks={histTicks}
+            ticks={isMobile ? histTicks.filter((_, i) => i % 2 === 0) : histTicks}
             allowDuplicatedCategory={false}
           />
           <YAxis
             domain={[0, Math.ceil(maxVal * 1.15)]}
-            tick={{ fontSize: 11, fill: "#9ca3af", fontFamily: "monospace" }}
+            tick={{ fontSize: isMobile ? 9 : 11, fill: "#9ca3af", fontFamily: "monospace" }}
             tickLine={false}
             axisLine={false}
-            width={36}
+            width={isMobile ? 28 : 36}
           />
           <Tooltip
             content={({ active, payload }: any) => {
@@ -264,12 +279,15 @@ export const NormalDistributionChart = memo(function NormalDistributionChart({
             }}
             cursor={false}
           />
-          {percentileLines.map((p) => (
+          {visiblePercentiles.map((p) => (
             <ReferenceLine key={p.label} x={p.x} stroke={p.color} strokeDasharray="3 3" strokeOpacity={p.opacity + 0.2}
-              label={{ value: `${p.label} · ${p.x.toFixed(1)}`, fontSize: 11, fill: p.color, fontFamily: "monospace", position: "insideTopLeft", offset: 6 }} />
+              label={isMobile
+                ? { value: p.x.toFixed(1), fontSize: 9, fill: p.color, fontFamily: "monospace", position: "insideTopLeft", offset: 4 }
+                : { value: `${p.label} · ${p.x.toFixed(1)}`, fontSize: 11, fill: p.color, fontFamily: "monospace", position: "insideTopLeft", offset: 6 }
+              } />
           ))}
           <Bar dataKey="count" isAnimationActive={false}
-            barSize={Math.max(14, 700 / histTicks.length)}
+            barSize={isMobile ? Math.max(10, 300 / histTicks.length) : Math.max(14, 700 / histTicks.length)}
             shape={(props: any) => {
               const { x, y, width, height, payload } = props;
               if (!payload) return <rect />;
@@ -278,9 +296,20 @@ export const NormalDistributionChart = memo(function NormalDistributionChart({
             }}
           />
           <Area dataKey="normal" type="monotone" stroke="none" fill="url(#normalFillGrad)" isAnimationActive={false} />
-          <Line dataKey="normal" type="monotone" stroke="url(#normalStrokeGrad)" strokeWidth={2.5} dot={false} isAnimationActive={false} />
+          <Line dataKey="normal" type="monotone" stroke="url(#normalStrokeGrad)" strokeWidth={isMobile ? 2 : 2.5} dot={false} isAnimationActive={false} />
         </ComposedChart>
       </ResponsiveContainer>
+
+      {/* Mobile percentile legend */}
+      {isMobile && percentileLines.length > 1 && (
+        <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 mt-2 text-[9px] font-mono">
+          {percentileLines.map((p) => (
+            <span key={p.label} style={{ color: p.color }}>
+              {p.label} · {p.x.toFixed(1)}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 });
