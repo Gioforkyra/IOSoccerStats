@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import RatingsDistributionChart from "@/components/RatingsDistributionChart";
-import { getPlayerStatisticsTotals } from "@/lib/iosoccer-api";
 
 export const metadata: Metadata = {
   title: "Player Ratings — IOSHUBv2",
@@ -12,9 +11,7 @@ export const metadata: Metadata = {
 export const revalidate = 604800; // 1 week
 
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-const MIN_MATCHES_OPTIONS = [0, 10, 25, 50, 100, 200];
-const API_PAGE_SIZE = 500;
-
+const MIN_MATCHES_OPTIONS = [0, 50, 100, 500, 1000, 2000];
 function fmtPeriod(ym: string) {
   const [y, m] = ym.split("-");
   return `${MONTHS[parseInt(m) - 1]} ${y}`;
@@ -25,37 +22,6 @@ function buildHref(period: string, minMatches: number) {
   params.set("period", period);
   if (minMatches > 0) params.set("min", String(minMatches));
   return `/ratings?${params.toString()}`;
-}
-
-async function getEligibleSteamIdsByMinApps(minMatches: number): Promise<Set<string> | null> {
-  if (minMatches <= 0) return null;
-
-  const result = new Set<string>();
-  let page = 1;
-  let totalPages = 1;
-
-  while (page <= totalPages && page <= 200) {
-    const res = await getPlayerStatisticsTotals({
-      page,
-      pageSize: API_PAGE_SIZE,
-      sortBy: "PlayerId",
-      sortOrder: "ASC",
-      minApps: minMatches,
-      includeSubstituteAppearances: true,
-      matchFormat: 8,
-      regionId: 1,
-      timePeriod: 0,
-    });
-
-    totalPages = Math.max(1, res.totalPages || 1);
-    for (const item of res.items) {
-      const steamId = String(item.steamID ?? "").trim();
-      if (steamId) result.add(steamId);
-    }
-    page += 1;
-  }
-
-  return result;
 }
 
 export default async function RatingsPage({
@@ -75,24 +41,36 @@ export default async function RatingsPage({
   const periods = periodsRaw.map((r) => r.period);
   const selectedPeriod = period && periods.includes(period) ? period : periods[0];
 
-  const eligibleSteamIds = await getEligibleSteamIdsByMinApps(minMatches);
-
-  const baseRows = selectedPeriod
+  const rows = selectedPeriod
     ? await prisma.$queryRaw<{ steam_id: string; username: string; rating: number }[]>`
         SELECT prh.steam_id, p.username, AVG(prh.rating)::float AS rating
         FROM player_rating_history prh
         JOIN players p ON p.steam_id = prh.steam_id
         WHERE TO_CHAR(DATE_TRUNC('month', prh.recorded_at), 'YYYY-MM') = ${selectedPeriod}
           AND prh.rating > 0
+          AND EXISTS (
+            SELECT 1 FROM match_player_stats mps
+            JOIN matches m ON m.id = mps.match_id
+            JOIN teams t ON t.id = m.home_team_id OR t.id = m.away_team_id
+            WHERE mps.player_steam_id = prh.steam_id
+              AND t.region_id = 1
+          )
+          AND (
+            ${minMatches} = 0
+            OR (
+              SELECT COUNT(DISTINCT mps2.match_id)
+              FROM match_player_stats mps2
+              JOIN matches m2 ON m2.id = mps2.match_id
+              JOIN teams t2 ON t2.id = m2.home_team_id OR t2.id = m2.away_team_id
+              WHERE mps2.player_steam_id = prh.steam_id
+                AND t2.region_id = 1
+            ) >= ${minMatches}
+          )
         GROUP BY prh.steam_id, p.username
         HAVING AVG(prh.rating) > 0
         ORDER BY rating ASC
       `
     : [];
-
-  const rows = eligibleSteamIds
-    ? baseRows.filter((r) => eligibleSteamIds.has(r.steam_id))
-    : baseRows;
 
   return (
     <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-8">
@@ -145,6 +123,10 @@ export default async function RatingsPage({
             ))}
           </div>
         </div>
+
+        <div className="w-px h-4 bg-chalk-100/10" />
+
+        <span className="text-[10px] font-mono text-chalk-500 uppercase tracking-wider">EU players only</span>
       </div>
 
       {rows.length === 0 ? (

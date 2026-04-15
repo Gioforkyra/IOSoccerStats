@@ -8,16 +8,16 @@ datasource db {
 }
 
 model Player {
-  steamId         String                 @id @map("steam_id")
-  iosoccerId      Int?                   @unique @map("iosoccer_id")
+  steamId         String             @id @map("steam_id")
+  iosoccerId      Int?               @unique @map("iosoccer_id")
   username        String
   country         String?
   position        String?
   avatar          String?
-  avatarUpdatedAt DateTime?              @map("avatar_updated_at")
+  avatarUpdatedAt DateTime?          @map("avatar_updated_at")
   rating          Float?
-  createdAt       DateTime               @default(now()) @map("created_at")
-  updatedAt       DateTime               @updatedAt @map("updated_at")
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
   matchStats      MatchPlayerStats[]
   transfers       Transfer[]
 
@@ -26,22 +26,22 @@ model Player {
 }
 
 model Team {
-  id             Int                  @id @default(autoincrement())
-  name           String
-  slug           String
-  logo           String?
-  region         String?
-  color          String?
-  inactive       Boolean              @default(false)
-  avgRating      Float?               @map("avg_rating")
-  createdAt      DateTime             @default(now()) @map("created_at")
-  regionId       Int?                 @map("region_id")
-  teamType       Int?                 @map("team_type")
-  awayMatches    Match[]              @relation("AwayTeam")
-  homeMatches    Match[]              @relation("HomeTeam")
-  standings      TournamentStanding[]
-  transfersFrom  Transfer[]           @relation("TeamTransferFrom")
-  transfersTo    Transfer[]           @relation("TeamTransferTo")
+  id            Int                  @id @default(autoincrement())
+  name          String
+  slug          String
+  logo          String?
+  region        String?
+  color         String?
+  inactive      Boolean              @default(false)
+  avgRating     Float?               @map("avg_rating")
+  createdAt     DateTime             @default(now()) @map("created_at")
+  regionId      Int?                 @map("region_id")
+  teamType      Int?                 @map("team_type")
+  awayMatches   Match[]              @relation("AwayTeam")
+  homeMatches   Match[]              @relation("HomeTeam")
+  standings     TournamentStanding[]
+  transfersFrom Transfer[]           @relation("TeamTransferFrom")
+  transfersTo   Transfer[]           @relation("TeamTransferTo")
 
   @@index([name])
   @@map("teams")
@@ -78,49 +78,48 @@ model Match {
 }
 
 model MatchPlayerStats {
-  matchId         Int     @map("match_id")
-  playerSteamId   String  @map("player_steam_id")
-  teamSide        String  @map("team_side")
-  position        String?
-  goals           Int     @default(0)
-  assists         Int     @default(0)
-  shots           Int     @default(0)
-  shotsOnTarget   Int     @default(0) @map("shots_on_target")
-  passes          Int     @default(0)
-  passesCompleted Int     @default(0) @map("passes_completed")
-  saves           Int     @default(0)
-  fouls           Int     @default(0)
-  yellowCards     Int     @default(0) @map("yellow_cards")
-  redCards        Int     @default(0) @map("red_cards")
-  interceptions   Int     @default(0)
-  corners         Int     @default(0)
-  keyPasses       Int     @default(0) @map("key_passes")
-  distanceRun     Int     @default(0) @map("distance_run")
-  possession      Float   @default(0)
-  minutesPlayed   Int     @default(0) @map("minutes_played")
-  isSubstitute    Boolean @default(false) @map("is_substitute")
-  isPotm          Boolean @default(false) @map("is_potm")
-  chancesCreated  Int     @default(0) @map("chances_created")
-  foulsSuffered   Int     @default(0) @map("fouls_suffered")
-  freeKicks       Int     @default(0) @map("free_kicks")
-  goalKicks       Int     @default(0) @map("goal_kicks")
-  goalsConceded   Int     @default(0) @map("goals_conceded")
-  offsides        Int     @default(0)
-  ownGoals        Int     @default(0) @map("own_goals")
-  penalties       Int     @default(0)
-  secondAssists   Int     @default(0) @map("second_assists")
-  throwIns        Int     @default(0) @map("throw_ins")
-  savesCaught     Int     @default(0) @map("saves_caught")
-  slidingTackles  Int     @default(0) @map("sliding_tackles")
-  slidingTacklesCompleted Int @default(0) @map("sliding_tackles_completed")
-  match           Match   @relation(fields: [matchId], references: [id])
-  player          Player  @relation(fields: [playerSteamId], references: [steamId])
+  matchId                 Int     @map("match_id")
+  playerSteamId           String  @map("player_steam_id")
+  teamSide                String  @map("team_side")
+  position                String?
+  goals                   Int     @default(0)
+  assists                 Int     @default(0)
+  shots                   Int     @default(0)
+  shotsOnTarget           Int     @default(0) @map("shots_on_target")
+  passes                  Int     @default(0)
+  passesCompleted         Int     @default(0) @map("passes_completed")
+  saves                   Int     @default(0)
+  fouls                   Int     @default(0)
+  yellowCards             Int     @default(0) @map("yellow_cards")
+  redCards                Int     @default(0) @map("red_cards")
+  interceptions           Int     @default(0)
+  corners                 Int     @default(0)
+  keyPasses               Int     @default(0) @map("key_passes")
+  distanceRun             Int     @default(0) @map("distance_run")
+  possession              Float   @default(0)
+  minutesPlayed           Int     @default(0) @map("minutes_played")
+  isSubstitute            Boolean @default(false) @map("is_substitute")
+  isPotm                  Boolean @default(false) @map("is_potm")
+  chancesCreated          Int     @default(0) @map("chances_created")
+  foulsSuffered           Int     @default(0) @map("fouls_suffered")
+  freeKicks               Int     @default(0) @map("free_kicks")
+  goalKicks               Int     @default(0) @map("goal_kicks")
+  goalsConceded           Int     @default(0) @map("goals_conceded")
+  offsides                Int     @default(0)
+  ownGoals                Int     @default(0) @map("own_goals")
+  penalties               Int     @default(0)
+  secondAssists           Int     @default(0) @map("second_assists")
+  throwIns                Int     @default(0) @map("throw_ins")
+  savesCaught             Int     @default(0) @map("saves_caught")
+  slidingTackles          Int     @default(0) @map("sliding_tackles")
+  slidingTacklesCompleted Int     @default(0) @map("sliding_tackles_completed")
+  match                   Match   @relation(fields: [matchId], references: [id])
+  player                  Player  @relation(fields: [playerSteamId], references: [steamId])
 
   @@id([matchId, playerSteamId, teamSide])
   @@index([playerSteamId])
   @@map("match_player_stats")
 }
-
 
 model Tournament {
   id                Int                  @id @default(autoincrement())
@@ -174,7 +173,6 @@ model Transfer {
   @@map("transfers")
 }
 
-
 model PlayerRatingHistory {
   id         Int      @id @default(autoincrement())
   steamId    String   @map("steam_id")
@@ -193,5 +191,3 @@ model ScraperState {
 
   @@map("scraper_state")
 }
-
-
