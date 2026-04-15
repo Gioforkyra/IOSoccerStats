@@ -222,19 +222,19 @@ export default function Navbar() {
               </Link>
             )
           )}
+        </div>
+
+        {/* Right side */}
+        <div className="ml-auto flex items-center gap-3">
           <a
             href="https://ko-fi.com/bybl0s"
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Support me on Ko-fi"
-            className="shrink-0 brightness-125 hover:brightness-150 transition-all ml-1"
+            className="hidden md:flex shrink-0 items-center justify-center w-[60px] h-7 rounded-md bg-[#ff6433] hover:brightness-110 transition-all"
           >
-            <img src="/kofi_brandasset/kofi_logo.svg" alt="Ko-fi" className="h-5 w-auto" />
+            <img src="/kofi_brandasset/kofi_symbol.svg" alt="Ko-fi" className="h-5 w-auto" />
           </a>
-        </div>
-
-        {/* Right side */}
-        <div className="ml-auto flex items-center gap-3">
           <ThemeToggle />
           {searchBox("hidden sm:block w-28 md:w-32")}
 
