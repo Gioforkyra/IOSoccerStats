@@ -7,6 +7,7 @@ const TABS = [
   { label: "Statistics", href: "" },
   { label: "Results", href: "/results" },
   { label: "Squad", href: "/squad" },
+  { label: "Lineups", href: "/lineups" },
   { label: "Player History", href: "/player-history" },
   { label: "Tournaments", href: "/tournaments" },
 ];
