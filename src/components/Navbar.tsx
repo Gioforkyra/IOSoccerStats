@@ -176,7 +176,7 @@ export default function Navbar() {
                 <Link
                   href={item.href}
                   className={clsx(
-                    "nav-link flex items-center gap-0.5 px-3 py-1.5 rounded text-sm font-body font-medium transition-colors",
+                    "nav-link font-nav flex items-center gap-0.5 px-3 py-1.5 rounded text-sm font-semibold transition-colors",
                     isActive(path, item)
                       ? "text-[#F4119E]"
                       : "text-chalk-400 hover:text-[#F4119E]"
@@ -192,7 +192,7 @@ export default function Navbar() {
                         key={sub.href}
                         href={sub.href}
                         className={clsx(
-                          "nav-dropdown-item block px-4 py-2 text-sm font-body transition-colors",
+                          "nav-dropdown-item font-nav block px-4 py-2 text-sm font-medium transition-colors",
                           path === sub.href
                             ? "text-chalk-100 bg-[#F4119E]/10"
                             : "text-chalk-400 hover:text-[#F4119E] hover:bg-pitch-700/50"
@@ -209,7 +209,7 @@ export default function Navbar() {
                 key={item.href}
                 href={item.href}
                 className={clsx(
-                  "nav-link flex items-center gap-0.5 px-3 py-1.5 rounded text-sm font-body font-medium transition-colors",
+                  "nav-link font-nav flex items-center gap-0.5 px-3 py-1.5 rounded text-sm font-semibold transition-colors",
                   isActive(path, item)
                     ? "text-[#F4119E]"
                     : "text-chalk-400 hover:text-[#F4119E]"
@@ -261,7 +261,7 @@ export default function Navbar() {
                   href={item.href}
                   onClick={() => setOpen(false)}
                   className={clsx(
-                    "flex items-center gap-2 px-3 py-2.5 rounded text-sm font-body font-medium transition-colors",
+                    "font-nav flex items-center gap-2 px-3 py-2.5 rounded text-sm font-semibold transition-colors",
                     isActive(path, item)
                       ? "text-[#F4119E]"
                       : "text-chalk-400 hover:text-[#F4119E] hover:bg-pitch-800/50"
@@ -280,7 +280,7 @@ export default function Navbar() {
                         href={sub.href}
                         onClick={() => setOpen(false)}
                         className={clsx(
-                          "nav-dropdown-item block px-3 py-2 rounded text-sm font-body transition-colors",
+                          "nav-dropdown-item font-nav block px-3 py-2 rounded text-sm font-medium transition-colors",
                           path === sub.href
                             ? "text-[#F4119E]"
                             : "text-chalk-500 hover:text-[#F4119E] hover:bg-pitch-800/30"

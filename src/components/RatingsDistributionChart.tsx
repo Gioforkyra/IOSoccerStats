@@ -314,6 +314,48 @@ export const NormalDistributionChart = memo(function NormalDistributionChart({
   );
 });
 
+export function DistributionOnlyChart({ players }: { players: Player[] }) {
+  const { binsArray, mean, min, max, xPad } = useMemo(() => {
+    if (!players.length) return { binsArray: [] as [number, PlayerWithMeta[]][], mean: 0, min: 0, max: 0, xPad: 0 };
+
+    const ratings = players.map((p) => p.rating);
+    const minR = Math.min(...ratings);
+    const maxR = Math.max(...ratings);
+    const meanR = ratings.reduce((a, b) => a + b, 0) / ratings.length;
+
+    const sorted = [...players].sort((a, b) => a.rating - b.rating);
+    const n = sorted.length;
+    const withMeta: PlayerWithMeta[] = sorted.map((p, i) => ({
+      ...p,
+      percentile: Math.round(((i + 1) / n) * 100),
+      color: ratingColor(p.rating, minR, maxR),
+    }));
+
+    const binMap = new Map<number, PlayerWithMeta[]>();
+    for (const p of withMeta) {
+      const bin = getBin(p.rating);
+      if (!binMap.has(bin)) binMap.set(bin, []);
+      binMap.get(bin)!.push(p);
+    }
+    const binsArr = Array.from(binMap.entries()).sort((a, b) => a[0] - b[0]);
+
+    return { binsArray: binsArr, mean: meanR, min: minR, max: maxR, xPad: (maxR - minR) * 0.04 };
+  }, [players]);
+
+  if (!players.length) return null;
+
+  return (
+    <NormalDistributionChart
+      binsArray={binsArray}
+      mean={mean}
+      min={min}
+      max={max}
+      xPad={xPad}
+      totalPlayers={players.length}
+    />
+  );
+}
+
 export default function RatingsDistributionChart({ players }: { players: Player[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartWrapRef = useRef<HTMLDivElement>(null);

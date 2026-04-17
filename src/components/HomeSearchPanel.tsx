@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import ThemeToggle from "@/components/ThemeToggle";
 
 type SearchResult = {
   type: "player" | "team";
@@ -80,26 +81,12 @@ export default function HomeSearchPanel({
   };
 
   return (
-    <div
-      ref={panelRef}
-      className="home-card relative rounded-xl border border-chalk-100/8 bg-pitch-900/50 p-6 hover:border-[#F4119E]/30 transition-colors"
-    >
-      <div className="text-[10px] font-mono uppercase tracking-[0.22em] text-chalk-400">
-        Search
-      </div>
-      <h2 className="mt-3 font-display text-2xl font-800 text-chalk-100 md:text-3xl">
-        Find Players & Teams
-      </h2>
-      <p className="mt-2 max-w-lg text-sm font-body leading-6 text-chalk-300">
-        Search across {playersCount.toLocaleString("en-GB")} players and{" "}
-        {teamsCount.toLocaleString("en-GB")} teams.
-      </p>
-
-      <div className="relative mt-5">
-        <div className="home-search-bar flex items-center gap-3 rounded-lg border border-chalk-100/8 bg-pitch-800/60 px-4 py-3 focus-within:border-[#F4119E]/50 transition-colors">
+    <div ref={panelRef} className="relative">
+      <div className="relative">
+        <div className="home-search-bar flex items-center gap-3 rounded-xl border border-chalk-100/10 bg-pitch-900/60 px-5 py-4 focus-within:border-[#F4119E]/50 transition-colors">
           <svg
             viewBox="0 0 24 24"
-            className="h-4 w-4 shrink-0 text-chalk-400"
+            className="h-5 w-5 shrink-0 text-chalk-400"
             fill="none"
             stroke="currentColor"
             strokeWidth="1.8"
@@ -115,7 +102,7 @@ export default function HomeSearchPanel({
             onChange={(event) => handleChange(event.target.value)}
             onFocus={() => query.trim().length >= 2 && setShowResults(true)}
             placeholder="Search players or teams..."
-            className="w-full bg-transparent text-sm font-body text-chalk-100 placeholder:text-chalk-400 focus:outline-none"
+            className="w-full bg-transparent text-base font-body text-chalk-100 placeholder:text-chalk-400 focus:outline-none"
           />
         </div>
 
@@ -155,12 +142,14 @@ export default function HomeSearchPanel({
         )}
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-2">
+      <div className="mt-5 flex flex-wrap justify-center gap-2.5">
         {[
           { href: "/players", label: "Players" },
           { href: "/teams", label: "Teams" },
           { href: "/matches", label: "Matches" },
           { href: "/matches/live", label: "Live" },
+          { href: "/fixtures", label: "Fixtures" },
+          { href: "/tournaments?status=active", label: "Tournaments" },
           { href: "/players/transfers", label: "Transfers" },
           { href: "/ratings", label: "Ratings" },
           { href: "/players/leaderboards", label: "Leaderboards" },
@@ -168,11 +157,18 @@ export default function HomeSearchPanel({
           <Link
             key={link.label}
             href={link.href}
-            className="home-pill rounded border border-chalk-100/8 bg-pitch-800/40 px-2.5 py-1.5 text-[10px] font-mono uppercase tracking-wider text-chalk-300 hover:border-[#F4119E]/30 hover:text-chalk-100 transition-colors"
+            className="home-pill rounded-lg border border-chalk-100/10 bg-pitch-900/50 px-4 py-2.5 text-sm font-mono uppercase tracking-wider text-chalk-300 hover:border-[#F4119E]/50 hover:text-[#F4119E] hover:bg-pitch-800/60 transition-colors"
           >
             {link.label}
           </Link>
         ))}
+        <Link
+          href="/support"
+          className="home-pill home-pill--support rounded-lg border border-[#F4119E]/50 bg-[#F4119E]/10 px-4 py-2.5 text-sm font-mono uppercase tracking-wider text-[#F4119E] hover:border-[#F4119E] hover:bg-[#F4119E]/20 transition-colors"
+        >
+          Support
+        </Link>
+        <ThemeToggle />
       </div>
     </div>
   );
