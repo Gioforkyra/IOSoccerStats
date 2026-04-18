@@ -139,6 +139,34 @@ export default async function TeamLineupsPage({
     }
   }
 
+  const totalMatchesRows = activeRange.days != null
+    ? await prisma.$queryRaw<{ total: bigint }[]>`
+        SELECT COUNT(DISTINCT m.id) AS total
+        FROM matches m
+        WHERE (m.home_team_id = ${teamId} OR m.away_team_id = ${teamId})
+          AND m.date >= NOW() - INTERVAL '1 day' * ${activeRange.days}
+      `
+    : await prisma.$queryRaw<{ total: bigint }[]>`
+        SELECT COUNT(DISTINCT m.id) AS total
+        FROM matches m
+        WHERE (m.home_team_id = ${teamId} OR m.away_team_id = ${teamId})
+      `;
+  const totalMatches = Number(totalMatchesRows[0]?.total ?? 0);
+
+  // Effective min apps for WR mode. The base threshold (e.g. 100 for all-time)
+  // is a cap: if no one in the team has that many apps in any slot, scale down
+  // to 30% of the most-active player's apps in the team, floor 2.
+  let maxAppsAnyPlayer = 0;
+  for (const slotMap of bySlot.values()) {
+    for (const p of slotMap.values()) {
+      if (p.apps > maxAppsAnyPlayer) maxAppsAnyPlayer = p.apps;
+    }
+  }
+  const effectiveMinAppsWr = Math.min(
+    activeRange.minAppsWr,
+    Math.max(2, Math.ceil(maxAppsAnyPlayer * 0.3)),
+  );
+
   const canonicalSlots: CanonicalPosition[] = ["LW", "CF", "RW", "CM", "LB", "CB", "RB", "GK"];
   // Bayesian-shrunk win rate: adds 3 virtual draws to avoid small-sample bias.
   // e.g. 1 app / 100% WR → 57%, while 50 apps / 70% WR stays ~68%.
@@ -153,7 +181,7 @@ export default async function TeamLineupsPage({
       const totalApps = all.reduce((acc, p) => acc + p.apps, 0);
       let sorted: PlayerAgg[];
       if (activeMode.key === "winrate") {
-        const qualified = all.filter((p) => p.apps >= activeRange.minAppsWr);
+        const qualified = all.filter((p) => p.apps >= effectiveMinAppsWr);
         sorted = qualified.sort((a, b) => shrunkWr(b) - shrunkWr(a) || b.apps - a.apps);
       } else {
         sorted = all.sort((a, b) => b.apps - a.apps);
@@ -173,20 +201,6 @@ export default async function TeamLineupsPage({
       ];
     })
   ) as Record<CanonicalPosition, SlotResult>;
-
-  const totalMatchesRows = activeRange.days != null
-    ? await prisma.$queryRaw<{ total: bigint }[]>`
-        SELECT COUNT(DISTINCT m.id) AS total
-        FROM matches m
-        WHERE (m.home_team_id = ${teamId} OR m.away_team_id = ${teamId})
-          AND m.date >= NOW() - INTERVAL '1 day' * ${activeRange.days}
-      `
-    : await prisma.$queryRaw<{ total: bigint }[]>`
-        SELECT COUNT(DISTINCT m.id) AS total
-        FROM matches m
-        WHERE (m.home_team_id = ${teamId} OR m.away_team_id = ${teamId})
-      `;
-  const totalMatches = Number(totalMatchesRows[0]?.total ?? 0);
 
   return (
     <div>
@@ -279,6 +293,15 @@ export default async function TeamLineupsPage({
 
           <div className="text-[11px] font-mono text-chalk-400 text-center">
             Based on <span className="text-chalk-200 font-700">{totalMatches}</span> {totalMatches === 1 ? "match" : "matches"} · {activeMode.short} · {activeRange.label.toLowerCase()}
+            {activeMode.key === "winrate" && (
+              <>
+                {" · "}
+                <span className="text-chalk-300">min {effectiveMinAppsWr} apps</span>
+                {effectiveMinAppsWr !== activeRange.minAppsWr && (
+                  <span className="text-chalk-500"> (adjusted, top player has {maxAppsAnyPlayer} apps)</span>
+                )}
+              </>
+            )}
           </div>
         </>
       )}
