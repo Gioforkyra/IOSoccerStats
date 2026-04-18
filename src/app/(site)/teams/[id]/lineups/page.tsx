@@ -40,17 +40,6 @@ const MODE_OPTIONS: { key: string; label: string; short: string }[] = [
   { key: "starts", label: "Starts Only", short: "starts only" },
 ];
 
-const SLOT_LABELS: Record<CanonicalPosition, string> = {
-  LW: "Left Wing",
-  CF: "Striker",
-  RW: "Right Wing",
-  CM: "Midfielder",
-  LB: "Left Back",
-  CB: "Centre Back",
-  RB: "Right Back",
-  GK: "Goalkeeper",
-};
-
 type SlotResult = {
   slot: CanonicalPosition;
   top: { steam_id: string; username: string; avatar: string | null; apps: number; wins: number } | null;
@@ -312,9 +301,6 @@ function SlotCard({ result }: { result: SlotResult }) {
           <div className={`text-[11px] sm:text-xs font-mono font-700 mt-0.5 ${wrToneTop}`}>
             WR {topWr}%
           </div>
-          <div className="hidden sm:block text-[11px] font-mono text-chalk-500 mt-0.5">
-            {SLOT_LABELS[slot]}
-          </div>
           {runnersUp.length > 0 && (
             <div className="w-full mt-1.5 sm:mt-2 pt-1.5 sm:pt-2 border-t border-chalk-100/8 flex flex-col gap-0.5">
               {runnersUp.map((r) => {
@@ -342,9 +328,6 @@ function SlotCard({ result }: { result: SlotResult }) {
             —
           </div>
           <div className="text-[11px] sm:text-xs font-mono text-chalk-500">No data</div>
-          <div className="hidden sm:block text-[11px] font-mono text-chalk-500 mt-0.5">
-            {SLOT_LABELS[slot]}
-          </div>
         </>
       )}
     </div>
