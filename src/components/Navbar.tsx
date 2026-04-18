@@ -179,7 +179,7 @@ export default function Navbar() {
                     "nav-link font-nav flex items-center gap-0.5 px-3 py-1.5 rounded text-sm font-semibold transition-colors",
                     isActive(path, item)
                       ? "text-[#F4119E]"
-                      : "text-chalk-400 hover:text-[#F4119E]"
+                      : "text-chalk-100 hover:text-[#F4119E]"
                   )}
                 >
                   {item.label}
@@ -195,7 +195,7 @@ export default function Navbar() {
                           "nav-dropdown-item font-nav block px-4 py-2 text-sm font-medium transition-colors",
                           path === sub.href
                             ? "text-chalk-100 bg-[#F4119E]/10"
-                            : "text-chalk-400 hover:text-[#F4119E] hover:bg-pitch-700/50"
+                            : "text-chalk-100 hover:text-[#F4119E] hover:bg-pitch-700/50"
                         )}
                       >
                         {sub.label}
@@ -212,7 +212,7 @@ export default function Navbar() {
                   "nav-link font-nav flex items-center gap-0.5 px-3 py-1.5 rounded text-sm font-semibold transition-colors",
                   isActive(path, item)
                     ? "text-[#F4119E]"
-                    : "text-chalk-400 hover:text-[#F4119E]"
+                    : "text-chalk-100 hover:text-[#F4119E]"
                 )}
               >
                 {item.live && (
@@ -264,7 +264,7 @@ export default function Navbar() {
                     "font-nav flex items-center gap-2 px-3 py-2.5 rounded text-sm font-semibold transition-colors",
                     isActive(path, item)
                       ? "text-[#F4119E]"
-                      : "text-chalk-400 hover:text-[#F4119E] hover:bg-pitch-800/50"
+                      : "text-chalk-100 hover:text-[#F4119E] hover:bg-pitch-800/50"
                   )}
                 >
                   {item.live && (
@@ -283,7 +283,7 @@ export default function Navbar() {
                           "nav-dropdown-item font-nav block px-3 py-2 rounded text-sm font-medium transition-colors",
                           path === sub.href
                             ? "text-[#F4119E]"
-                            : "text-chalk-500 hover:text-[#F4119E] hover:bg-pitch-800/30"
+                            : "text-chalk-100 hover:text-[#F4119E] hover:bg-pitch-800/30"
                         )}
                       >
                         {sub.label}
