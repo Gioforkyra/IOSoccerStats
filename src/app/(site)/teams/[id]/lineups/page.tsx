@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@/generated/prisma/client";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -34,6 +35,11 @@ const RANGE_OPTIONS: { key: string; label: string; days: number | null }[] = [
   { key: "all", label: "All Time", days: null },
 ];
 
+const MODE_OPTIONS: { key: string; label: string; short: string }[] = [
+  { key: "all", label: "All Apps", short: "all apps" },
+  { key: "starts", label: "Starts Only", short: "starts only" },
+];
+
 const SLOT_LABELS: Record<CanonicalPosition, string> = {
   LW: "Left Wing",
   CF: "Striker",
@@ -57,14 +63,20 @@ export default async function TeamLineupsPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ range?: string }>;
+  searchParams: Promise<{ range?: string; mode?: string }>;
 }) {
   const { id } = await params;
-  const { range: rangeParam } = await searchParams;
+  const { range: rangeParam, mode: modeParam } = await searchParams;
   const teamId = parseInt(id, 10);
   if (isNaN(teamId)) return notFound();
 
   const activeRange = RANGE_OPTIONS.find((o) => o.key === rangeParam) ?? RANGE_OPTIONS[1];
+  const activeMode = MODE_OPTIONS.find((o) => o.key === modeParam) ?? MODE_OPTIONS[0];
+
+  const modeFilter =
+    activeMode.key === "starts"
+      ? Prisma.sql`AND mps.is_substitute = false`
+      : Prisma.empty;
 
   const rows = activeRange.days != null
     ? await prisma.$queryRaw<LineupRow[]>`
@@ -86,8 +98,8 @@ export default async function TeamLineupsPage({
           (mps.team_side = 'home' AND m.home_team_id = ${teamId}) OR
           (mps.team_side = 'away' AND m.away_team_id = ${teamId})
         )
-          AND mps.is_substitute = false
           AND mps.position IS NOT NULL
+          ${modeFilter}
           AND m.date >= NOW() - INTERVAL '1 day' * ${activeRange.days}
       `
     : await prisma.$queryRaw<LineupRow[]>`
@@ -109,8 +121,8 @@ export default async function TeamLineupsPage({
           (mps.team_side = 'home' AND m.home_team_id = ${teamId}) OR
           (mps.team_side = 'away' AND m.away_team_id = ${teamId})
         )
-          AND mps.is_substitute = false
           AND mps.position IS NOT NULL
+          ${modeFilter}
       `;
 
   type PlayerAgg = { steam_id: string; username: string; avatar: string | null; apps: number; wins: number };
@@ -176,16 +188,38 @@ export default async function TeamLineupsPage({
   return (
     <div>
       <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
-        <h3 className="font-display font-700 text-lg tracking-wider text-chalk-100 uppercase">
-          Most Played Lineup
-        </h3>
+        <div className="flex items-center gap-3 flex-wrap">
+          <h3 className="font-display font-700 text-lg tracking-wider text-chalk-100 uppercase">
+            Most Played Lineup
+          </h3>
+          <div className="flex gap-1.5 flex-wrap">
+            {MODE_OPTIONS.map((opt) => {
+              const isActive = opt.key === activeMode.key;
+              const qs = new URLSearchParams({ range: activeRange.key, mode: opt.key }).toString();
+              return (
+                <Link
+                  key={opt.key}
+                  href={`/teams/${teamId}/lineups?${qs}`}
+                  className={`px-3 py-1.5 rounded text-[11px] font-mono uppercase tracking-wider border transition-colors ${
+                    isActive
+                      ? "border-cyan-400 text-cyan-300 bg-cyan-400/10"
+                      : "border-chalk-100/10 text-chalk-400 hover:text-cyan-300 hover:border-cyan-400/50"
+                  }`}
+                >
+                  {opt.label}
+                </Link>
+              );
+            })}
+          </div>
+        </div>
         <div className="flex gap-1.5 flex-wrap">
           {RANGE_OPTIONS.map((opt) => {
             const isActive = opt.key === activeRange.key;
+            const qs = new URLSearchParams({ range: opt.key, mode: activeMode.key }).toString();
             return (
               <Link
                 key={opt.key}
-                href={`/teams/${teamId}/lineups?range=${opt.key}`}
+                href={`/teams/${teamId}/lineups?${qs}`}
                 className={`px-3 py-1.5 rounded text-[11px] font-mono uppercase tracking-wider border transition-colors ${
                   isActive
                     ? "border-[#F4119E] text-[#F4119E] bg-[#F4119E]/10"
@@ -201,7 +235,7 @@ export default async function TeamLineupsPage({
 
       {rows.length === 0 ? (
         <div className="rounded-lg border border-chalk-100/8 bg-pitch-900/40 text-center py-12 text-chalk-400 font-body">
-          No starting appearances found for this team in the selected range.
+          No appearances found for this team in the selected range.
         </div>
       ) : (
         <>
@@ -222,7 +256,7 @@ export default async function TeamLineupsPage({
           </div>
 
           <div className="text-[11px] font-mono text-chalk-400 text-center">
-            Based on <span className="text-chalk-200 font-700">{totalMatches}</span> {totalMatches === 1 ? "match" : "matches"} · starters only · {activeRange.label.toLowerCase()}
+            Based on <span className="text-chalk-200 font-700">{totalMatches}</span> {totalMatches === 1 ? "match" : "matches"} · {activeMode.short} · {activeRange.label.toLowerCase()}
           </div>
         </>
       )}
@@ -272,7 +306,7 @@ function SlotCard({ result }: { result: SlotResult }) {
             {top.username}
           </Link>
           <div className="text-[11px] sm:text-xs font-mono text-chalk-400 mt-0.5 sm:mt-1">
-            <span className="text-chalk-200 font-700">{top.apps}</span> {top.apps === 1 ? "start" : "starts"}
+            <span className="text-chalk-200 font-700">{top.apps}</span> {top.apps === 1 ? "app" : "apps"}
             {pct < 100 && pct > 0 && <span className="text-chalk-500"> · {pct}%</span>}
           </div>
           <div className={`text-[11px] sm:text-xs font-mono font-700 mt-0.5 ${wrToneTop}`}>
@@ -291,7 +325,7 @@ function SlotCard({ result }: { result: SlotResult }) {
                     key={r.steam_id}
                     href={`/players/${r.steam_id}`}
                     className="flex items-center justify-between gap-1 sm:gap-1.5 text-[11px] sm:text-xs font-mono text-chalk-500 hover:text-chalk-200 transition-colors"
-                    title={`${r.username} — ${r.apps} starts · WR ${wr}%`}
+                    title={`${r.username} — ${r.apps} apps · WR ${wr}%`}
                   >
                     <span className="truncate flex-1 text-left">{r.username}</span>
                     <span className="text-chalk-300 shrink-0">{r.apps}</span>
