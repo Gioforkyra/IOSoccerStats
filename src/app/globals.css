@@ -612,6 +612,7 @@ html.light [class*="text-chalk-200"] { color: #333; }
 html.light [class*="text-chalk-300"] { color: #555; }
 html.light [class*="text-chalk-400"] { color: #777; }
 html.light [class*="text-chalk-400"][class*="hover:text-[#F4119E]"]:hover { color: #F4119E; }
+html.light [class*="text-chalk-100"][class*="hover:text-[#F4119E]"]:hover { color: #F4119E; }
 
 /* Zebra tables */
 html.light .stat-row:nth-child(odd)  { background-color: #ffffff !important; }
@@ -722,55 +723,3 @@ html.light .nav-dropdown-item:hover {
   animation: medal-sparkle 2s ease-in-out infinite;
 }
 
-/* ── Lineup pitch decoration (teams/[id]/lineups) ── */
-.lineup-pitch-line {
-  position: absolute;
-  top: 50%;
-  left: 0;
-  right: 0;
-  height: 1.5px;
-  background-color: rgba(240, 244, 255, 0.25);
-  pointer-events: none;
-}
-.lineup-pitch-circle {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 110px;
-  height: 110px;
-  border-radius: 50%;
-  border: 1.5px solid rgba(240, 244, 255, 0.25);
-  pointer-events: none;
-}
-.lineup-goal {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: 0;
-  width: 260px;
-  height: 110px;
-  border-top: 2.5px solid rgba(240, 244, 255, 0.30);
-  border-left: 2.5px solid rgba(240, 244, 255, 0.30);
-  border-right: 2.5px solid rgba(240, 244, 255, 0.30);
-  pointer-events: none;
-  z-index: 0;
-}
-@media (max-width: 640px) {
-  .lineup-goal {
-    width: 200px;
-    height: 90px;
-  }
-}
-
-html.light .lineup-pitch-line {
-  background-color: rgba(0, 0, 0, 0.28);
-}
-html.light .lineup-pitch-circle {
-  border-color: rgba(0, 0, 0, 0.28);
-}
-html.light .lineup-goal {
-  border-top-color: rgba(0, 0, 0, 0.35);
-  border-left-color: rgba(0, 0, 0, 0.35);
-  border-right-color: rgba(0, 0, 0, 0.35);
-}
