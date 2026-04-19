@@ -28,7 +28,7 @@ export default async function TournamentsPage({
   searchParams: Promise<{ status?: string; type?: string }>;
 }) {
   const params = await searchParams;
-  const statusFilter = params.status || "all";
+  const statusFilter = params.status || "active";
   const typeFilter = params.type || "all";
 
   const [current, past] = await Promise.all([
@@ -73,14 +73,14 @@ export default async function TournamentsPage({
       {/* Filters */}
       <div className="flex items-center gap-3 mb-6 flex-wrap">
         <div className="flex items-center gap-1 text-xs font-mono">
-          {[{ v: "all", l: "ALL" }, { v: "active", l: "ACTIVE" }, { v: "completed", l: "COMPLETED" }].map(({ v, l }) => (
+          {[{ v: "active", l: "ACTIVE" }, { v: "completed", l: "COMPLETED" }, { v: "all", l: "ALL" }].map(({ v, l }) => (
             <Link key={v} href={filterUrl({ status: v })}
               className={`px-3 py-1.5 rounded border transition-colors ${statusFilter === v ? "border-[#F4119E] text-[#F4119E] bg-[#F4119E]/10" : "border-chalk-100/10 text-chalk-400 hover:border-[#F4119E]/40 hover:text-[#F4119E]"}`}>
               {l}
             </Link>
           ))}
         </div>
-        <div className="flex items-center gap-1 text-xs font-mono">
+        <div className="flex items-center gap-1 text-xs font-mono ml-auto">
           {[{ v: "all", l: "ALL" }, { v: "1", l: "CLUB" }, { v: "2", l: "NATIONAL" }, { v: "3", l: "MIX" }, { v: "4", l: "DRAFT" }].map(({ v, l }) => (
             <Link key={v} href={filterUrl({ type: v })}
               className={`px-3 py-1.5 rounded border transition-colors ${typeFilter === v ? "border-[#F4119E] text-[#F4119E] bg-[#F4119E]/10" : "border-chalk-100/10 text-chalk-400 hover:border-[#F4119E]/40 hover:text-[#F4119E]"}`}>
