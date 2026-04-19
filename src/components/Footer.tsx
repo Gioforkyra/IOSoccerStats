@@ -13,6 +13,8 @@ export default function Footer({ className }: { className?: string }) {
         <span className="text-chalk-700">·</span>
         <Link href="/about" className="hover:text-[#F4119E] transition-colors">About</Link>
         <span className="text-chalk-700">·</span>
+        <Link href="/support" className="hover:text-[#F4119E] transition-colors">Support</Link>
+        <span className="text-chalk-700">·</span>
         <Link href="/privacy" className="hover:text-[#F4119E] transition-colors">Privacy Policy</Link>
         <span className="text-chalk-700">·</span>
         <Link href="/terms" className="hover:text-[#F4119E] transition-colors">Terms of Service</Link>

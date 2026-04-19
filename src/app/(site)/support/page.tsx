@@ -48,6 +48,7 @@ const CHANGELOG: ChangelogEntry[] = [
     date: "2026-04-19",
     changes: [
       "Match detail H2H values now clearly readable in both dark and light mode, as well as more distinguishable bars.",
+      "ALL / COMP / FRIENDLY match type filter on team results and player matches pages.",
     ],
   },
   {

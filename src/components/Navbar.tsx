@@ -176,10 +176,10 @@ export default function Navbar() {
                 <Link
                   href={item.href}
                   className={clsx(
-                    "nav-link font-nav flex items-center gap-0.5 px-3 py-1.5 rounded text-sm font-semibold transition-colors",
+                    "nav-link font-nav flex items-center gap-0.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-all border",
                     isActive(path, item)
-                      ? "text-[#F4119E]"
-                      : "text-chalk-100 hover:text-[#F4119E]"
+                      ? "border-[#F4119E] text-chalk-100 shadow-[0_0_12px_rgba(244,17,158,0.55),inset_0_0_8px_rgba(244,17,158,0.15)]"
+                      : "border-transparent text-chalk-100 hover:text-[#F4119E]"
                   )}
                 >
                   {item.label}
@@ -209,10 +209,10 @@ export default function Navbar() {
                 key={item.href}
                 href={item.href}
                 className={clsx(
-                  "nav-link font-nav flex items-center gap-0.5 px-3 py-1.5 rounded text-sm font-semibold transition-colors",
+                  "nav-link font-nav flex items-center gap-0.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-all border",
                   isActive(path, item)
-                    ? "text-[#F4119E]"
-                    : "text-chalk-100 hover:text-[#F4119E]"
+                    ? "border-[#F4119E] text-chalk-100 shadow-[0_0_12px_rgba(244,17,158,0.55),inset_0_0_8px_rgba(244,17,158,0.15)]"
+                    : "border-transparent text-chalk-100 hover:text-[#F4119E]"
                 )}
               >
                 {item.live && (
@@ -261,10 +261,10 @@ export default function Navbar() {
                   href={item.href}
                   onClick={() => setOpen(false)}
                   className={clsx(
-                    "font-nav flex items-center gap-2 px-3 py-2.5 rounded text-sm font-semibold transition-colors",
+                    "font-nav flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all border",
                     isActive(path, item)
-                      ? "text-[#F4119E]"
-                      : "text-chalk-100 hover:text-[#F4119E] hover:bg-pitch-800/50"
+                      ? "border-[#F4119E] text-chalk-100 shadow-[0_0_12px_rgba(244,17,158,0.55),inset_0_0_8px_rgba(244,17,158,0.15)]"
+                      : "border-transparent text-chalk-100 hover:text-[#F4119E] hover:bg-pitch-800/50"
                   )}
                 >
                   {item.live && (

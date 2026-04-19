@@ -37,7 +37,7 @@ export default async function PlayerMatchesPage({
   searchParams,
 }: {
   params: Promise<{ steamId: string }>;
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; type?: string }>;
 }) {
   const { steamId: rawSteamId } = await params;
   const steamId = decodeURIComponent(rawSteamId);
@@ -46,16 +46,36 @@ export default async function PlayerMatchesPage({
   const page = Math.max(1, parseInt(sp.page || "1", 10));
   const offset = (page - 1) * MATCHES_PER_PAGE;
 
+  const typeFilter = sp.type === "comp" || sp.type === "friendly" ? sp.type : "all";
+  const typeParam = typeFilter === "comp" ? "competitive" : typeFilter === "friendly" ? "friendly" : "";
+
   const player = await prisma.player.findUnique({ where: { steamId } });
   if (!player) return notFound();
 
   const steamIds = await getRelatedSteamIds(steamId);
 
   const [countResult] = await prisma.$queryRaw<[{ total: bigint }]>`
-    SELECT COUNT(*) AS total FROM match_player_stats WHERE player_steam_id = ANY(${steamIds})
+    SELECT COUNT(*) AS total
+    FROM match_player_stats mps
+    JOIN matches m ON m.id = mps.match_id
+    WHERE mps.player_steam_id = ANY(${steamIds})
+      AND (${typeParam}::text = '' OR m.match_type = ${typeParam}::text)
   `;
   const totalMatches = Number(countResult?.total || 0);
   const totalPages = Math.max(1, Math.ceil(totalMatches / MATCHES_PER_PAGE));
+
+  const pageUrl = (p: number) => {
+    const qs = new URLSearchParams();
+    qs.set("page", String(p));
+    if (typeFilter !== "all") qs.set("type", typeFilter);
+    return `/players/${steamIdParam}/matches?${qs.toString()}`;
+  };
+  const typeUrl = (v: string) => {
+    const qs = new URLSearchParams();
+    if (v !== "all") qs.set("type", v);
+    const q = qs.toString();
+    return `/players/${steamIdParam}/matches${q ? `?${q}` : ""}`;
+  };
 
   const matches = await prisma.$queryRaw<MatchRow[]>`
     SELECT
@@ -104,6 +124,7 @@ export default async function PlayerMatchesPage({
         WHEN mps.team_side = 'away' THEN m.away_team_id
       END
       WHERE mps.player_steam_id = ANY(${steamIds})
+        AND (${typeParam}::text = '' OR m.match_type = ${typeParam}::text)
       ORDER BY m.date DESC, m.id DESC, mps.team_side
     ) sub
     ORDER BY sub.date DESC, sub.match_id DESC, sub.team_side
@@ -145,6 +166,21 @@ export default async function PlayerMatchesPage({
           <span className="text-chalk-400">{pageD}D</span>
           <span className="text-red-400">{pageL}L</span>
           <span className="text-chalk-300 text-xs">({totalMatches} total)</span>
+        </div>
+        <div className="flex items-center gap-1 text-xs font-mono ml-auto">
+          {[{ v: "all", l: "ALL" }, { v: "comp", l: "COMP" }, { v: "friendly", l: "FRIENDLY" }].map(({ v, l }) => (
+            <Link
+              key={v}
+              href={typeUrl(v)}
+              className={`px-3 py-1.5 rounded border transition-colors ${
+                typeFilter === v
+                  ? "border-[#F4119E] text-[#F4119E] bg-[#F4119E]/10"
+                  : "border-chalk-100/10 text-chalk-400 hover:border-[#F4119E]/40 hover:text-[#F4119E]"
+              }`}
+            >
+              {l}
+            </Link>
+          ))}
         </div>
       </div>
 
@@ -237,7 +273,7 @@ export default async function PlayerMatchesPage({
           <div className="flex items-center gap-1">
             {page > 1 && (
               <Link
-                href={`/players/${steamIdParam}/matches?page=1`}
+                href={pageUrl(1)}
                 className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center"
                 title="First page"
               >
@@ -246,7 +282,7 @@ export default async function PlayerMatchesPage({
             )}
             {page > 1 && (
               <Link
-                href={`/players/${steamIdParam}/matches?page=${Math.max(1, page - 10)}`}
+                href={pageUrl(Math.max(1, page - 10))}
                 className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center"
                 title="Back 10 pages"
               >
@@ -267,7 +303,7 @@ export default async function PlayerMatchesPage({
               return (
                 <Link
                   key={p}
-                  href={`/players/${steamIdParam}/matches?page=${p}`}
+                  href={pageUrl(p)}
                   className={`w-8 h-8 rounded text-xs font-mono transition-colors flex items-center justify-center ${
                     p === page
                       ? "bg-[#F4119E] text-white font-700"
@@ -280,7 +316,7 @@ export default async function PlayerMatchesPage({
             })}
             {page < totalPages && (
               <Link
-                href={`/players/${steamIdParam}/matches?page=${Math.min(totalPages, page + 10)}`}
+                href={pageUrl(Math.min(totalPages, page + 10))}
                 className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center"
                 title="Forward 10 pages"
               >
@@ -289,7 +325,7 @@ export default async function PlayerMatchesPage({
             )}
             {page < totalPages && (
               <Link
-                href={`/players/${steamIdParam}/matches?page=${totalPages}`}
+                href={pageUrl(totalPages)}
                 className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center"
                 title="Last page"
               >

@@ -164,7 +164,12 @@ export default function HomeSearchPanel({
         ))}
         <Link
           href="/support"
-          className="home-pill home-pill--support rounded-lg border border-[#F4119E]/50 bg-[#F4119E]/10 px-4 py-2.5 text-sm font-mono uppercase tracking-wider text-[#F4119E] hover:border-[#F4119E] hover:bg-[#F4119E]/20 transition-colors"
+          className="home-pill home-pill--support rounded-lg border border-white/10 px-4 py-2.5 text-sm font-mono uppercase tracking-wider text-white hover:text-[#F4119E] transition-colors"
+          style={{
+            backgroundImage: "linear-gradient(90deg, hsla(148, 89%, 78%, 0.75) 0%, hsla(210, 81%, 22%, 0.75) 100%)",
+            backgroundRepeat: "no-repeat",
+            backgroundSize: "100% 100%",
+          }}
         >
           Support
         </Link>

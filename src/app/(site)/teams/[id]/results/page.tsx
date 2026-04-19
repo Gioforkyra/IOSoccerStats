@@ -50,12 +50,15 @@ export default async function TeamResultsPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; type?: string }>;
 }) {
   const { id } = await params;
-  const { page: pageParam } = await searchParams;
+  const { page: pageParam, type: typeParamRaw } = await searchParams;
   const teamId = parseInt(id, 10);
   if (isNaN(teamId)) return notFound();
+
+  const typeFilter = typeParamRaw === "comp" || typeParamRaw === "friendly" ? typeParamRaw : "all";
+  const typeParam = typeFilter === "comp" ? "competitive" : typeFilter === "friendly" ? "friendly" : "";
 
   const currentPage = Math.max(1, parseInt(pageParam || "1", 10) || 1);
   const offset = (currentPage - 1) * PAGE_SIZE;
@@ -64,6 +67,7 @@ export default async function TeamResultsPage({
     SELECT COUNT(*) AS total
     FROM matches m
     WHERE (m.home_team_id = ${teamId} OR m.away_team_id = ${teamId})
+      AND (${typeParam}::text = '' OR m.match_type = ${typeParam}::text)
   `;
   const totalMatches = Number(countResult.total);
   const totalPages = Math.ceil(totalMatches / PAGE_SIZE);
@@ -88,12 +92,59 @@ export default async function TeamResultsPage({
     JOIN teams th ON th.id = m.home_team_id
     JOIN teams ta ON ta.id = m.away_team_id
     WHERE (m.home_team_id = ${teamId} OR m.away_team_id = ${teamId})
+      AND (${typeParam}::text = '' OR m.match_type = ${typeParam}::text)
     ORDER BY m.date DESC, m.id DESC
     LIMIT ${PAGE_SIZE} OFFSET ${offset}
   `;
 
+  const pageUrl = (p: number) => {
+    const sp = new URLSearchParams();
+    sp.set("page", String(p));
+    if (typeFilter !== "all") sp.set("type", typeFilter);
+    return `/teams/${teamId}/results?${sp.toString()}`;
+  };
+  const typeUrl = (v: string) => {
+    const sp = new URLSearchParams();
+    if (v !== "all") sp.set("type", v);
+    const q = sp.toString();
+    return `/teams/${teamId}/results${q ? `?${q}` : ""}`;
+  };
+
+  const pageW = matches.filter((m) => {
+    const isHome = m.home_team_id === teamId;
+    return isHome ? m.home_score > m.away_score : m.away_score > m.home_score;
+  }).length;
+  const pageD = matches.filter((m) => m.home_score === m.away_score).length;
+  const pageL = matches.length - pageW - pageD;
+
   return (
     <div>
+      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-4">
+        <h3 className="font-display font-700 text-lg tracking-wider text-chalk-100 uppercase">
+          Matches
+        </h3>
+        <div className="flex items-center gap-3 text-sm font-mono">
+          <span className="text-grass-500">{pageW}W</span>
+          <span className="text-chalk-400">{pageD}D</span>
+          <span className="text-red-400">{pageL}L</span>
+          <span className="text-chalk-300 text-xs">({totalMatches} total)</span>
+        </div>
+        <div className="flex items-center gap-1 text-xs font-mono ml-auto">
+          {[{ v: "all", l: "ALL" }, { v: "comp", l: "COMP" }, { v: "friendly", l: "FRIENDLY" }].map(({ v, l }) => (
+            <Link
+              key={v}
+              href={typeUrl(v)}
+              className={`px-3 py-1.5 rounded border transition-colors ${
+                typeFilter === v
+                  ? "border-[#F4119E] text-[#F4119E] bg-[#F4119E]/10"
+                  : "border-chalk-100/10 text-chalk-400 hover:border-[#F4119E]/40 hover:text-[#F4119E]"
+              }`}
+            >
+              {l}
+            </Link>
+          ))}
+        </div>
+      </div>
       <div className="rounded-lg border border-chalk-100/8 bg-pitch-900/40 overflow-x-auto">
         <div className="w-max min-w-full">
         <div className="grid grid-cols-[170px_minmax(340px,1fr)_56px_92px_140px_72px_72px] gap-2 px-4 py-3 border-b border-chalk-100/12 text-[11px] font-mono text-chalk-400 uppercase tracking-wide">
@@ -213,7 +264,7 @@ export default async function TeamResultsPage({
           <div className="flex items-center gap-1">
             {currentPage > 1 && (
               <Link
-                href={`/teams/${teamId}/results?page=1`}
+                href={pageUrl(1)}
                 className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center"
                 title="First page"
               >
@@ -222,7 +273,7 @@ export default async function TeamResultsPage({
             )}
             {currentPage > 1 && (
               <Link
-                href={`/teams/${teamId}/results?page=${Math.max(1, currentPage - 10)}`}
+                href={pageUrl(Math.max(1, currentPage - 10))}
                 className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center"
                 title="Back 10 pages"
               >
@@ -243,7 +294,7 @@ export default async function TeamResultsPage({
               return (
                 <Link
                   key={p}
-                  href={`/teams/${teamId}/results?page=${p}`}
+                  href={pageUrl(p)}
                   className={`w-8 h-8 rounded text-xs font-mono transition-colors flex items-center justify-center ${
                     p === currentPage
                       ? "bg-[#F4119E] text-white font-700"
@@ -256,7 +307,7 @@ export default async function TeamResultsPage({
             })}
             {currentPage < totalPages && (
               <Link
-                href={`/teams/${teamId}/results?page=${Math.min(totalPages, currentPage + 10)}`}
+                href={pageUrl(Math.min(totalPages, currentPage + 10))}
                 className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center"
                 title="Forward 10 pages"
               >
@@ -265,7 +316,7 @@ export default async function TeamResultsPage({
             )}
             {currentPage < totalPages && (
               <Link
-                href={`/teams/${teamId}/results?page=${totalPages}`}
+                href={pageUrl(totalPages)}
                 className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center"
                 title="Last page"
               >

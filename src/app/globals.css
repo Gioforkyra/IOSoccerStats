@@ -685,13 +685,11 @@ html.light .home-pill:hover {
   color: #F4119E !important;
 }
 html.light .home-pill--support {
-  border-color: rgba(244, 17, 158, 0.65) !important;
-  background: rgba(244, 17, 158, 0.10) !important;
-  color: #F4119E !important;
+  border-color: rgba(0, 0, 0, 0.2) !important;
+  background: linear-gradient(90deg, hsla(148, 89%, 78%, 0.75) 0%, hsla(210, 81%, 22%, 0.75) 100%) !important;
+  color: #ffffff !important;
 }
 html.light .home-pill--support:hover {
-  border-color: #F4119E !important;
-  background: rgba(244, 17, 158, 0.20) !important;
   color: #F4119E !important;
 }
 html.light .pink-hover:hover {
