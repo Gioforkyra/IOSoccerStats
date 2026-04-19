@@ -34,6 +34,20 @@ function getServerFlag(server: string | null): string {
   return "-";
 }
 
+function brightnessOf(hex: string | null | undefined): number {
+  if (!hex) return 0;
+  const h = hex.replace("#", "");
+  if (h.length < 6) return 0;
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  return (r * 299 + g * 587 + b * 114) / 1000;
+}
+
+function outlineFor(hex: string | null | undefined): string {
+  return brightnessOf(hex) > 140 ? "#000000" : "#ffffff";
+}
+
 type H2HMatch = {
   match_id: number;
   date: Date;
@@ -534,19 +548,19 @@ export default async function H2HPage({
           {/* Center */}
           <div className="flex flex-col items-center gap-1 shrink-0">
             <div className="flex items-center gap-3">
-              <span className="font-display font-800 text-4xl" style={{ color: color1 }}>{t1Wins}</span>
+              <span className="stat-value font-display font-800 text-4xl" style={{ color: color1, ["--outline" as string]: outlineFor(color1) } as React.CSSProperties}>{t1Wins}</span>
               <span className="font-mono text-xl text-chalk-500">-</span>
               <span className="font-display font-800 text-4xl text-chalk-400">{draws}</span>
               <span className="font-mono text-xl text-chalk-500">-</span>
-              <span className="font-display font-800 text-4xl" style={{ color: color2 }}>{t2Wins}</span>
+              <span className="stat-value font-display font-800 text-4xl" style={{ color: color2, ["--outline" as string]: outlineFor(color2) } as React.CSSProperties}>{t2Wins}</span>
             </div>
             <span className="text-[10px] font-mono uppercase tracking-widest text-chalk-500">
               {totalMatches} {totalMatches === 1 ? "match" : "matches"}
             </span>
-            <div className="flex items-center gap-3 text-[9px] font-mono text-chalk-500 uppercase tracking-wider">
-              <span style={{ color: color1 }}>W</span>
+            <div className="flex items-center gap-3 text-sm font-mono font-bold text-chalk-500 uppercase tracking-wider">
+              <span className="stat-value" style={{ color: color1, ["--outline" as string]: outlineFor(color1) } as React.CSSProperties}>W</span>
               <span className="text-chalk-500">D</span>
-              <span style={{ color: color2 }}>W</span>
+              <span className="stat-value" style={{ color: color2, ["--outline" as string]: outlineFor(color2) } as React.CSSProperties}>W</span>
             </div>
           </div>
 

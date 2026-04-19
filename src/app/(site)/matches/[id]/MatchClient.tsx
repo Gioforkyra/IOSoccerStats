@@ -113,6 +113,25 @@ function getServerFlag(server: string): string {
   return "";
 }
 
+function brightnessOf(hex: string | null | undefined): number {
+  if (!hex) return 0;
+  const h = hex.replace("#", "");
+  if (h.length < 6) return 0;
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  return (r * 299 + g * 587 + b * 114) / 1000;
+}
+
+function outlineFor(hex: string | null | undefined): string {
+  return brightnessOf(hex) > 140 ? "#000000" : "#ffffff";
+}
+
+function dividerFor(c1: string | null | undefined, c2: string | null | undefined): string {
+  const avg = (brightnessOf(c1) + brightnessOf(c2)) / 2;
+  return avg > 140 ? "#000000" : "#ffffff";
+}
+
 export default function MatchClient({
   match, playerStats, shots, extraEvents,
 }: {
@@ -489,12 +508,12 @@ export default function MatchClient({
 
         {(homeXg > 0 || awayXg > 0) && (
           <div className="mt-5">
-            <div className="flex justify-between text-xs font-mono mb-1">
-              <span style={{ color: match.homeTeam.color || "#8ac5ff" }}>{homeXg.toFixed(1)} xG</span>
-              <span style={{ color: match.awayTeam.color || "#ff8a8a" }}>{awayXg.toFixed(1)} xG</span>
+            <div className="flex justify-between text-base font-mono font-bold mb-1.5">
+              <span className="text-chalk-100">{homeXg.toFixed(1)} xG</span>
+              <span className="text-chalk-100">{awayXg.toFixed(1)} xG</span>
             </div>
-            <div className="flex h-2 rounded-full overflow-hidden bg-pitch-700">
-              <div style={{ width: `${(homeXg / (homeXg + awayXg)) * 100}%`, backgroundColor: match.homeTeam.color || "#8ac5ff" }} />
+            <div className="stat-bar flex h-3.5 rounded-full overflow-hidden bg-pitch-700" style={{ ["--divider" as string]: dividerFor(match.homeTeam.color || "#8ac5ff", match.awayTeam.color || "#ff8a8a") } as React.CSSProperties}>
+              <div style={{ width: `${(homeXg / (homeXg + awayXg)) * 100}%`, backgroundColor: match.homeTeam.color || "#8ac5ff", borderRight: (homeXg === 0) !== (awayXg === 0) ? "0" : undefined }} />
               <div style={{ width: `${(awayXg / (homeXg + awayXg)) * 100}%`, backgroundColor: match.awayTeam.color || "#ff8a8a" }} />
             </div>
           </div>
@@ -1060,12 +1079,12 @@ function H2HStats({
               <div key={r.label}>
                 <div className="text-center text-[11px] font-mono text-chalk-400 uppercase tracking-wider mb-1.5">{r.label}</div>
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-mono font-bold w-12 text-right" style={{ color: hCol }}>{homeDisplay}</span>
-                  <div className="flex-1 flex h-3.5 rounded-full overflow-hidden bg-pitch-700">
-                    <div className="transition-all rounded-l-full" style={{ width: `${homePct}%`, backgroundColor: hCol }} />
+                  <span className="text-sm font-mono font-bold w-12 text-right text-chalk-100">{homeDisplay}</span>
+                  <div className="stat-bar flex-1 flex h-3.5 rounded-full overflow-hidden bg-pitch-700" style={{ ["--divider" as string]: dividerFor(hCol, aCol) } as React.CSSProperties}>
+                    <div className="transition-all rounded-l-full" style={{ width: `${homePct}%`, backgroundColor: hCol, borderRight: (r.home === 0) !== (r.away === 0) ? "0" : undefined }} />
                     <div className="transition-all rounded-r-full" style={{ width: `${awayPct}%`, backgroundColor: aCol }} />
                   </div>
-                  <span className="text-sm font-mono font-bold w-12 text-left" style={{ color: aCol }}>{awayDisplay}</span>
+                  <span className="text-sm font-mono font-bold w-12 text-left text-chalk-100">{awayDisplay}</span>
                 </div>
               </div>
             );

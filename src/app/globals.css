@@ -640,6 +640,30 @@ html.light .stat-row:hover > .trow-even { background-color: #edd9eb !important; 
 .circle-label { fill: white; }
 html.light .circle-label { fill: #1a1a1a; }
 
+/* H2H slider pagination dots — inactive state, contrast in both themes */
+.h2h-dot { background-color: rgba(240, 244, 255, 0.2); }
+.h2h-dot:hover { background-color: rgba(240, 244, 255, 0.4); }
+html.light .h2h-dot { background-color: rgba(0, 0, 0, 0.35); }
+html.light .h2h-dot:hover { background-color: rgba(0, 0, 0, 0.6); }
+
+/* Stat bars — 2px outline + separator between home/away segments */
+.stat-bar            { border: 2px solid var(--divider, #ffffff); }
+.stat-bar > :first-child { border-right: 4px solid var(--divider, #ffffff); }
+
+/* Stat value text — outline via text-shadow, colore contrasto dinamico */
+.stat-value {
+  --outline: #ffffff;
+  text-shadow:
+    -1px -1px 0 var(--outline),
+     1px -1px 0 var(--outline),
+    -1px  1px 0 var(--outline),
+     1px  1px 0 var(--outline),
+     0    -1px 0 var(--outline),
+     0     1px 0 var(--outline),
+    -1px   0   0 var(--outline),
+     1px   0   0 var(--outline);
+}
+
 /* ── Home cards & rows in light mode ── */
 html.light .home-card {
   border-color: rgba(0, 0, 0, 0.35) !important;

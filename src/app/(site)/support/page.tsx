@@ -19,6 +19,11 @@ type Update = {
   body: string;
 };
 
+type ChangelogEntry = {
+  date: string;
+  changes: string[];
+};
+
 const SUPPORTERS: Supporter[] = [
   { name: "Edwar", method: "Support & Feedback" },
   { name: "Labelo", method: "Support" },
@@ -35,6 +40,21 @@ const UPDATES: Update[] = [
     date: "Planned",
     title: "Common traits for players",
     body: "Surface recurring statistical traits and patterns across a player's career.",
+  },
+];
+
+const CHANGELOG: ChangelogEntry[] = [
+  {
+    date: "2026-04-19",
+    changes: [
+      "Match detail H2H values now clearly readable in both dark and light mode, as well as more distinguishable bars.",
+    ],
+  },
+  {
+    date: "2026-04-18",
+    changes: [
+      "Lineups section on team pages with filters by time period and win rate.",
+    ],
   },
 ];
 
@@ -149,6 +169,47 @@ export default function SupportPage() {
                   </h3>
                 </div>
                 <p className="mt-1 text-sm font-body text-chalk-300">{u.body}</p>
+              </li>
+            ))}
+          </ol>
+        )}
+      </section>
+
+      <section className="mt-10">
+        <div className="flex items-baseline justify-between mb-4">
+          <h2 className="font-display font-bold text-lg uppercase tracking-wide text-chalk-100">
+            Changelog
+          </h2>
+          <span className="text-[10px] font-mono uppercase tracking-wider text-chalk-500">
+            Recent Changes
+          </span>
+        </div>
+        {CHANGELOG.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-chalk-100/10 bg-pitch-900/30 px-5 py-8 text-center">
+            <p className="font-body text-chalk-400 text-sm">
+              Recent changes shipped to the site will appear here.
+            </p>
+          </div>
+        ) : (
+          <ol className="space-y-3">
+            {CHANGELOG.map((entry, i) => (
+              <li
+                key={`${entry.date}-${i}`}
+                className="rounded-lg border border-chalk-100/8 bg-pitch-900/40 px-4 py-3"
+              >
+                <div className="text-[10px] font-mono uppercase tracking-wider text-[#F4119E] mb-2">
+                  {entry.date}
+                </div>
+                <ul className="space-y-1.5">
+                  {entry.changes.map((c, j) => (
+                    <li
+                      key={j}
+                      className="text-sm font-body text-chalk-300"
+                    >
+                      {c}
+                    </li>
+                  ))}
+                </ul>
               </li>
             ))}
           </ol>

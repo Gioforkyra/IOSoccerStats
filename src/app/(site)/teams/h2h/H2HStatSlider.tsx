@@ -2,6 +2,20 @@
 
 import { useState } from "react";
 
+function brightnessOf(hex: string): number {
+  const h = hex.replace("#", "");
+  if (h.length < 6) return 0;
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  return (r * 299 + g * 587 + b * 114) / 1000;
+}
+
+function dividerFor(c1: string, c2: string): string {
+  const avg = (brightnessOf(c1) + brightnessOf(c2)) / 2;
+  return avg > 140 ? "#000000" : "#ffffff";
+}
+
 export interface StatBarDef {
   label: string;
   val1: number;
@@ -45,7 +59,7 @@ export function H2HStatSlider({
                 className={`rounded-full transition-all ${
                   i === current
                     ? "w-4 h-1.5 bg-[#F4119E]"
-                    : "w-1.5 h-1.5 bg-chalk-100/20 hover:bg-chalk-100/40"
+                    : "w-1.5 h-1.5 h2h-dot"
                 }`}
               />
             ))}
@@ -85,8 +99,8 @@ export function H2HStatSlider({
               <span className="text-[10px] font-mono uppercase tracking-[0.18em] text-chalk-400">{bar.label}</span>
               <span className="font-mono text-sm font-700 text-chalk-100">{fmt(bar.val2)}</span>
             </div>
-            <div className="flex h-2 rounded overflow-hidden">
-              <div style={{ width: `${pct1}%`, backgroundColor: color1 }} />
+            <div className="stat-bar flex h-3.5 rounded-full overflow-hidden" style={{ ["--divider" as string]: dividerFor(color1, color2) } as React.CSSProperties}>
+              <div style={{ width: `${pct1}%`, backgroundColor: color1, borderRight: (bar.val1 === 0) !== (bar.val2 === 0) ? "0" : undefined }} />
               <div style={{ width: `${pct2}%`, backgroundColor: color2 }} />
             </div>
           </div>

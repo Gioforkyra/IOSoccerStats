@@ -34,7 +34,9 @@ export default function Jersey({
     color.trim().toLowerCase() === "#ffffff";
 
   const dark = darkenHex(isWhite ? "#cccccc" : color, 0.75);
-  const textColor = isWhite ? "#111111" : "white";
+  const rgb = hexToRgb(isWhite ? "#ffffff" : color);
+  const brightness = rgb ? (rgb[0] * 299 + rgb[1] * 587 + rgb[2] * 114) / 1000 : 0;
+  const textColor = brightness > 140 ? "#111111" : "white";
 
   return (
     <svg
