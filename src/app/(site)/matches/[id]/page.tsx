@@ -790,6 +790,8 @@ export default async function MatchPage({
   const serverName: string | null = apiRaw.server?.name ?? null;
   const potmSteamId: string | null = apiRaw.playerOfTheMatch?.steamID ?? null;
 
+  const matchFormat: number | null = typeof apiRaw.format === "number" ? apiRaw.format : null;
+
   return (
     <MatchClient
       match={{
@@ -799,6 +801,7 @@ export default async function MatchPage({
         server: serverName,
         potm: potmSteamId,
         youtubeUrl,
+        format: matchFormat,
         homeScore,
         awayScore,
         homeTeam: {

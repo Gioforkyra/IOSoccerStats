@@ -125,6 +125,7 @@ export type ApiMatchListItem = {
   } | null;
   kickOff: string;
   matchType: number;
+  format: number | null;
   server: { name: string } | null;
   playerOfTheMatch: { name: string; steamID: string } | null;
   tournament: { id: number; name: string } | null;
@@ -197,6 +198,7 @@ export async function getMatches(opts: {
   page?: number;
   pageSize?: number;
   matchType?: number;
+  matchFormat?: number;
   tournamentId?: number;
   regionId?: number;
   includePast?: boolean;
@@ -214,6 +216,7 @@ export async function getMatches(opts: {
         includePast: opts.includePast ?? true,
         includeUpcoming: opts.includePast === false ? true : undefined,
         ...(opts.matchType ? { matchType: opts.matchType } : {}),
+        ...(opts.matchFormat ? { matchFormat: opts.matchFormat } : {}),
         ...(opts.tournamentId ? { tournamentId: opts.tournamentId } : {}),
         ...(opts.regionId ? { regionId: opts.regionId } : {}),
       },

@@ -24,6 +24,7 @@ type MatchInfo = {
   server: string | null;
   potm: string | null;
   youtubeUrl: string | null;
+  format: number | null;
   homeScore: number;
   awayScore: number;
   homeTeam: TeamInfo;
@@ -547,8 +548,8 @@ export default function MatchClient({
           </div>
         </div>
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-          <LineupGraphic players={homePlayers} teamName={match.homeTeam.name} teamLogo={match.homeTeam.logo} teamColor={match.homeTeam.color} showTitles={lineupShowTitles} shots={shots} potm={match.potm} totalPossession={playerStats.reduce((s, p) => s + p.possession, 0)} />
-          <LineupGraphic players={awayPlayers} teamName={match.awayTeam.name} teamLogo={match.awayTeam.logo} teamColor={match.awayTeam.color} showTitles={lineupShowTitles} shots={shots} potm={match.potm} totalPossession={playerStats.reduce((s, p) => s + p.possession, 0)} />
+          <LineupGraphic players={homePlayers} teamName={match.homeTeam.name} teamLogo={match.homeTeam.logo} teamColor={match.homeTeam.color} showTitles={lineupShowTitles} shots={shots} potm={match.potm} totalPossession={playerStats.reduce((s, p) => s + p.possession, 0)} format={match.format} />
+          <LineupGraphic players={awayPlayers} teamName={match.awayTeam.name} teamLogo={match.awayTeam.logo} teamColor={match.awayTeam.color} showTitles={lineupShowTitles} shots={shots} potm={match.potm} totalPossession={playerStats.reduce((s, p) => s + p.possession, 0)} format={match.format} />
         </div>
       </div>
 
@@ -1147,6 +1148,85 @@ function normalizeToCanonicalPosition(position: string | null): CanonicalPositio
   return null;
 }
 
+type Position4v4 = "LM" | "RM" | "CB" | "GK";
+
+function normalizeTo4v4Position(position: string | null): Position4v4 | null {
+  const pos = (position || "").toUpperCase();
+  if (["LM", "LW", "LF", "LCM"].includes(pos)) return "LM";
+  if (["RM", "RW", "RF", "RCM"].includes(pos)) return "RM";
+  if (["CB", "CDM", "DM", "CM", "CAM", "AM", "CF", "ST", "LB", "RB"].includes(pos)) return "CB";
+  if (pos === "GK") return "GK";
+  return null;
+}
+
+function getLineupRows4v4(players: MatchPlayer[]): LineupRows {
+  const canonicalSlots: Position4v4[] = ["LM", "RM", "CB", "GK"];
+  const bySlot = new Map<Position4v4, MatchPlayer[]>(canonicalSlots.map((slot) => [slot, []]));
+
+  const sorted = [...players].sort((a, b) => {
+    if (b.minutes_played !== a.minutes_played) return b.minutes_played - a.minutes_played;
+    return b.possession - a.possession;
+  });
+
+  for (const player of sorted) {
+    const slot = normalizeTo4v4Position(player.position);
+    if (!slot) continue;
+    bySlot.get(slot)!.push(player);
+  }
+
+  const used = new Set<string>();
+  const starterBySlot = new Map<Position4v4, MatchPlayer | null>();
+
+  for (const slot of canonicalSlots) {
+    const candidates = bySlot.get(slot)!;
+    const preferredStarter = candidates.find((c) => !c.is_sub && !used.has(c.player_steam_id));
+    const fallbackStarter = candidates.find((c) => !used.has(c.player_steam_id));
+    const starter = preferredStarter || fallbackStarter || null;
+    if (starter) used.add(starter.player_steam_id);
+    starterBySlot.set(slot, starter);
+  }
+
+  const remainingPool = sorted.filter((p) => !used.has(p.player_steam_id));
+  for (const slot of canonicalSlots) {
+    if (starterBySlot.get(slot)) continue;
+    const replacement = remainingPool.shift() || null;
+    if (replacement) {
+      used.add(replacement.player_steam_id);
+      starterBySlot.set(slot, replacement);
+    }
+  }
+
+  const slotEntry = (slot: Position4v4): LineupSlot | null => {
+    const starter = starterBySlot.get(slot);
+    if (!starter) return null;
+
+    const substitutesRaw = bySlot
+      .get(slot)!
+      .filter((p) => p.player_steam_id !== starter.player_steam_id && p.is_sub)
+      .sort((a, b) => b.minutes_played - a.minutes_played)
+      .map((p) => ({
+        player_steam_id: p.player_steam_id,
+        profile_steam_id: p.profile_steam_id || p.player_steam_id,
+        username: p.username,
+      }));
+
+    const substitutesById = new Map<string, LineupSubstitute>();
+    for (const sub of substitutesRaw) substitutesById.set(sub.player_steam_id, sub);
+
+    return {
+      starter: { ...starter, position: slot },
+      substitutes: Array.from(substitutesById.values()),
+    };
+  };
+
+  return {
+    attack: [slotEntry("LM"), slotEntry("RM")].filter((e): e is LineupSlot => e != null),
+    midfield: [],
+    defense: [slotEntry("CB")].filter((e): e is LineupSlot => e != null),
+    goalkeepers: [slotEntry("GK")].filter((e): e is LineupSlot => e != null),
+  };
+}
+
 function getLineupRows(players: MatchPlayer[]): LineupRows {
   const canonicalSlots: CanonicalPosition[] = ["LW", "CF", "RW", "CM", "LB", "CB", "RB", "GK"];
   const bySlot = new Map<CanonicalPosition, MatchPlayer[]>(canonicalSlots.map((slot) => [slot, []]));
@@ -1415,13 +1495,19 @@ function FormationRow({
 }
 
 function LineupGraphic({
-  players, teamName, teamLogo, teamColor, showTitles, shots, potm, totalPossession,
+  players, teamName, teamLogo, teamColor, showTitles, shots, potm, totalPossession, format,
 }: {
   players: MatchPlayer[]; teamName: string; teamLogo: string | null; teamColor: string | null;
   showTitles: boolean; shots: MatchShot[]; potm: string | null; totalPossession: number;
+  format: number | null;
 }) {
-  const lineup = getLineupRows(players);
+  const is4v4 = format === 4;
+  const lineup = is4v4 ? getLineupRows4v4(players) : getLineupRows(players);
   const shirtColor = teamColor || '#1e293b';
+
+  const rowTops = is4v4
+    ? { attack: "24%", midfield: "0%", defense: "55%", goalkeepers: "85%" }
+    : { attack: "19%", midfield: "41%", defense: "65%", goalkeepers: "88%" };
 
   const playerXgMap = new Map<string, number>();
   for (const s of shots) playerXgMap.set(s.player_steam_id, (playerXgMap.get(s.player_steam_id) || 0) + s.xg);
@@ -1467,10 +1553,10 @@ function LineupGraphic({
         <path d="M 299 388 A 11 11 0 0 0 288 399" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1" />
       </svg>
 
-      <FormationRow players={lineup.attack} top="19%" shirtColor={shirtColor} showTitles={showTitles} playerXgMap={playerXgMap} potm={potm} totalPossession={totalPossession} />
-      <FormationRow players={lineup.midfield} top="41%" shirtColor={shirtColor} showTitles={showTitles} playerXgMap={playerXgMap} potm={potm} totalPossession={totalPossession} />
-      <FormationRow players={lineup.defense} top="65%" shirtColor={shirtColor} showTitles={showTitles} playerXgMap={playerXgMap} potm={potm} totalPossession={totalPossession} />
-      <FormationRow players={lineup.goalkeepers} top="88%" shirtColor={shirtColor} showTitles={showTitles} playerXgMap={playerXgMap} potm={potm} totalPossession={totalPossession} />
+      <FormationRow players={lineup.attack} top={rowTops.attack} shirtColor={shirtColor} showTitles={showTitles} playerXgMap={playerXgMap} potm={potm} totalPossession={totalPossession} />
+      <FormationRow players={lineup.midfield} top={rowTops.midfield} shirtColor={shirtColor} showTitles={showTitles} playerXgMap={playerXgMap} potm={potm} totalPossession={totalPossession} />
+      <FormationRow players={lineup.defense} top={rowTops.defense} shirtColor={shirtColor} showTitles={showTitles} playerXgMap={playerXgMap} potm={potm} totalPossession={totalPossession} />
+      <FormationRow players={lineup.goalkeepers} top={rowTops.goalkeepers} shirtColor={shirtColor} showTitles={showTitles} playerXgMap={playerXgMap} potm={potm} totalPossession={totalPossession} />
     </div>
   );
 }

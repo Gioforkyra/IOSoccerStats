@@ -45,6 +45,14 @@ const UPDATES: Update[] = [
 
 const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2026-04-22",
+    changes: [
+      "New Format column on the Matches page showing 8v8 or 4v4.",
+      "Format filter on the Matches page (8v8 by default, 4v4 selectable).",
+      "Match detail lineups now render a 4v4 Y-shape formation when the match is 4v4.",
+    ],
+  },
+  {
     date: "2026-04-19",
     changes: [
       "Match detail H2H values now clearly readable in both dark and light mode, as well as more distinguishable bars.",

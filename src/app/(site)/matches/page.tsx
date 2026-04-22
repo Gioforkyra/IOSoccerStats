@@ -45,26 +45,29 @@ function getServerFlag(server: string | null): string {
 export default async function MatchesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; type?: string; region?: string }>;
+  searchParams: Promise<{ page?: string; type?: string; region?: string; format?: string }>;
 }) {
   const params = await searchParams;
   const page = Math.max(1, parseInt(params.page || "1", 10));
   const matchTypeFilter = params.type || "all";
   const regionFilter = params.region || "eu";
+  const formatFilter = params.format === "4v4" ? "4v4" : "8v8";
 
   const matchType = matchTypeFilter === "all" ? undefined : matchTypeFilter === "comp" ? 2 : 1;
   const regionId = regionFilter === "all" ? undefined : regionFilter === "am" ? 2 : 1;
+  const matchFormat = formatFilter === "4v4" ? 4 : 8;
 
-  const data = await getMatches({ page, pageSize: PAGE_SIZE, matchType, regionId });
+  const data = await getMatches({ page, pageSize: PAGE_SIZE, matchType, matchFormat, regionId });
   const matches = data.items;
   const totalMatches = data.totalItems;
   const totalPages = data.totalPages;
 
-  function pageUrl(p: number, t = matchTypeFilter, r = regionFilter) {
+  function pageUrl(p: number, t = matchTypeFilter, r = regionFilter, f = formatFilter) {
     const q = new URLSearchParams();
     if (p > 1) q.set("page", String(p));
     if (t !== "all") q.set("type", t);
     if (r !== "eu") q.set("region", r);
+    if (f !== "8v8") q.set("format", f);
     const qs = q.toString();
     return qs ? `/matches?${qs}` : "/matches";
   }
@@ -90,7 +93,7 @@ export default async function MatchesPage({
         ].map((r) => (
           <Link
             key={r.key}
-            href={pageUrl(1, matchTypeFilter, r.key)}
+            href={pageUrl(1, matchTypeFilter, r.key, formatFilter)}
             className={`h-8 px-3 rounded text-xs font-mono border transition-colors flex items-center ${
               regionFilter === r.key
                 ? "bg-[#F4119E] text-white border-[#F4119E]"
@@ -110,7 +113,7 @@ export default async function MatchesPage({
         ].map((t) => (
           <Link
             key={t.key}
-            href={pageUrl(1, t.key, regionFilter)}
+            href={pageUrl(1, t.key, regionFilter, formatFilter)}
             className={`h-8 px-3 rounded text-xs font-mono border transition-colors flex items-center ${
               matchTypeFilter === t.key
                 ? "bg-[#F4119E] text-white border-[#F4119E]"
@@ -120,13 +123,33 @@ export default async function MatchesPage({
             {t.label}
           </Link>
         ))}
+
+        <div className="w-px h-6 bg-chalk-100/15 mx-1" />
+
+        {[
+          { key: "8v8", label: "8V8" },
+          { key: "4v4", label: "4V4" },
+        ].map((f) => (
+          <Link
+            key={f.key}
+            href={pageUrl(1, matchTypeFilter, regionFilter, f.key)}
+            className={`h-8 px-3 rounded text-xs font-mono border transition-colors flex items-center ${
+              formatFilter === f.key
+                ? "bg-[#F4119E] text-white border-[#F4119E]"
+                : "text-chalk-400 border-chalk-100/10 hover:text-chalk-100 hover:border-chalk-100/30"
+            }`}
+          >
+            {f.label}
+          </Link>
+        ))}
       </div>
 
       <div className="rounded-lg border border-chalk-100/8 bg-pitch-900/40 overflow-x-auto">
         <div className="w-max min-w-full">
-        <div className="grid grid-cols-[160px_1fr_70px_140px_70px] gap-2 px-4 py-3 border-b border-chalk-100/12 text-[11px] font-mono text-chalk-400 uppercase tracking-wide">
+        <div className="grid grid-cols-[160px_1fr_60px_70px_140px_70px] gap-2 px-4 py-3 border-b border-chalk-100/12 text-[11px] font-mono text-chalk-400 uppercase tracking-wide">
           <div>Date</div>
           <div>Match</div>
+          <div>Format</div>
           <div>Type</div>
           <div>POTM</div>
           <div>Location</div>
@@ -141,7 +164,7 @@ export default async function MatchesPage({
             return (
               <div
                 key={m.id}
-                className="relative grid grid-cols-[160px_1fr_70px_140px_70px] items-center gap-2 px-4 py-2.5 transition-colors"
+                className="relative grid grid-cols-[160px_1fr_60px_70px_140px_70px] items-center gap-2 px-4 py-2.5 transition-colors"
               >
                 <Link href={`/matches/${m.id}`} className="absolute inset-0 z-0" aria-label="View match details" />
 
@@ -179,6 +202,10 @@ export default async function MatchesPage({
                     )}
                     <span className="truncate">{m.teamAway.name}</span>
                   </Link>
+                </div>
+
+                <div className="relative z-10 text-[10px] font-mono text-chalk-300 pointer-events-none">
+                  {m.format ? `${m.format}v${m.format}` : "-"}
                 </div>
 
                 <div className="relative z-10 text-xs font-mono uppercase pointer-events-none">
