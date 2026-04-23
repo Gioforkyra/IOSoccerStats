@@ -1337,6 +1337,8 @@ function PlayerCard({
   playerXg,
   potm,
   totalPossession,
+  headerGoals,
+  gkHeadersSaved,
 }: {
   p: MatchPlayer;
   shirtColor: string;
@@ -1345,6 +1347,8 @@ function PlayerCard({
   playerXg: number;
   potm: string | null;
   totalPossession: number;
+  headerGoals: number;
+  gkHeadersSaved: number;
 }) {
   // Manual tuning knobs for marker placement.
   const markerTop = "35%";
@@ -1352,7 +1356,9 @@ function PlayerCard({
   const cardsLeft = "calc(100% - 4px)";
   const assistOffsetY = 24;
 
-  const titleLabels = showTitles ? getPlayerLabels(p, playerXg, potm, totalPossession) : [];
+  const titleLabels = showTitles
+    ? getPlayerLabels(p, playerXg, potm, totalPossession, headerGoals, gkHeadersSaved)
+    : [];
 
   return (
     <div className="flex flex-col items-center gap-0 w-[72px]">
@@ -1366,25 +1372,41 @@ function PlayerCard({
           {/* Title badges to the right of the shirt */}
           {showTitles && titleLabels.length > 0 && (
             <div className="absolute top-1/2 -translate-y-1/2 left-[calc(100%-8px)] flex flex-col gap-1 items-start" style={{ minWidth: "56px" }}>
-              {titleLabels.map((lbl) => (
-                lbl.text === "POTM"
-                  ? (
+              {titleLabels.map((lbl) => {
+                const desc = TITLE_DESCRIPTIONS[lbl.text] ?? lbl.text;
+                if (lbl.sentiment === "potm") {
+                  return (
                     <span
                       key={lbl.text}
-                      className="rounded px-1.5 py-0.5 text-[12px] font-mono font-bold leading-tight text-slate-900 shadow-md"
+                      title={desc}
+                      className="rounded px-1.5 py-0.5 text-[12px] font-mono font-bold leading-tight text-slate-900 shadow-md cursor-help"
                       style={{ background: "linear-gradient(90deg, hsla(141,81%,87%,1) 0%, hsla(41,88%,75%,1) 50%, hsla(358,82%,71%,1) 100%)" }}
                     >
                       {lbl.text}
                     </span>
-                  ) : (
+                  );
+                }
+                if (lbl.sentiment === "carry") {
+                  return (
                     <span
                       key={lbl.text}
-                      className={`rounded px-1.5 py-0.5 text-[12px] font-mono font-bold leading-tight ${labelClass(lbl.sentiment)}`}
+                      title={desc}
+                      className="carry-title rounded px-1.5 py-0.5 text-[12px] font-mono font-bold leading-tight cursor-help"
                     >
                       {lbl.text}
                     </span>
-                  )
-              ))}
+                  );
+                }
+                return (
+                  <span
+                    key={lbl.text}
+                    title={desc}
+                    className={`rounded px-1.5 py-0.5 text-[12px] font-mono font-bold leading-tight cursor-help ${labelClass(lbl.sentiment)}`}
+                  >
+                    {lbl.text}
+                  </span>
+                );
+              })}
             </div>
           )}
 
@@ -1456,6 +1478,8 @@ function FormationRow({
   shirtColor,
   showTitles,
   playerXgMap,
+  headerGoalsMap,
+  gkHeaderSavesMap,
   potm,
   totalPossession,
 }: {
@@ -1464,6 +1488,8 @@ function FormationRow({
   shirtColor: string;
   showTitles: boolean;
   playerXgMap: Map<string, number>;
+  headerGoalsMap: Map<string, number>;
+  gkHeaderSavesMap: Map<string, number>;
   potm: string | null;
   totalPossession: number;
 }) {
@@ -1476,16 +1502,19 @@ function FormationRow({
     >
       {players.map((slot, index) => {
         const spread = (index - (players.length - 1) / 2) * 6;
+        const sid = slot.starter.player_steam_id;
         return (
-          <div key={slot.starter.player_steam_id} style={{ transform: `translateX(${spread}px)` }}>
+          <div key={sid} style={{ transform: `translateX(${spread}px)` }}>
             <PlayerCard
               p={slot.starter}
               shirtColor={shirtColor}
               substitutes={slot.substitutes}
               showTitles={showTitles}
-              playerXg={playerXgMap.get(slot.starter.player_steam_id) || 0}
+              playerXg={playerXgMap.get(sid) || 0}
               potm={potm}
               totalPossession={totalPossession}
+              headerGoals={headerGoalsMap.get(sid) || 0}
+              gkHeadersSaved={gkHeaderSavesMap.get(sid) || 0}
             />
           </div>
         );
@@ -1510,7 +1539,20 @@ function LineupGraphic({
     : { attack: "19%", midfield: "41%", defense: "65%", goalkeepers: "88%" };
 
   const playerXgMap = new Map<string, number>();
-  for (const s of shots) playerXgMap.set(s.player_steam_id, (playerXgMap.get(s.player_steam_id) || 0) + s.xg);
+  const headerGoalsMap = new Map<string, number>();
+  const gkHeaderSavesMap = new Map<string, number>();
+  for (const s of shots) {
+    playerXgMap.set(s.player_steam_id, (playerXgMap.get(s.player_steam_id) || 0) + s.xg);
+    if (s.is_header && s.is_goal) {
+      headerGoalsMap.set(s.player_steam_id, (headerGoalsMap.get(s.player_steam_id) || 0) + 1);
+    }
+    if (s.is_header && s.is_save && s.goalkeeper_steam_id) {
+      gkHeaderSavesMap.set(
+        s.goalkeeper_steam_id,
+        (gkHeaderSavesMap.get(s.goalkeeper_steam_id) || 0) + 1,
+      );
+    }
+  }
 
   return (
     <div
@@ -1553,17 +1595,17 @@ function LineupGraphic({
         <path d="M 299 388 A 11 11 0 0 0 288 399" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1" />
       </svg>
 
-      <FormationRow players={lineup.attack} top={rowTops.attack} shirtColor={shirtColor} showTitles={showTitles} playerXgMap={playerXgMap} potm={potm} totalPossession={totalPossession} />
-      <FormationRow players={lineup.midfield} top={rowTops.midfield} shirtColor={shirtColor} showTitles={showTitles} playerXgMap={playerXgMap} potm={potm} totalPossession={totalPossession} />
-      <FormationRow players={lineup.defense} top={rowTops.defense} shirtColor={shirtColor} showTitles={showTitles} playerXgMap={playerXgMap} potm={potm} totalPossession={totalPossession} />
-      <FormationRow players={lineup.goalkeepers} top={rowTops.goalkeepers} shirtColor={shirtColor} showTitles={showTitles} playerXgMap={playerXgMap} potm={potm} totalPossession={totalPossession} />
+      <FormationRow players={lineup.attack} top={rowTops.attack} shirtColor={shirtColor} showTitles={showTitles} playerXgMap={playerXgMap} headerGoalsMap={headerGoalsMap} gkHeaderSavesMap={gkHeaderSavesMap} potm={potm} totalPossession={totalPossession} />
+      <FormationRow players={lineup.midfield} top={rowTops.midfield} shirtColor={shirtColor} showTitles={showTitles} playerXgMap={playerXgMap} headerGoalsMap={headerGoalsMap} gkHeaderSavesMap={gkHeaderSavesMap} potm={potm} totalPossession={totalPossession} />
+      <FormationRow players={lineup.defense} top={rowTops.defense} shirtColor={shirtColor} showTitles={showTitles} playerXgMap={playerXgMap} headerGoalsMap={headerGoalsMap} gkHeaderSavesMap={gkHeaderSavesMap} potm={potm} totalPossession={totalPossession} />
+      <FormationRow players={lineup.goalkeepers} top={rowTops.goalkeepers} shirtColor={shirtColor} showTitles={showTitles} playerXgMap={playerXgMap} headerGoalsMap={headerGoalsMap} gkHeaderSavesMap={gkHeaderSavesMap} potm={potm} totalPossession={totalPossession} />
     </div>
   );
 }
 
 type PlayerLabel = {
   text: string;
-  sentiment: "positive" | "negative" | "neutral";
+  sentiment: "positive" | "negative" | "neutral" | "carry" | "potm";
 };
 
 function getPlayerLabels(
@@ -1571,93 +1613,152 @@ function getPlayerLabels(
   pxg: number,
   potm: string | null,
   totalPossession: number,
+  headerGoals: number,
+  gkHeadersSaved: number,
 ): PlayerLabel[] {
-  const labels: PlayerLabel[] = [];
-  const isGK = (p.position || "").toUpperCase() === "GK";
+  const pos = (p.position || "").toUpperCase();
+  const isGK = pos === "GK";
+  const isDefOrCM = pos === "LB" || pos === "CB" || pos === "RB" || pos === "CM";
+  const isDefOrGK = pos === "LB" || pos === "CB" || pos === "RB" || pos === "GK";
+  const isPotm = !!potm && (p.profile_steam_id === potm || p.player_steam_id === potm);
 
-  // POTM → match by steamID for accuracy
-  if (potm && (p.profile_steam_id === potm || p.player_steam_id === potm)) {
-    labels.push({ text: "POTM", sentiment: "positive" });
-  }
+  const passPct = p.passes > 0 ? p.passes_completed / p.passes : 0;
+  const possessionPct = totalPossession > 0 ? (p.possession / totalPossession) * 100 : 0;
 
+  // --- Positive candidates ---
+  const positives: PlayerLabel[] = [];
   if (isGK) {
-    // Shot Stopper: saves >= 3 AND saves >= 2× goals conceded
     if (p.saves >= 3 && p.saves >= p.goals_conceded * 2) {
-      labels.push({ text: "Shot Stopper", sentiment: "positive" });
+      positives.push({ text: "Shot Stopper", sentiment: "positive" });
     }
-    // Exposed: goals conceded are double or above saves
-    if (p.goals_conceded >= 2 && p.goals_conceded >= p.saves * 2) {
-      labels.push({ text: "Exposed", sentiment: "negative" });
+    if (gkHeadersSaved > 2) {
+      positives.push({ text: "Cross Catcher", sentiment: "positive" });
     }
-    return labels.slice(0, 2);
-  }
-
-  // Hattrick: goals >= 3
-  if (p.goals >= 3) {
-    labels.push({ text: "Hattrick", sentiment: "positive" });
-  }
-
-  // Lethal: conversion rate ≥65% (need ≥1 goal and ≥1 shot, not already Hattrick)
-  if (p.goals > 0 && p.shots > 0 && p.goals / p.shots >= 0.65 && !labels.some((l) => l.text === "Hattrick")) {
-    labels.push({ text: "Lethal", sentiment: "positive" });
-  }
-
-  // Sniper: scored but very low xG (cold finisher)
-  if (p.goals > 0 && pxg < 0.3 && !labels.some((l) => l.text === "Lethal" || l.text === "Hattrick")) {
-    labels.push({ text: "Sniper", sentiment: "positive" });
-  }
-
-  // Playmaker: 2+ assists
-  if (p.assists >= 2) {
-    labels.push({ text: "Playmaker", sentiment: "positive" });
-  }
-
-  // Complete: offensive + defensive contribution
-  if ((p.goals + p.assists) >= 1 && p.interceptions >= 4 && !labels.some((l) => l.text === "Playmaker")) {
-    labels.push({ text: "Complete", sentiment: "positive" });
-  }
-
-  // Interceptor: high interceptions (12+)
-  if (p.interceptions >= 12 && !labels.some((l) => l.text === "Complete")) {
-    labels.push({ text: "Interceptor", sentiment: "positive" });
-  }
-
-  // Dictator: many passes + high accuracy (35+ passes, ≥80%)
-  if (p.passes >= 35 && p.passes > 0 && p.passes_completed / p.passes >= 0.80) {
-    labels.push({ text: "Dictator", sentiment: "positive" });
-  }
-
-  // Skip negative labels for POTM
-  if (!labels.some((l) => l.text === "POTM")) {
-    // Profligate: very high xG but no goals
-    if (pxg >= 2 && p.goals === 0) {
-      labels.push({ text: "Profligate", sentiment: "negative" });
+  } else {
+    if (p.goals === 3 || p.goals === 4) {
+      positives.push({ text: "Hat-trick", sentiment: "positive" });
     }
-
-    // Off Target: many shots but no goals
-    if (p.shots >= 4 && p.goals === 0) {
-      labels.push({ text: "Off Target", sentiment: "negative" });
+    if (p.goals >= 5) {
+      positives.push({ text: "Carry", sentiment: "positive" });
     }
-
-    // Ghost: zero offensive and defensive contribution
-    if (p.goals === 0 && p.assists === 0 && p.interceptions <= 2 && p.passes_completed <= 10) {
-      labels.push({ text: "Ghost", sentiment: "negative" });
+    const sniperCond = pxg > 0 && p.goals > pxg * 1.5;
+    if (p.shots > 0 && p.goals / p.shots >= 0.65 && !sniperCond) {
+      positives.push({ text: "Lethal", sentiment: "positive" });
     }
+    if (sniperCond) {
+      positives.push({ text: "Sniper", sentiment: "positive" });
+    }
+    if (headerGoals >= 2) {
+      positives.push({ text: "Aerial Threat", sentiment: "positive" });
+    }
+    if (p.assists >= 2) {
+      positives.push({ text: "Playmaker", sentiment: "positive" });
+    }
+    if (p.key_passes >= 3) {
+      positives.push({ text: "Visionary", sentiment: "positive" });
+    }
+    if (p.chances_created >= 3) {
+      positives.push({ text: "Threat", sentiment: "positive" });
+    }
+    if (p.passes >= 35 && passPct >= 0.80) {
+      positives.push({ text: "Maestro", sentiment: "positive" });
+    }
+    if (p.interceptions >= 12) {
+      positives.push({ text: "Interceptor", sentiment: "positive" });
+    }
+  }
 
-    // Passenger: possession% > 8% but zero contributions
-    const possessionPct = totalPossession > 0 ? (p.possession / totalPossession) * 100 : 0;
+  // Aggressive — restricted to defenders & GK
+  if (
+    isDefOrGK &&
+    ((p.goals + p.assists) >= 1 || (p.key_passes + p.chances_created) > 2)
+  ) {
+    positives.push({ text: "Aggressive", sentiment: "positive" });
+  }
+
+  // --- Carry tier (replaces all positives, max 1) ---
+  let carry: PlayerLabel | null = null;
+  if (isGK) {
+    const wall =
+      (p.goals_conceded <= 2 && p.saves > 5) ||
+      (p.saves > 0 && p.saves >= p.goals_conceded * 4);
+    if (wall) carry = { text: "Wall", sentiment: "carry" };
+  } else {
+    const has = (t: string) => positives.some((l) => l.text === t);
+    const strikerCount = ["Hat-trick", "Playmaker", "Carry", "Aerial Threat", "Visionary"]
+      .filter(has).length;
+    const allRounderCount = ["Threat", "Maestro", "Interceptor", "Aggressive"]
+      .filter(has).length;
+    const artistCount = ["Visionary", "Threat", "Playmaker"]
+      .filter(has).length;
+
+    if (strikerCount >= 2) carry = { text: "Striker", sentiment: "carry" };
+    else if (allRounderCount >= 3) carry = { text: "All Rounder", sentiment: "carry" };
+    else if (artistCount >= 2) carry = { text: "Artist", sentiment: "carry" };
+  }
+
+  // --- Negative candidates ---
+  const negatives: PlayerLabel[] = [];
+  if (p.own_goals >= 1) {
+    negatives.push({ text: "Own Goal", sentiment: "negative" });
+  }
+  if (isGK) {
+    if (p.goals_conceded >= 3 && p.goals_conceded >= p.saves * 2) {
+      negatives.push({ text: "Exposed", sentiment: "negative" });
+    }
+  } else {
     if (
-      possessionPct > 8 &&
-      p.goals === 0 &&
-      p.assists === 0 &&
-      p.interceptions <= 4 &&
-      !labels.some((l) => l.text === "Dictator")
+      p.goals === 0 && p.assists === 0 &&
+      p.interceptions <= 2 && p.passes_completed <= 10 &&
+      p.key_passes === 0 && p.minutes_played > 50
     ) {
-      labels.push({ text: "Passenger", sentiment: "negative" });
+      negatives.push({ text: "Ghost", sentiment: "negative" });
+    }
+    if (p.shots >= 4 && pxg >= 1.5 && p.goals === 0) {
+      negatives.push({ text: "Bad Shots", sentiment: "negative" });
+    }
+    if (
+      possessionPct > 8 && p.goals === 0 && p.assists === 0 &&
+      p.interceptions <= 4 && (p.chances_created < 2 || p.key_passes < 2)
+    ) {
+      negatives.push({ text: "Ball Hogger", sentiment: "negative" });
+    }
+    if (isDefOrCM) {
+      if (p.passes > 10 && passPct < 0.60) {
+        negatives.push({ text: "Bad Passes", sentiment: "negative" });
+      }
+      if (p.interceptions < 3 && p.minutes_played >= 50) {
+        negatives.push({ text: "Low Int.", sentiment: "negative" });
+      }
     }
   }
 
-  return labels.slice(0, 2);
+  // --- Assembly ---
+  // Rules:
+  //   - POTM (gold) always shown when applicable; never paired with negatives.
+  //   - Carry replaces all positives (max 1, no positive alongside).
+  //   - Negatives may appear alongside positives/carry (except POTM).
+  //   - Max 2 titles per player.
+  const final: PlayerLabel[] = [];
+  if (isPotm) final.push({ text: "POTM", sentiment: "potm" });
+
+  if (carry) {
+    final.push(carry);
+  } else {
+    for (const pos of positives) {
+      if (final.length >= 2) break;
+      final.push(pos);
+    }
+  }
+
+  if (!isPotm) {
+    for (const neg of negatives) {
+      if (final.length >= 2) break;
+      final.push(neg);
+    }
+  }
+
+  return final.slice(0, 2);
 }
 
 function labelClass(sentiment: PlayerLabel["sentiment"]) {
@@ -1667,6 +1768,41 @@ function labelClass(sentiment: PlayerLabel["sentiment"]) {
     return "text-red-400 bg-red-950/70 border border-red-600/40";
   return "text-amber-400 bg-amber-950/70 border border-amber-600/40";
 }
+
+const TITLE_DESCRIPTIONS: Record<string, string> = {
+  // POTM
+  "POTM": "Player of the Match — the standout on the pitch.",
+  // GK positive
+  "Shot Stopper": "Kept plenty of shots out.",
+  "Cross Catcher": "Dominated balls coming in from above.",
+  // Outfield positive — scoring
+  "Hat-trick": "Found the net multiple times.",
+  "Carry": "Put the team on his back with goals.",
+  "Lethal": "Was clinical in front of goal.",
+  "Sniper": "Over-delivered on the chances he got.",
+  "Aerial Threat": "Was dangerous with his head.",
+  "Playmaker": "Set up teammates for goals.",
+  // Outfield positive — creation & midfield
+  "Visionary": "Unlocked defences with sharp passes.",
+  "Threat": "Kept creating opportunities.",
+  "Maestro": "Controlled the tempo with his passing.",
+  "Interceptor": "Read the play and cut off moves.",
+  "Aggressive": "Influenced both boxes in the match.",
+  // GK negative
+  "Exposed": "Was beaten too often.",
+  // Outfield negative
+  "Ghost": "Barely appeared in the game.",
+  "Bad Shots": "Shot a lot but didn't convert.",
+  "Ball Hogger": "Held the ball without producing much.",
+  "Bad Passes": "Misplaced too many passes.",
+  "Low Int.": "Didn't read defensive plays well.",
+  "Own Goal": "Put the ball into his own net.",
+  // Carry tier
+  "Wall": "Was nearly impossible to beat.",
+  "Striker": "Was decisive in attack across the board.",
+  "Artist": "Orchestrated the offence creatively.",
+  "All Rounder": "Impacted every phase of the game.",
+};
 
 
 function SortablePlayerTable({

@@ -39,6 +39,14 @@
   animation: wr-elite-loop 3s ease infinite;
 }
 
+.carry-title {
+  background: linear-gradient(90deg, hsla(323, 91%, 51%, 1), hsla(329, 20%, 24%, 1), hsla(323, 91%, 51%, 1));
+  background-size: 200% 200%;
+  color: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  animation: wr-elite-loop 3s ease infinite;
+}
+
 * { box-sizing: border-box; }
 
 html {
