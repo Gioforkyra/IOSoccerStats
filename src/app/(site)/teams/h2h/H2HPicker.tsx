@@ -9,9 +9,10 @@ interface TeamOption {
   logo: string | null;
   color: string | null;
   typeLabel: string;
+  active: boolean;
 }
 
-const TYPE_FILTERS = ["All", "Club", "National", "Mix"] as const;
+const TYPE_FILTERS = ["All", "Club", "National", "Draft", "Mix"] as const;
 type TypeFilter = (typeof TYPE_FILTERS)[number];
 
 export function H2HPicker({ teams }: { teams: TeamOption[] }) {
@@ -19,10 +20,6 @@ export function H2HPicker({ teams }: { teams: TeamOption[] }) {
   const [team1, setTeam1] = useState<number | null>(null);
   const [team2, setTeam2] = useState<number | null>(null);
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("All");
-
-  const filteredTeams = typeFilter === "All"
-    ? teams
-    : teams.filter((t) => t.typeLabel === typeFilter);
 
   function handleCompare() {
     if (!team1 || !team2) return;
@@ -40,46 +37,81 @@ export function H2HPicker({ teams }: { teams: TeamOption[] }) {
     onSelect: (id: number) => void;
     exclude: number | null;
   }) {
+    const [query, setQuery] = useState("");
+    const trimmed = query.trim().toLowerCase();
+    const visible = teams.filter((t) => {
+      const matchesType = typeFilter === "All" || t.typeLabel === typeFilter;
+      const matchesQuery = !trimmed || t.name.toLowerCase().includes(trimmed);
+
+      if (!matchesType || !matchesQuery) return false;
+
+      // Keep "All" curated to active teams unless searching.
+      if (typeFilter === "All" && !trimmed) return t.active;
+
+      // Type-specific tabs include inactive teams too.
+      return true;
+    });
+
     return (
       <div className="flex-1 flex flex-col min-w-0">
         <div className="text-[10px] font-mono uppercase tracking-[0.22em] text-chalk-400 mb-2 px-1">
           {label}
         </div>
-        <div className="rounded-lg border border-chalk-100/8 bg-pitch-900/40 overflow-y-auto h-[480px]">
-          {filteredTeams.map((t) => {
-            const isSelected = selected === t.id;
-            const isExcluded = exclude === t.id;
-            return (
-              <button
-                key={t.id}
-                onClick={() => !isExcluded && onSelect(t.id)}
-                disabled={isExcluded}
-                className={`w-full flex items-center gap-3 px-3 py-2 text-left transition-colors border-b border-chalk-100/5 last:border-b-0
-                  ${isExcluded
-                    ? "opacity-30 cursor-not-allowed"
-                    : isSelected
-                      ? "bg-[#F4119E]/15 border-l-2 border-l-[#F4119E]"
-                      : "hover:bg-chalk-100/5 cursor-pointer"
-                  }`}
-              >
-                {t.logo ? (
-                  <img src={t.logo} alt="" className="w-7 h-7 object-contain shrink-0" />
-                ) : (
-                  <div
-                    className="w-7 h-7 rounded shrink-0 flex items-center justify-center text-[9px] font-display font-700 text-chalk-300"
-                    style={{ backgroundColor: t.color ? `${t.color}40` : "#1c1c1c" }}
+        <div className="rounded-lg border border-chalk-100/8 bg-pitch-900/40 flex flex-col h-[480px] overflow-hidden">
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search team (also inactive)…"
+            className="px-3 py-2 bg-transparent border-b border-chalk-100/8 text-sm font-body text-chalk-100 placeholder:text-chalk-500 focus:outline-none focus:border-[#F4119E]/40"
+          />
+          <div className="flex-1 overflow-y-auto">
+            {visible.length === 0 ? (
+              <div className="px-3 py-4 text-center text-xs font-mono text-chalk-500">
+                No teams match.
+              </div>
+            ) : (
+              visible.map((t) => {
+                const isSelected = selected === t.id;
+                const isExcluded = exclude === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => !isExcluded && onSelect(t.id)}
+                    disabled={isExcluded}
+                    className={`w-full flex items-center gap-3 px-3 py-2 text-left transition-colors border-b border-chalk-100/5 last:border-b-0
+                      ${isExcluded
+                        ? "opacity-30 cursor-not-allowed"
+                        : isSelected
+                          ? "bg-[#F4119E]/15 border-l-2 border-l-[#F4119E]"
+                          : "hover:bg-chalk-100/5 cursor-pointer"
+                      } ${!t.active ? "opacity-60" : ""}`}
                   >
-                    {t.name.slice(0, 3).toUpperCase()}
-                  </div>
-                )}
-                <span
-                  className={`text-sm font-body truncate ${isSelected ? "text-[#F4119E]" : "text-chalk-200"}`}
-                >
-                  {t.name}
-                </span>
-              </button>
-            );
-          })}
+                    {t.logo ? (
+                      <img src={t.logo} alt="" className="w-7 h-7 object-contain shrink-0" />
+                    ) : (
+                      <div
+                        className="w-7 h-7 rounded shrink-0 flex items-center justify-center text-[9px] font-display font-700 text-chalk-300"
+                        style={{ backgroundColor: t.color ? `${t.color}40` : "#1c1c1c" }}
+                      >
+                        {t.name.slice(0, 3).toUpperCase()}
+                      </div>
+                    )}
+                    <span
+                      className={`flex-1 text-sm font-body truncate ${isSelected ? "text-[#F4119E]" : "text-chalk-200"}`}
+                    >
+                      {t.name}
+                    </span>
+                    {!t.active && (
+                      <span className="shrink-0 text-[8px] font-mono uppercase tracking-wider text-chalk-500 border border-chalk-100/15 rounded px-1 py-px">
+                        inactive
+                      </span>
+                    )}
+                  </button>
+                );
+              })
+            )}
+          </div>
         </div>
       </div>
     );

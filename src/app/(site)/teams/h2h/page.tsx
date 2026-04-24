@@ -10,6 +10,7 @@ export const metadata: Metadata = {
 import { proxyImg } from "@/lib/img";
 import { H2HPicker } from "./H2HPicker";
 import { H2HStatSlider, type StatPage } from "./H2HStatSlider";
+import { H2HLeaderboardPager } from "./H2HLeaderboardPager";
 import { Prisma } from "@/generated/prisma/client";
 import { MatchFilterDropdown } from "@/components/MatchFilterDropdown";
 
@@ -104,6 +105,10 @@ type TopPlayer = {
   goals: bigint;
   assists: bigint;
   wins: bigint;
+  winrate?: number | null;
+  conversion?: number | null;
+  save_rate?: number | null;
+  potm?: bigint;
 };
 
 type TeamRow = {
@@ -124,35 +129,80 @@ export default async function H2HPage({
 
   // ── PICKER VIEW ────────────────────────────────────────────────────
   if (!team1Id || !team2Id || isNaN(team1Id) || isNaN(team2Id) || team1Id === team2Id) {
-    let apiTeams: { id: number; name: string; logo: string | null; color: string | null; typeLabel: string }[] = [];
+    type PickerTeam = {
+      id: number;
+      name: string;
+      logo: string | null;
+      color: string | null;
+      typeLabel: string;
+      active: boolean;
+    };
+
+    const TYPE_LABEL: Record<number, string> = { 1: "Club", 2: "National", 3: "Mix", 4: "Draft" };
+
+    // Pull every European team that has played at least one match (active + inactive).
+    const dbTeams = await prisma.$queryRaw<{
+      id: number;
+      name: string;
+      logo: string | null;
+      color: string | null;
+      team_type: number | null;
+      inactive: boolean;
+    }[]>`
+      SELECT t.id, t.name, t.logo, t.color, t.team_type, t.inactive
+      FROM teams t
+      WHERE t.region_id = 1
+        AND EXISTS (
+          SELECT 1 FROM matches m
+          WHERE m.home_team_id = t.id OR m.away_team_id = t.id
+        )
+    `.catch(() => []);
+
+    const merged = new Map<number, PickerTeam>();
+    for (const t of dbTeams) {
+      merged.set(t.id, {
+        id: t.id,
+        name: t.name,
+        logo: t.logo,
+        color: t.color,
+        typeLabel: TYPE_LABEL[t.team_type ?? 0] ?? "Club",
+        active: !t.inactive,
+      });
+    }
+
+    // API has fresher data (logo, color) — overlay it on top.
     try {
-      const [clubs, nationals, mixes] = await Promise.allSettled([
+      const [clubs, nationals, mixes, drafts] = await Promise.allSettled([
         getActiveTeams(1, 1),
         getActiveTeams(1, 2),
         getActiveTeams(1, 3),
+        getActiveTeams(1, 4),
       ]);
       const map = [
         { result: clubs,   label: "Club" },
         { result: nationals, label: "National" },
         { result: mixes,   label: "Mix" },
+        { result: drafts,  label: "Draft" },
       ];
       for (const { result, label } of map) {
         if (result.status === "fulfilled") {
           for (const t of result.value) {
-            apiTeams.push({
+            merged.set(t.id, {
               id: t.id,
               name: t.name,
               logo: badgeUrl(t.badgeImageId),
               color: t.color ?? null,
               typeLabel: label,
+              active: true,
             });
           }
         }
       }
-      apiTeams.sort((a, b) => a.name.localeCompare(b.name));
     } catch {
-      // API unavailable
+      // API unavailable — fall back to DB-only.
     }
+
+    const allTeams = [...merged.values()].sort((a, b) => a.name.localeCompare(b.name));
 
     return (
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
@@ -164,7 +214,7 @@ export default async function H2HPage({
             Select two teams to compare their head-to-head record
           </p>
         </div>
-        <H2HPicker teams={apiTeams} />
+        <H2HPicker teams={allTeams} />
       </div>
     );
   }
@@ -205,6 +255,24 @@ export default async function H2HPage({
   `;
   const totalMatches = Number(totalRaw);
   const totalPages = Math.ceil(totalMatches / PAGE_SIZE);
+  // Min H2H matches required to appear in % leaderboards: 20% of total, floor 1.
+  const minMatchesPct = Math.max(1, Math.ceil(totalMatches * 0.15));
+  const minShotsForConversion = 30;
+  const minSaveAttemptsForSaveRate = 50;
+  const isCompetitiveFilter = filter === "competitive";
+  const winrateHaving = isCompetitiveFilter
+    ? Prisma.empty
+    : Prisma.sql`HAVING COUNT(*) >= ${minMatchesPct}`;
+  const conversionHaving = isCompetitiveFilter
+    ? Prisma.empty
+    : Prisma.sql`HAVING COUNT(*) >= ${minMatchesPct} AND SUM(mps.shots) >= ${minShotsForConversion}`;
+  const saveRateHaving = isCompetitiveFilter
+    ? Prisma.sql`HAVING SUM(mps.saves) > 0`
+    : Prisma.sql`
+        HAVING COUNT(*) >= ${minMatchesPct}
+          AND (SUM(mps.saves) + SUM(mps.goals_conceded)) >= ${minSaveAttemptsForSaveRate}
+          AND SUM(mps.saves) > 0
+      `;
 
   // H2H aggregate stats (wins / draws / goals)
   const [stats] = await prisma.$queryRaw<[H2HStats]>`
@@ -357,6 +425,104 @@ export default async function H2HPage({
     LIMIT 10
   `;
 
+  // % leaderboards are ranked by raw percentage with minimum sample thresholds.
+
+  const topByWinrate = await prisma.$queryRaw<TopPlayer[]>`
+    SELECT * FROM (
+      SELECT p.steam_id, p.username, p.avatar,
+        COUNT(*) AS apps,
+        SUM(mps.goals)::bigint AS goals,
+        SUM(mps.assists)::bigint AS assists,
+        COUNT(CASE WHEN (mps.team_side = 'home' AND m.home_score > m.away_score)
+                     OR (mps.team_side = 'away' AND m.away_score > m.home_score) THEN 1 END) AS wins,
+        ROUND(
+          COUNT(CASE WHEN (mps.team_side = 'home' AND m.home_score > m.away_score)
+                       OR (mps.team_side = 'away' AND m.away_score > m.home_score) THEN 1 END)::numeric
+          * 100 / NULLIF(COUNT(*), 0)
+        , 1)::float AS winrate
+      FROM match_player_stats mps
+      JOIN matches m ON m.id = mps.match_id
+      JOIN players p ON p.steam_id = mps.player_steam_id
+      WHERE ((m.home_team_id = ${team1Id} AND m.away_team_id = ${team2Id})
+         OR (m.home_team_id = ${team2Id} AND m.away_team_id = ${team1Id}))
+        ${typeFilterM}
+      GROUP BY p.steam_id, p.username, p.avatar
+      ${winrateHaving}
+    ) t
+    ORDER BY winrate DESC NULLS LAST, apps DESC, wins DESC
+    LIMIT 10
+  `;
+
+  const topByConversion = await prisma.$queryRaw<TopPlayer[]>`
+    SELECT * FROM (
+      SELECT p.steam_id, p.username, p.avatar,
+        COUNT(*) AS apps,
+        SUM(mps.goals)::bigint AS goals,
+        SUM(mps.assists)::bigint AS assists,
+        COUNT(CASE WHEN (mps.team_side = 'home' AND m.home_score > m.away_score)
+                     OR (mps.team_side = 'away' AND m.away_score > m.home_score) THEN 1 END) AS wins,
+        SUM(mps.shots)::bigint AS shots_total,
+        ROUND(SUM(mps.goals)::numeric * 100 / NULLIF(SUM(mps.shots), 0), 1)::float AS conversion
+      FROM match_player_stats mps
+      JOIN matches m ON m.id = mps.match_id
+      JOIN players p ON p.steam_id = mps.player_steam_id
+      WHERE ((m.home_team_id = ${team1Id} AND m.away_team_id = ${team2Id})
+         OR (m.home_team_id = ${team2Id} AND m.away_team_id = ${team1Id}))
+        ${typeFilterM}
+      GROUP BY p.steam_id, p.username, p.avatar
+      ${conversionHaving}
+    ) t
+    ORDER BY conversion DESC NULLS LAST, shots_total DESC, goals DESC
+    LIMIT 10
+  `;
+
+  const topBySaveRate = await prisma.$queryRaw<TopPlayer[]>`
+    SELECT * FROM (
+      SELECT p.steam_id, p.username, p.avatar,
+        COUNT(*) AS apps,
+        SUM(mps.goals)::bigint AS goals,
+        SUM(mps.assists)::bigint AS assists,
+        COUNT(CASE WHEN (mps.team_side = 'home' AND m.home_score > m.away_score)
+                     OR (mps.team_side = 'away' AND m.away_score > m.home_score) THEN 1 END) AS wins,
+        SUM(mps.saves)::bigint AS saves_total,
+        (SUM(mps.saves) + SUM(mps.goals_conceded))::bigint AS save_attempts,
+        ROUND(
+          SUM(mps.saves)::numeric * 100
+          / NULLIF(SUM(mps.saves) + SUM(mps.goals_conceded), 0)
+        , 1)::float AS save_rate
+      FROM match_player_stats mps
+      JOIN matches m ON m.id = mps.match_id
+      JOIN players p ON p.steam_id = mps.player_steam_id
+      WHERE ((m.home_team_id = ${team1Id} AND m.away_team_id = ${team2Id})
+         OR (m.home_team_id = ${team2Id} AND m.away_team_id = ${team1Id}))
+        ${typeFilterM}
+      GROUP BY p.steam_id, p.username, p.avatar
+      ${saveRateHaving}
+    ) t
+    ORDER BY save_rate DESC NULLS LAST, save_attempts DESC, saves_total DESC
+    LIMIT 10
+  `;
+
+  const topByPotm = await prisma.$queryRaw<TopPlayer[]>`
+    SELECT p.steam_id, p.username, p.avatar,
+      COUNT(*) AS apps,
+      SUM(mps.goals)::bigint AS goals,
+      SUM(mps.assists)::bigint AS assists,
+      COUNT(CASE WHEN (mps.team_side = 'home' AND m.home_score > m.away_score)
+                   OR (mps.team_side = 'away' AND m.away_score > m.home_score) THEN 1 END) AS wins,
+      COUNT(CASE WHEN m.potm IS NOT NULL AND LOWER(p.username) = LOWER(m.potm) THEN 1 END)::bigint AS potm
+    FROM match_player_stats mps
+    JOIN matches m ON m.id = mps.match_id
+    JOIN players p ON p.steam_id = mps.player_steam_id
+    WHERE ((m.home_team_id = ${team1Id} AND m.away_team_id = ${team2Id})
+       OR (m.home_team_id = ${team2Id} AND m.away_team_id = ${team1Id}))
+      ${typeFilterM}
+    GROUP BY p.steam_id, p.username, p.avatar
+    HAVING COUNT(CASE WHEN m.potm IS NOT NULL AND LOWER(p.username) = LOWER(m.potm) THEN 1 END) > 0
+    ORDER BY potm DESC, apps DESC
+    LIMIT 10
+  `;
+
   // Match list
   const matches = await prisma.$queryRaw<H2HMatch[]>`
     SELECT
@@ -465,12 +631,21 @@ export default async function H2HPage({
     players,
     valueKey,
     valueLabel,
+    format = "int",
   }: {
     title: string;
     players: TopPlayer[];
-    valueKey: "apps" | "goals" | "assists" | "wins";
+    valueKey: "apps" | "goals" | "assists" | "wins" | "winrate" | "conversion" | "save_rate" | "potm";
     valueLabel: string;
+    format?: "int" | "pct";
   }) {
+    const fmt = (v: unknown): string => {
+      if (v == null) return "-";
+      const n = typeof v === "bigint" ? Number(v) : Number(v);
+      if (!Number.isFinite(n)) return "-";
+      if (format === "pct") return `${n.toFixed(1)}%`;
+      return String(n);
+    };
     return (
       <div className="rounded-lg border border-chalk-100/8 bg-pitch-900/40 overflow-hidden">
         <div className="px-3 py-2.5 border-b border-chalk-100/8 text-[10px] font-mono uppercase tracking-[0.2em] text-chalk-400">
@@ -491,10 +666,9 @@ export default async function H2HPage({
               >
                 {p.username}
               </Link>
-              <span className="font-mono text-xs font-700 text-chalk-100 shrink-0">
-                {String(p[valueKey])}
+              <span className="font-mono text-xs font-700 text-chalk-100 shrink-0 tabular-nums">
+                {fmt(p[valueKey])}
               </span>
-              <span className="text-[9px] font-mono text-chalk-500 shrink-0">{valueLabel}</span>
             </div>
           ))}
           {players.length === 0 && (
@@ -592,13 +766,29 @@ export default async function H2HPage({
           {/* Stats slider */}
           <H2HStatSlider pages={statPages} color1={color1} color2={color2} />
 
-          {/* Top players */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-            <PlayerLeaderboard title="Appearances" players={topByApps} valueKey="apps" valueLabel="apps" />
-            <PlayerLeaderboard title="Goals" players={topByGoals} valueKey="goals" valueLabel="gls" />
-            <PlayerLeaderboard title="Assists" players={topByAssists} valueKey="assists" valueLabel="ast" />
-            <PlayerLeaderboard title="Wins" players={topByWins} valueKey="wins" valueLabel="w" />
-          </div>
+          {/* Top players — paged */}
+          <H2HLeaderboardPager
+            labels={["Totals", "Rates & POTM"]}
+            pages={[
+              <div key="totals" className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <PlayerLeaderboard title="Appearances" players={topByApps} valueKey="apps" valueLabel="apps" />
+                <PlayerLeaderboard title="Goals" players={topByGoals} valueKey="goals" valueLabel="gls" />
+                <PlayerLeaderboard title="Assists" players={topByAssists} valueKey="assists" valueLabel="ast" />
+                <PlayerLeaderboard title="Wins" players={topByWins} valueKey="wins" valueLabel="w" />
+              </div>,
+              <div key="rates" className="flex flex-col gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <PlayerLeaderboard title="Win Rate" players={topByWinrate} valueKey="winrate" valueLabel="wr" format="pct" />
+                  <PlayerLeaderboard title="Shot Conversion" players={topByConversion} valueKey="conversion" valueLabel="conv" format="pct" />
+                  <PlayerLeaderboard title="Save Rate" players={topBySaveRate} valueKey="save_rate" valueLabel="sv%" format="pct" />
+                  <PlayerLeaderboard title="POTM" players={topByPotm} valueKey="potm" valueLabel="potm" />
+                </div>
+                <p className="text-[10px] font-mono text-chalk-500 text-center px-2 italic">
+                  Ranked by raw %. Minimum matches/stat thresholds apply to All/Friendly filters (COMP shows full pool).
+                </p>
+              </div>,
+            ]}
+          />
 
           {/* Match list */}
           <div className="rounded-lg border border-chalk-100/8 bg-pitch-900/40 overflow-x-auto mb-4">
