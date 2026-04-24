@@ -1638,8 +1638,8 @@ function getPlayerLabels(
     if (p.goals === 3 || p.goals === 4) {
       positives.push({ text: "Hat-trick", sentiment: "positive" });
     }
-    if (p.goals >= 5) {
-      positives.push({ text: "Carry", sentiment: "positive" });
+    if ((p.goals + p.assists) >= 5) {
+      positives.push({ text: "Carry", sentiment: "carry" });
     }
     const sniperCond = pxg > 0 && p.goals > pxg * 1.5;
     if (p.shots > 0 && p.goals / p.shots >= 0.65 && !sniperCond) {
