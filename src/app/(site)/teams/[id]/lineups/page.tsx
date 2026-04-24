@@ -168,9 +168,18 @@ export default async function TeamLineupsPage({
   );
 
   const canonicalSlots: CanonicalPosition[] = ["LW", "CF", "RW", "CM", "LB", "CB", "RB", "GK"];
-  // Bayesian-shrunk win rate: adds 3 virtual draws to avoid small-sample bias.
-  // e.g. 1 app / 100% WR → 57%, while 50 apps / 70% WR stays ~68%.
-  const shrunkWr = (p: PlayerAgg) => (p.wins + 3) / (p.apps + 6);
+  // Wilson lower bound at 95% CI: rewards high WR but penalises small samples,
+  // so a player with 350 apps @ 78% beats 115 apps @ 80%.
+  const wilsonLb = (p: PlayerAgg): number => {
+    if (p.apps === 0) return 0;
+    const z = 1.96;
+    const phat = p.wins / p.apps;
+    const z2 = z * z;
+    const denom = 1 + z2 / p.apps;
+    const center = phat + z2 / (2 * p.apps);
+    const margin = z * Math.sqrt((phat * (1 - phat) + z2 / (4 * p.apps)) / p.apps);
+    return (center - margin) / denom;
+  };
   const results: Record<CanonicalPosition, SlotResult> = Object.fromEntries(
     canonicalSlots.map((slot) => {
       const slotMap = bySlot.get(slot);
@@ -182,9 +191,9 @@ export default async function TeamLineupsPage({
       let sorted: PlayerAgg[];
       if (activeMode.key === "winrate") {
         const qualified = all.filter((p) => p.apps >= effectiveMinAppsWr);
-        sorted = qualified.sort((a, b) => shrunkWr(b) - shrunkWr(a) || b.apps - a.apps);
+        sorted = qualified.sort((a, b) => wilsonLb(b) - wilsonLb(a) || b.apps - a.apps);
       } else {
-        sorted = all.sort((a, b) => b.apps - a.apps);
+        sorted = all.slice().sort((a, b) => b.apps - a.apps);
       }
       if (sorted.length === 0) {
         return [slot, { slot, top: null, runnersUp: [], totalAppsInSlot: totalApps }];

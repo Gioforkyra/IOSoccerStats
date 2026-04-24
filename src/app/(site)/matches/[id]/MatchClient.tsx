@@ -1642,7 +1642,7 @@ function getPlayerLabels(
       positives.push({ text: "Carry", sentiment: "carry" });
     }
     const sniperCond = pxg > 0 && p.goals > pxg * 1.5;
-    if (p.shots > 0 && p.goals / p.shots >= 0.65 && !sniperCond) {
+    if (p.shots > 2 && p.goals / p.shots >= 0.65 && !sniperCond) {
       positives.push({ text: "Lethal", sentiment: "positive" });
     }
     if (sniperCond) {
@@ -1663,7 +1663,7 @@ function getPlayerLabels(
     if (p.passes >= 35 && passPct >= 0.80) {
       positives.push({ text: "Maestro", sentiment: "positive" });
     }
-    if (p.interceptions >= 12) {
+    if (p.interceptions >= 8) {
       positives.push({ text: "Interceptor", sentiment: "positive" });
     }
   }
@@ -1714,7 +1714,10 @@ function getPlayerLabels(
     ) {
       negatives.push({ text: "Ghost", sentiment: "negative" });
     }
-    if (p.shots >= 4 && pxg >= 1.5 && p.goals === 0) {
+    if (
+      (p.goals === 0 && p.shots >= 4) ||
+      (p.goals >= 1 && p.shots > 4 * p.goals)
+    ) {
       negatives.push({ text: "Bad Shots", sentiment: "negative" });
     }
     if (
