@@ -5,9 +5,11 @@ import {
   getPastTournaments,
   getCurrentTournaments,
   getTournamentStandings,
+  getTournamentPhases,
   getMatches,
   badgeSmallUrl,
   type ApiMatchListItem,
+  type ApiTournamentPhase,
 } from "@/lib/iosoccer-api";
 
 export const revalidate = 300;
@@ -105,13 +107,20 @@ export default async function TournamentDetailPage({
   const tournamentId = parseInt(id, 10);
   if (isNaN(tournamentId)) return notFound();
 
-  const tab = sp.tab === "standings" ? "standings" : "matches";
-  const currentPage = Math.max(1, parseInt(sp.page || "1", 10));
-
   const [past, current] = await Promise.all([getPastTournaments(), getCurrentTournaments()]);
   const all = [...current, ...past];
   const tournament = all.find((t) => t.id === tournamentId);
   if (!tournament) return notFound();
+
+  const isCup = /\bcup\b/i.test(tournament.name);
+  const isDraft = tournament.teamType === 4;
+  const hasBracket = isCup || isDraft;
+  const rawTab = sp.tab ?? "matches";
+  const tab: "matches" | "standings" | "bracket" =
+    rawTab === "standings" ? "standings" :
+    rawTab === "bracket" && hasBracket ? "bracket" :
+    "matches";
+  const currentPage = Math.max(1, parseInt(sp.page || "1", 10));
 
   // Fetch matches page + API standings in parallel
   const [standingsRaw, matchData] = await Promise.all([
@@ -119,7 +128,7 @@ export default async function TournamentDetailPage({
     getMatches({ tournamentId, pageSize: 10, page: currentPage }),
   ]);
 
-  const apiStandings = standingsRaw as Awaited<ReturnType<typeof getTournamentStandings>>;
+  let apiStandings = standingsRaw as Awaited<ReturnType<typeof getTournamentStandings>>;
   const matches = matchData.items;
   const totalPages = matchData.totalPages;
   const totalMatches = matchData.totalItems;
@@ -129,6 +138,51 @@ export default async function TournamentDetailPage({
   if (tab === "standings" && apiStandings.length === 0) {
     const allMatches = await getMatches({ tournamentId, pageSize: 500, noCache: true }).catch(() => null);
     if (allMatches) computedStandings = computeStandings(allMatches.items);
+  }
+
+  // For Cups: undefeated teams (matches played > 0, 0 losses) always pinned on top.
+  if (isCup) {
+    apiStandings = [...apiStandings].sort((a, b) => {
+      const aUnbeaten = (a.matchesPlayed ?? 0) > 0 && (a.losses ?? 0) === 0;
+      const bUnbeaten = (b.matchesPlayed ?? 0) > 0 && (b.losses ?? 0) === 0;
+      if (aUnbeaten !== bUnbeaten) return aUnbeaten ? -1 : 1;
+      return (a.position ?? 999) - (b.position ?? 999);
+    });
+    if (computedStandings) {
+      computedStandings = [...computedStandings].sort((a, b) => {
+        const aUnbeaten = a.p > 0 && a.l === 0;
+        const bUnbeaten = b.p > 0 && b.l === 0;
+        if (aUnbeaten !== bUnbeaten) return aUnbeaten ? -1 : 1;
+        return b.pts - a.pts || b.gd - a.gd || b.gf - a.gf;
+      });
+    }
+  }
+
+  // Bracket tab data
+  let bracketPhases: ApiTournamentPhase[] = [];
+  let bracketMatchesByPhase: Map<number, ApiMatchListItem[]> = new Map();
+  if (tab === "bracket") {
+    const [phases, allMatches] = await Promise.all([
+      getTournamentPhases(tournamentId).catch(() => [] as ApiTournamentPhase[]),
+      getMatches({ tournamentId, pageSize: 500 }).catch(() => null),
+    ]);
+    // For Cups all phases are knockout; for Drafts only finals-style phases count.
+    const keep = isCup
+      ? (_: ApiTournamentPhase) => true
+      : (p: ApiTournamentPhase) => /\bfinal\b/i.test(p.name);
+    bracketPhases = [...phases].filter(keep).sort((a, b) => a.id - b.id);
+    if (allMatches) {
+      for (const m of allMatches.items) {
+        const pid = m.tournamentGroupMatches?.[0]?.tournamentPhaseId ?? null;
+        if (pid == null) continue;
+        const list = bracketMatchesByPhase.get(pid) ?? [];
+        list.push(m);
+        bracketMatchesByPhase.set(pid, list);
+      }
+      for (const list of bracketMatchesByPhase.values()) {
+        list.sort((a, b) => new Date(a.kickOff).getTime() - new Date(b.kickOff).getTime());
+      }
+    }
   }
 
   const isActive = current.some((t) => t.id === tournamentId);
@@ -213,6 +267,14 @@ export default async function TournamentDetailPage({
         >
           STANDINGS
         </Link>
+        {hasBracket && (
+          <Link
+            href={tabUrl("bracket")}
+            className={`px-4 py-2 rounded border transition-colors ${tab === "bracket" ? "border-[#F4119E] text-[#F4119E] bg-[#F4119E]/10" : "border-chalk-100/10 text-chalk-400 hover:border-[#F4119E]/40 hover:text-[#F4119E]"}`}
+          >
+            BRACKET
+          </Link>
+        )}
       </div>
 
       {/* MATCHES TAB */}
@@ -421,6 +483,66 @@ export default async function TournamentDetailPage({
                 })}
               </tbody>
             </table>
+          </div>
+        );
+      })()}
+
+      {/* BRACKET TAB */}
+      {tab === "bracket" && (() => {
+        const nonEmptyPhases = bracketPhases.filter((ph) => (bracketMatchesByPhase.get(ph.id)?.length ?? 0) > 0);
+        if (nonEmptyPhases.length === 0) {
+          return <div className="text-center py-12 text-chalk-400 font-body text-sm">No knockout matches yet.</div>;
+        }
+        return (
+          <div className="rounded-lg border border-chalk-100/8 bg-pitch-900/40 p-4 overflow-x-auto">
+            <div className="flex gap-4 items-stretch min-w-max">
+              {nonEmptyPhases.map((phase) => {
+                const phaseMatches = bracketMatchesByPhase.get(phase.id) ?? [];
+                return (
+                  <div key={phase.id} className="flex flex-col gap-3 w-[240px] shrink-0">
+                    <div className="text-[11px] font-mono uppercase text-[#F4119E] tracking-wider text-center py-1 border-b border-chalk-100/8">
+                      {phase.name}
+                    </div>
+                    <div className="flex flex-col gap-2 justify-around flex-1">
+                      {phaseMatches.map((m) => {
+                        const hg = m.matchStatistics?.matchGoalsHome ?? null;
+                        const ag = m.matchStatistics?.matchGoalsAway ?? null;
+                        const homeLogo = badgeSmallUrl(m.teamHome.badgeImage);
+                        const awayLogo = badgeSmallUrl(m.teamAway.badgeImage);
+                        const homeWon = hg != null && ag != null && hg > ag;
+                        const awayWon = hg != null && ag != null && ag > hg;
+                        const played = hg != null && ag != null;
+                        return (
+                          <Link
+                            key={m.id}
+                            href={`/matches/${m.id}`}
+                            className="group rounded border border-chalk-100/8 bg-pitch-600/20 hover:border-[#F4119E]/50 hover:bg-[#F4119E]/5 transition-colors overflow-hidden"
+                          >
+                            <div className={`flex items-center gap-2 px-2.5 py-1.5 text-xs ${!played || homeWon ? "" : "opacity-60"}`}>
+                              {homeLogo ? <img src={homeLogo} alt="" className="h-4 w-4 shrink-0 object-contain" /> : <div className="h-4 w-4 shrink-0" />}
+                              <span className={`flex-1 font-body truncate ${homeWon ? "text-chalk-100 font-700" : "text-chalk-300"}`}>{m.teamHome.name}</span>
+                              <span className={`font-mono font-700 tabular-nums ${homeWon ? "text-[#F4119E]" : "text-chalk-300"}`}>
+                                {played ? hg : "-"}
+                              </span>
+                            </div>
+                            <div className={`flex items-center gap-2 px-2.5 py-1.5 text-xs border-t border-chalk-100/5 ${!played || awayWon ? "" : "opacity-60"}`}>
+                              {awayLogo ? <img src={awayLogo} alt="" className="h-4 w-4 shrink-0 object-contain" /> : <div className="h-4 w-4 shrink-0" />}
+                              <span className={`flex-1 font-body truncate ${awayWon ? "text-chalk-100 font-700" : "text-chalk-300"}`}>{m.teamAway.name}</span>
+                              <span className={`font-mono font-700 tabular-nums ${awayWon ? "text-[#F4119E]" : "text-chalk-300"}`}>
+                                {played ? ag : "-"}
+                              </span>
+                            </div>
+                            <div className="px-2.5 py-1 text-[9px] font-mono text-chalk-500 border-t border-chalk-100/5 group-hover:text-[#F4119E]/70">
+                              {fmtDateTime(m.kickOff)}
+                            </div>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         );
       })()}

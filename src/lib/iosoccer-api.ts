@@ -129,6 +129,12 @@ export type ApiMatchListItem = {
   server: { name: string } | null;
   playerOfTheMatch: { name: string; steamID: string } | null;
   tournament: { id: number; name: string } | null;
+  tournamentGroupMatches: Array<{
+    id: number;
+    matchId: number;
+    tournamentGroupId: number | null;
+    tournamentPhaseId: number | null;
+  }> | null;
 };
 
 export type ApiPlayer = {
@@ -247,6 +253,17 @@ export async function getTournamentDetail(id: number) {
 
 export async function getTournamentTeams(id: number) {
   return apiFetch<{ teamId?: number; id?: number }[]>(`/tournaments/${id}/teams`);
+}
+
+export type ApiTournamentPhase = {
+  id: number;
+  name: string;
+  tournamentStageId: number | null;
+  createdDate: string | null;
+};
+
+export async function getTournamentPhases(id: number) {
+  return apiFetch<ApiTournamentPhase[]>(`/tournaments/${id}/phases`);
 }
 
 export type ApiTournamentStanding = {

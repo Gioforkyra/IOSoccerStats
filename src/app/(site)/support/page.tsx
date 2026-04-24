@@ -33,17 +33,22 @@ const SUPPORTERS: Supporter[] = [
 const UPDATES: Update[] = [
   {
     date: "Planned",
-    title: "New titles & updated logic for match detail titles",
-    body: "Refreshed set of match-detail titles with improved awarding logic.",
-  },
-  {
-    date: "Planned",
     title: "Common traits for players",
     body: "Surface recurring statistical traits and patterns across a player's career.",
   },
 ];
 
 const CHANGELOG: ChangelogEntry[] = [
+  {
+    date: "2026-04-24",
+    changes: [
+      "Match detail titles fully redesigned: new positive (Lethal, Sniper, Aerial Threat, Visionary, Threat, Maestro, Aggressive, Cross Catcher) and negative (Ghost, Bad Shots, Ball Hogger, Bad Passes, Low Int., Own Goal, Exposed) titles with refined awarding logic.",
+      "New 'carry' title tier with animated gradient: Wall (GK), Striker, Artist, All Rounder, plus personal Carry for big individual contributions.",
+      "Hover descriptions on every title badge.",
+      "Bracket page on Cup tournaments and Draft leagues showing matches grouped by knockout phase (Round 1, Quarter-Final, Semi-Final, Final, ...) with winner highlighted.",
+      "Cup standings: undefeated teams (0 losses) always pinned at the top.",
+    ],
+  },
   {
     date: "2026-04-22",
     changes: [
