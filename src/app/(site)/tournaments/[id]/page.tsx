@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { proxyImg } from "@/lib/img";
+import { prisma } from "@/lib/prisma";
+import { getCardContrastPalette } from "@/lib/card-contrast";
 import {
   getPastTournaments,
   getCurrentTournaments,
@@ -59,6 +61,150 @@ type ComputedStanding = {
   gf: number; ga: number; gd: number; pts: number;
 };
 
+type TournamentPlayerStat = {
+  steam_id: string;
+  username: string | null;
+  avatar: string | null;
+  apps: number;
+  goals: number;
+  assists: number;
+  second_assists: number;
+  passes: number;
+  passes_completed: number;
+  shots: number;
+  shots_on_target: number;
+  saves: number;
+  saves_caught: number;
+  goals_conceded: number;
+  interceptions: number;
+  key_passes: number;
+  chances_created: number;
+  fouls: number;
+  fouls_suffered: number;
+  tackles: number;
+  tackles_completed: number;
+  own_goals: number;
+  offsides: number;
+  yellow_cards: number;
+  red_cards: number;
+  team_id: number | null;
+  team_name: string | null;
+  team_logo: string | null;
+  team_color: string | null;
+};
+
+type TournamentPlayerStatRaw = {
+  steam_id: string;
+  username: string | null;
+  avatar: string | null;
+  apps: bigint;
+  goals: bigint;
+  assists: bigint;
+  second_assists: bigint;
+  passes: bigint;
+  passes_completed: bigint;
+  shots: bigint;
+  shots_on_target: bigint;
+  saves: bigint;
+  saves_caught: bigint;
+  goals_conceded: bigint;
+  interceptions: bigint;
+  key_passes: bigint;
+  chances_created: bigint;
+  fouls: bigint;
+  fouls_suffered: bigint;
+  tackles: bigint;
+  tackles_completed: bigint;
+  own_goals: bigint;
+  offsides: bigint;
+  yellow_cards: bigint;
+  red_cards: bigint;
+  team_id: number | null;
+  team_name: string | null;
+  team_logo: string | null;
+  team_color: string | null;
+};
+
+const PLAYER_SORT_KEYS = [
+  "apps", "goals", "assists", "second_assists",
+  "passes_completed", "pass_acc",
+  "key_passes", "chances_created", "shots", "shot_acc", "shot_conv",
+  "saves", "saves_caught", "goals_conceded", "save_rate",
+  "interceptions", "fouls", "fouls_suffered",
+  "tackles_completed", "own_goals", "offsides",
+  "yellow_cards", "red_cards",
+] as const;
+type PlayerSortKey = (typeof PLAYER_SORT_KEYS)[number];
+
+function playerSortValue(r: TournamentPlayerStat, key: PlayerSortKey): number {
+  switch (key) {
+    case "pass_acc": return r.passes > 0 ? r.passes_completed / r.passes : 0;
+    case "shot_acc": return r.shots > 0 ? r.shots_on_target / r.shots : 0;
+    case "shot_conv": return r.shots > 0 ? r.goals / r.shots : 0;
+    case "save_rate": {
+      const f = r.saves + r.goals_conceded;
+      return f > 0 ? r.saves / f : 0;
+    }
+    default: return r[key as keyof TournamentPlayerStat] as number;
+  }
+}
+
+type PlayerStatView = "general" | "gk" | "defending" | "attacking";
+
+const PLAYER_STAT_VIEWS: { key: PlayerStatView; label: string }[] = [
+  { key: "general", label: "General Stats" },
+  { key: "gk", label: "Goalkeeping Stats" },
+  { key: "defending", label: "Defending Stats" },
+  { key: "attacking", label: "Attacking Stats" },
+];
+
+const MIN_PLAYER_APPS_OPTIONS = [0, 5, 10];
+
+type PlayerColDef = {
+  key: PlayerSortKey;
+  label: string;
+  title: string;
+  format: (r: TournamentPlayerStat) => string;
+  tone?: (r: TournamentPlayerStat) => string;
+};
+
+function buildPlayerColumns(view: PlayerStatView): PlayerColDef[] {
+  const apps: PlayerColDef = { key: "apps", label: "P", title: "Matches played", format: (r) => String(r.apps) };
+  const goals: PlayerColDef = { key: "goals", label: "G", title: "Goals", format: (r) => String(r.goals) };
+  const assists: PlayerColDef = { key: "assists", label: "A", title: "Assists", format: (r) => String(r.assists) };
+  const secondAssists: PlayerColDef = { key: "second_assists", label: "2ND", title: "Second assists", format: (r) => String(r.second_assists) };
+  const passesCompleted: PlayerColDef = { key: "passes_completed", label: "PC", title: "Passes completed", format: (r) => r.passes_completed.toLocaleString() };
+  const passAcc: PlayerColDef = { key: "pass_acc", label: "P%", title: "Pass accuracy", format: (r) => r.passes > 0 ? `${((r.passes_completed / r.passes) * 100).toFixed(0)}%` : "-" };
+  const keyPasses: PlayerColDef = { key: "key_passes", label: "KP", title: "Key passes", format: (r) => String(r.key_passes) };
+  const chances: PlayerColDef = { key: "chances_created", label: "CC", title: "Chances created", format: (r) => String(r.chances_created) };
+  const shots: PlayerColDef = { key: "shots", label: "S", title: "Shots", format: (r) => String(r.shots) };
+  const shotAcc: PlayerColDef = { key: "shot_acc", label: "S%", title: "Shot accuracy", format: (r) => r.shots > 0 ? `${((r.shots_on_target / r.shots) * 100).toFixed(0)}%` : "-" };
+  const shotConv: PlayerColDef = { key: "shot_conv", label: "CONV", title: "Shot conversion (goals / shots)", format: (r) => r.shots > 0 ? `${((r.goals / r.shots) * 100).toFixed(0)}%` : "-" };
+  const offsides: PlayerColDef = { key: "offsides", label: "OFF", title: "Offsides", format: (r) => String(r.offsides) };
+  const saves: PlayerColDef = { key: "saves", label: "SV", title: "Saves", format: (r) => String(r.saves) };
+  const savesCaught: PlayerColDef = { key: "saves_caught", label: "SVC", title: "Saves caught", format: (r) => String(r.saves_caught) };
+  const goalsAgainst: PlayerColDef = { key: "goals_conceded", label: "GA", title: "Goals against", format: (r) => String(r.goals_conceded) };
+  const saveRate: PlayerColDef = { key: "save_rate", label: "SV%", title: "Save rate", format: (r) => { const f = r.saves + r.goals_conceded; return f > 0 ? `${((r.saves / f) * 100).toFixed(0)}%` : "-"; } };
+  const interceptions: PlayerColDef = { key: "interceptions", label: "INT", title: "Interceptions", format: (r) => String(r.interceptions) };
+  const fouls: PlayerColDef = { key: "fouls", label: "FLS", title: "Fouls", format: (r) => String(r.fouls) };
+  const foulsSuffered: PlayerColDef = { key: "fouls_suffered", label: "FLS+", title: "Fouls suffered", format: (r) => String(r.fouls_suffered) };
+  const tacklesCompleted: PlayerColDef = { key: "tackles_completed", label: "TKL✓", title: "Sliding tackles completed", format: (r) => String(r.tackles_completed) };
+  const ownGoals: PlayerColDef = { key: "own_goals", label: "OG", title: "Own goals", format: (r) => String(r.own_goals), tone: (r) => r.own_goals > 0 ? "text-red-400" : "text-chalk-400" };
+  const yellowCards: PlayerColDef = { key: "yellow_cards", label: "YC", title: "Yellow cards", format: (r) => String(r.yellow_cards), tone: (r) => r.yellow_cards > 0 ? "text-yellow-400" : "text-chalk-400" };
+  const redCards: PlayerColDef = { key: "red_cards", label: "RC", title: "Red cards", format: (r) => String(r.red_cards), tone: (r) => r.red_cards > 0 ? "text-red-400" : "text-chalk-400" };
+
+  switch (view) {
+    case "general":
+      return [apps, goals, assists, passesCompleted, passAcc, keyPasses, chances, shots, shotAcc, interceptions, yellowCards, redCards];
+    case "gk":
+      return [apps, saves, goalsAgainst, saveRate, savesCaught, passesCompleted, passAcc, interceptions, yellowCards, redCards];
+    case "defending":
+      return [apps, interceptions, fouls, tacklesCompleted, ownGoals, goalsAgainst, passesCompleted, passAcc, yellowCards, redCards];
+    case "attacking":
+      return [apps, goals, assists, secondAssists, shots, shotAcc, shotConv, keyPasses, chances, offsides, passesCompleted, passAcc];
+  }
+}
+
 function computeStandings(matches: ApiMatchListItem[]): ComputedStanding[] {
   const map = new Map<number, ComputedStanding>();
   for (const m of matches) {
@@ -100,7 +246,7 @@ export default async function TournamentDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ page?: string; tab?: string }>;
+  searchParams: Promise<{ page?: string; tab?: string; sort?: string; order?: string; view?: string; min?: string }>;
 }) {
   const { id } = await params;
   const sp = await searchParams;
@@ -116,11 +262,22 @@ export default async function TournamentDetailPage({
   const isDraft = tournament.teamType === 4;
   const hasBracket = isCup || isDraft;
   const rawTab = sp.tab ?? "matches";
-  const tab: "matches" | "standings" | "bracket" =
+  const tab: "matches" | "standings" | "bracket" | "players" =
     rawTab === "standings" ? "standings" :
     rawTab === "bracket" && hasBracket ? "bracket" :
+    rawTab === "players" ? "players" :
     "matches";
   const currentPage = Math.max(1, parseInt(sp.page || "1", 10));
+  const playerSortKey: PlayerSortKey = (PLAYER_SORT_KEYS as readonly string[]).includes(sp.sort ?? "")
+    ? (sp.sort as PlayerSortKey)
+    : "apps";
+  const playerSortOrder: "asc" | "desc" = sp.order === "asc" ? "asc" : "desc";
+  const playerView: PlayerStatView = (["general", "gk", "defending", "attacking"].includes(sp.view ?? "")
+    ? (sp.view as PlayerStatView)
+    : "general");
+  const playerMinApps = MIN_PLAYER_APPS_OPTIONS.includes(parseInt(sp.min ?? "0", 10))
+    ? parseInt(sp.min ?? "0", 10)
+    : 0;
 
   // Fetch matches page + API standings in parallel
   const [standingsRaw, matchData] = await Promise.all([
@@ -182,6 +339,131 @@ export default async function TournamentDetailPage({
       for (const list of bracketMatchesByPhase.values()) {
         list.sort((a, b) => new Date(a.kickOff).getTime() - new Date(b.kickOff).getTime());
       }
+    }
+  }
+
+  // Players tab data — aggregate per-player stats inside this tournament.
+  // Awards (Golden Boot / Playmaker / Golden Glove / Best Passer) require ≥5 matches;
+  // the stats table itself shows every player who appeared at least once.
+  let playerStats: TournamentPlayerStat[] = [];
+  let goldenBoot: TournamentPlayerStat | null = null;
+  let playmaker: TournamentPlayerStat | null = null;
+  let goldenGlove: TournamentPlayerStat | null = null;
+  let bestPasser: TournamentPlayerStat | null = null;
+  if (tab === "players") {
+    const rawRows = await prisma.$queryRaw<TournamentPlayerStatRaw[]>`
+      WITH player_team_apps AS (
+        SELECT
+          mps.player_steam_id,
+          CASE
+            WHEN mps.team_side = 'home' THEN m.home_team_id
+            WHEN mps.team_side = 'away' THEN m.away_team_id
+          END AS team_id,
+          COUNT(DISTINCT mps.match_id) AS team_apps
+        FROM match_player_stats mps
+        JOIN matches m ON m.id = mps.match_id
+        WHERE m.tournament_id = ${tournamentId}
+        GROUP BY mps.player_steam_id, team_id
+      ),
+      top_team AS (
+        SELECT DISTINCT ON (player_steam_id)
+          player_steam_id, team_id
+        FROM player_team_apps
+        WHERE team_id IS NOT NULL
+        ORDER BY player_steam_id, team_apps DESC, team_id ASC
+      )
+      SELECT
+        mps.player_steam_id              AS steam_id,
+        p.username                       AS username,
+        p.avatar                         AS avatar,
+        COUNT(DISTINCT mps.match_id)     AS apps,
+        COALESCE(SUM(mps.goals), 0)                       AS goals,
+        COALESCE(SUM(mps.assists), 0)                     AS assists,
+        COALESCE(SUM(mps.second_assists), 0)              AS second_assists,
+        COALESCE(SUM(mps.passes), 0)                      AS passes,
+        COALESCE(SUM(mps.passes_completed), 0)            AS passes_completed,
+        COALESCE(SUM(mps.shots), 0)                       AS shots,
+        COALESCE(SUM(mps.shots_on_target), 0)             AS shots_on_target,
+        COALESCE(SUM(mps.saves), 0)                       AS saves,
+        COALESCE(SUM(mps.saves_caught), 0)                AS saves_caught,
+        COALESCE(SUM(mps.goals_conceded), 0)              AS goals_conceded,
+        COALESCE(SUM(mps.interceptions), 0)               AS interceptions,
+        COALESCE(SUM(mps.key_passes), 0)                  AS key_passes,
+        COALESCE(SUM(mps.chances_created), 0)             AS chances_created,
+        COALESCE(SUM(mps.fouls), 0)                       AS fouls,
+        COALESCE(SUM(mps.fouls_suffered), 0)              AS fouls_suffered,
+        COALESCE(SUM(mps.sliding_tackles), 0)             AS tackles,
+        COALESCE(SUM(mps.sliding_tackles_completed), 0)   AS tackles_completed,
+        COALESCE(SUM(mps.own_goals), 0)                   AS own_goals,
+        COALESCE(SUM(mps.offsides), 0)                    AS offsides,
+        COALESCE(SUM(mps.yellow_cards), 0)                AS yellow_cards,
+        COALESCE(SUM(mps.red_cards), 0)                   AS red_cards,
+        tt.team_id                       AS team_id,
+        t.name                           AS team_name,
+        t.logo                           AS team_logo,
+        t.color                          AS team_color
+      FROM match_player_stats mps
+      JOIN matches m ON m.id = mps.match_id
+      LEFT JOIN players p ON p.steam_id = mps.player_steam_id
+      LEFT JOIN top_team tt ON tt.player_steam_id = mps.player_steam_id
+      LEFT JOIN teams t ON t.id = tt.team_id
+      WHERE m.tournament_id = ${tournamentId}
+      GROUP BY mps.player_steam_id, p.username, p.avatar, tt.team_id, t.name, t.logo, t.color
+    `;
+    playerStats = rawRows.map((r) => ({
+      steam_id: r.steam_id,
+      username: r.username,
+      avatar: r.avatar,
+      apps: Number(r.apps),
+      goals: Number(r.goals),
+      assists: Number(r.assists),
+      second_assists: Number(r.second_assists),
+      passes: Number(r.passes),
+      passes_completed: Number(r.passes_completed),
+      shots: Number(r.shots),
+      shots_on_target: Number(r.shots_on_target),
+      saves: Number(r.saves),
+      saves_caught: Number(r.saves_caught),
+      goals_conceded: Number(r.goals_conceded),
+      interceptions: Number(r.interceptions),
+      key_passes: Number(r.key_passes),
+      chances_created: Number(r.chances_created),
+      fouls: Number(r.fouls),
+      fouls_suffered: Number(r.fouls_suffered),
+      tackles: Number(r.tackles),
+      tackles_completed: Number(r.tackles_completed),
+      own_goals: Number(r.own_goals),
+      offsides: Number(r.offsides),
+      yellow_cards: Number(r.yellow_cards),
+      red_cards: Number(r.red_cards),
+      team_id: r.team_id,
+      team_name: r.team_name,
+      team_logo: r.team_logo,
+      team_color: r.team_color,
+    }));
+
+    // Awards: only players with ≥5 matches qualify.
+    const eligible = playerStats.filter((p) => p.apps >= 5);
+    if (eligible.length > 0) {
+      const byGoals = [...eligible].sort((a, b) => b.goals - a.goals);
+      if (byGoals[0].goals > 0) goldenBoot = byGoals[0];
+
+      const byAssists = [...eligible].sort((a, b) => b.assists - a.assists);
+      if (byAssists[0].assists > 0) playmaker = byAssists[0];
+
+      // Golden Glove: at least 10 shots faced (saves + conceded) so we pick a real GK.
+      const keepers = eligible.filter((p) => p.saves + p.goals_conceded >= 10);
+      if (keepers.length > 0) {
+        keepers.sort((a, b) => {
+          const aRate = a.saves / (a.saves + a.goals_conceded);
+          const bRate = b.saves / (b.saves + b.goals_conceded);
+          return bRate - aRate;
+        });
+        goldenGlove = keepers[0];
+      }
+
+      const byPasses = [...eligible].sort((a, b) => b.passes_completed - a.passes_completed);
+      if (byPasses[0].passes_completed > 0) bestPasser = byPasses[0];
     }
   }
 
@@ -275,6 +557,12 @@ export default async function TournamentDetailPage({
             BRACKET
           </Link>
         )}
+        <Link
+          href={tabUrl("players")}
+          className={`px-4 py-2 rounded border transition-colors ${tab === "players" ? "border-[#F4119E] text-[#F4119E] bg-[#F4119E]/10" : "border-chalk-100/10 text-chalk-400 hover:border-[#F4119E]/40 hover:text-[#F4119E]"}`}
+        >
+          PLAYERS
+        </Link>
       </div>
 
       {/* MATCHES TAB */}
@@ -544,6 +832,323 @@ export default async function TournamentDetailPage({
               })}
             </div>
           </div>
+        );
+      })()}
+
+      {/* PLAYERS TAB */}
+      {tab === "players" && (() => {
+        if (playerStats.length === 0) {
+          return (
+            <div className="text-center py-12 text-chalk-400 font-body text-sm">
+              No player data for this tournament.
+            </div>
+          );
+        }
+
+        const PLAYERS_PER_PAGE = 10;
+        const PLAYER_COLS = buildPlayerColumns(playerView);
+
+        const filteredRows = playerMinApps > 0
+          ? playerStats.filter((r) => r.apps >= playerMinApps)
+          : playerStats;
+
+        const sortedRows = [...filteredRows].sort((a, b) => {
+          const av = playerSortValue(a, playerSortKey);
+          const bv = playerSortValue(b, playerSortKey);
+          if (av === bv) return b.apps - a.apps;
+          return playerSortOrder === "asc" ? av - bv : bv - av;
+        });
+
+        const totalPlayers = sortedRows.length;
+        const totalPlayerPages = Math.max(1, Math.ceil(totalPlayers / PLAYERS_PER_PAGE));
+        const playerPage = Math.min(currentPage, totalPlayerPages);
+        const pageStart = (playerPage - 1) * PLAYERS_PER_PAGE;
+        const paginatedRows = sortedRows.slice(pageStart, pageStart + PLAYERS_PER_PAGE);
+
+        function buildPlayerParams(extra: Record<string, string | number | undefined> = {}) {
+          const p = new URLSearchParams();
+          p.set("tab", "players");
+          p.set("view", playerView);
+          p.set("sort", playerSortKey);
+          p.set("order", playerSortOrder);
+          if (playerMinApps > 0) p.set("min", String(playerMinApps));
+          for (const [k, v] of Object.entries(extra)) {
+            if (v == null || v === "" || v === 0) p.delete(k);
+            else p.set(k, String(v));
+          }
+          return p;
+        }
+        // Sorting resets pagination to page 1.
+        function sortUrl(key: PlayerSortKey) {
+          const nextOrder = key === playerSortKey && playerSortOrder === "desc" ? "asc" : "desc";
+          const p = buildPlayerParams({ sort: key, order: nextOrder });
+          p.delete("page");
+          return `/tournaments/${tournamentId}?${p.toString()}`;
+        }
+        function playerPageUrl(p: number) {
+          const q = buildPlayerParams({ page: p });
+          return `/tournaments/${tournamentId}?${q.toString()}`;
+        }
+        function viewUrl(v: PlayerStatView) {
+          const p = new URLSearchParams();
+          p.set("tab", "players");
+          p.set("view", v);
+          if (playerMinApps > 0) p.set("min", String(playerMinApps));
+          return `/tournaments/${tournamentId}?${p.toString()}`;
+        }
+        function minAppsUrl(min: number) {
+          const p = new URLSearchParams();
+          p.set("tab", "players");
+          p.set("view", playerView);
+          p.set("sort", playerSortKey);
+          p.set("order", playerSortOrder);
+          if (min > 0) p.set("min", String(min));
+          return `/tournaments/${tournamentId}?${p.toString()}`;
+        }
+
+        const awards: {
+          title: string; winner: TournamentPlayerStat | null;
+          value: string; unit: string;
+        }[] = [
+          {
+            title: "Golden Boot", winner: goldenBoot,
+            value: goldenBoot ? String(goldenBoot.goals) : "-", unit: "goals",
+          },
+          {
+            title: "Playmaker", winner: playmaker,
+            value: playmaker ? String(playmaker.assists) : "-", unit: "assists",
+          },
+          {
+            title: "Golden Glove", winner: goldenGlove,
+            value: goldenGlove ? `${((goldenGlove.saves / (goldenGlove.saves + goldenGlove.goals_conceded)) * 100).toFixed(1)}%` : "-",
+            unit: "save%",
+          },
+          {
+            title: "Best Passer", winner: bestPasser,
+            value: bestPasser ? bestPasser.passes_completed.toLocaleString() : "-", unit: "passes",
+          },
+        ];
+
+        return (
+          <>
+            {/* Awards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
+              {awards.map((aw) => {
+                const teamLogoUrl = aw.winner?.team_logo ? proxyImg(aw.winner.team_logo) : null;
+                const teamColor = aw.winner?.team_color ?? null;
+                const palette = teamColor ? getCardContrastPalette(teamColor) : null;
+                const cardStyle = palette
+                  ? { backgroundColor: palette.background, borderColor: palette.isBright ? "rgba(0,0,0,0.18)" : "rgba(255,255,255,0.12)" }
+                  : undefined;
+                const primary = palette?.primaryText ?? "#f3f4f6";
+                const secondary = palette?.secondaryText ?? "rgba(243,244,246,0.85)";
+                const muted = palette?.mutedText ?? "rgba(209,213,219,0.85)";
+                return (
+                  <div
+                    key={aw.title}
+                    className={`rounded-lg border p-4 flex items-center gap-4 ${palette ? "" : "stat-card-position"}`}
+                    style={cardStyle}
+                  >
+                    {aw.winner ? (
+                      <Link
+                        href={`/players/${encodeURIComponent(aw.winner.steam_id)}`}
+                        className="shrink-0 group"
+                      >
+                        {aw.winner.avatar ? (
+                          <img
+                            src={aw.winner.avatar}
+                            alt=""
+                            className="w-20 h-20 rounded-lg object-cover border border-chalk-100/15 group-hover:border-[#F4119E]/60 transition-colors"
+                          />
+                        ) : (
+                          <div className="w-20 h-20 rounded-lg bg-pitch-700 flex items-center justify-center text-2xl font-display font-700 text-chalk-300 border border-chalk-100/15 group-hover:border-[#F4119E]/60 transition-colors">
+                            {aw.winner.username?.[0]?.toUpperCase() || "?"}
+                          </div>
+                        )}
+                      </Link>
+                    ) : (
+                      <div className="w-20 h-20 rounded-lg bg-pitch-800/60 border border-chalk-100/10 shrink-0" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="wr-elite font-display font-700 text-lg uppercase tracking-wider leading-tight mb-1.5">
+                        {aw.title}
+                      </div>
+                      {aw.winner ? (
+                        <>
+                          <Link
+                            href={`/players/${encodeURIComponent(aw.winner.steam_id)}`}
+                            className="font-body text-sm font-medium hover:!text-[#F4119E] transition-colors truncate block"
+                            style={{ color: primary }}
+                          >
+                            {aw.winner.username || aw.winner.steam_id}
+                          </Link>
+                          <div className="flex items-baseline gap-1 mt-0.5">
+                            <span className="font-mono text-sm font-700 tabular-nums" style={{ color: primary }}>
+                              {aw.value}
+                            </span>
+                            <span className="font-mono text-[10px] uppercase" style={{ color: muted }}>
+                              {aw.unit}
+                            </span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-xs font-mono italic mt-1" style={{ color: muted }}>
+                          No qualified player
+                        </div>
+                      )}
+                    </div>
+                    {aw.winner?.team_id && (
+                      <Link
+                        href={`/teams/${aw.winner.team_id}`}
+                        className="shrink-0 flex flex-col items-center gap-1 group"
+                        title={aw.winner.team_name ?? undefined}
+                      >
+                        {teamLogoUrl ? (
+                          <img
+                            src={teamLogoUrl}
+                            alt={aw.winner.team_name ?? ""}
+                            className="w-14 h-14 object-contain group-hover:scale-105 transition-transform"
+                          />
+                        ) : (
+                          <div className="w-14 h-14 rounded bg-pitch-700/60 border border-chalk-100/10 flex items-center justify-center text-[10px] font-display font-700 text-chalk-300">
+                            {aw.winner.team_name?.[0]?.toUpperCase() || "?"}
+                          </div>
+                        )}
+                        <span
+                          className="text-[10px] font-mono group-hover:!text-[#F4119E] transition-colors max-w-[80px] truncate"
+                          style={{ color: secondary }}
+                        >
+                          {aw.winner.team_name}
+                        </span>
+                      </Link>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* View + min apps filters */}
+            <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap">
+                {PLAYER_STAT_VIEWS.map((sv) => (
+                  <Link
+                    key={sv.key}
+                    href={viewUrl(sv.key)}
+                    className={`px-3 py-1.5 rounded text-xs font-mono transition-colors ${playerView === sv.key ? "bg-[#F4119E]/15 text-[#F4119E] border border-[#F4119E]/40" : "border border-chalk-100/10 text-chalk-400 hover:border-[#F4119E]/30 hover:text-chalk-200"}`}
+                  >
+                    {sv.label.toUpperCase()}
+                  </Link>
+                ))}
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[10px] font-mono uppercase text-chalk-500 tracking-wider">Min apps</span>
+                {MIN_PLAYER_APPS_OPTIONS.map((min) => (
+                  <Link
+                    key={min}
+                    href={minAppsUrl(min)}
+                    className={`px-2.5 py-1 rounded text-xs font-mono transition-colors ${playerMinApps === min ? "bg-[#F4119E]/15 text-[#F4119E] border border-[#F4119E]/40" : "border border-chalk-100/10 text-chalk-400 hover:border-[#F4119E]/30 hover:text-chalk-200"}`}
+                  >
+                    {min === 0 ? "ALL" : `${min}+`}
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+            {/* Stats table */}
+            <div className="rounded-lg border border-chalk-100/8 overflow-x-auto">
+              <table className="w-full text-xs whitespace-nowrap">
+                <thead>
+                  <tr className="border-b border-chalk-100/8 bg-pitch-900/60">
+                    <th className="text-left px-3 py-2 font-mono text-[10px] text-chalk-400 w-7">#</th>
+                    <th className="text-left px-2 py-2 font-mono text-[10px] text-chalk-400">PLAYER</th>
+                    {PLAYER_COLS.map((c) => {
+                      const active = c.key === playerSortKey;
+                      return (
+                        <th key={c.key} className="text-center px-2 py-2 font-mono text-[10px]" title={c.title}>
+                          <Link
+                            href={sortUrl(c.key)}
+                            className={`inline-flex items-center gap-0.5 transition-colors ${active ? "text-[#F4119E]" : "text-chalk-400 hover:text-[#F4119E]"}`}
+                          >
+                            {c.label}
+                            {active && <span>{playerSortOrder === "desc" ? "↓" : "↑"}</span>}
+                          </Link>
+                        </th>
+                      );
+                    })}
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedRows.map((r, i) => {
+                    const rowIdx = pageStart + i;
+                    return (
+                      <tr
+                        key={r.steam_id}
+                        className={`stat-row group ${rowIdx % 2 === 0 ? "trow-odd" : "trow-even"}`}
+                      >
+                        <td className="px-3 py-1.5 font-mono text-chalk-400 text-center tabular-nums">{rowIdx + 1}</td>
+                        <td className="px-2 py-1.5">
+                          <Link
+                            href={`/players/${encodeURIComponent(r.steam_id)}`}
+                            className="flex items-center gap-2 hover:text-[#F4119E] transition-colors text-chalk-100"
+                          >
+                            {r.avatar ? (
+                              <img src={r.avatar} alt="" className="w-6 h-6 rounded object-cover border border-chalk-100/10 shrink-0" />
+                            ) : (
+                              <div className="w-6 h-6 rounded bg-pitch-700 flex items-center justify-center text-[10px] font-display font-700 text-chalk-300 shrink-0">
+                                {r.username?.[0]?.toUpperCase() || "?"}
+                              </div>
+                            )}
+                            <span className="font-body truncate">{r.username || r.steam_id}</span>
+                          </Link>
+                        </td>
+                        {PLAYER_COLS.map((c) => {
+                          const active = c.key === playerSortKey;
+                          const tone = c.tone ? c.tone(r) : (active ? "text-chalk-100" : "text-chalk-300");
+                          return (
+                            <td key={c.key} className={`px-2 py-1.5 text-center font-mono tabular-nums ${tone} ${active ? "font-700" : ""}`}>
+                              {c.format(r)}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex items-center justify-between mt-4">
+              <span className="text-xs font-mono text-chalk-400">
+                Page {playerPage} of {totalPlayerPages} · {totalPlayers.toLocaleString()} players
+              </span>
+              <div className="flex items-center gap-1">
+                {playerPage > 1 && (
+                  <Link href={playerPageUrl(1)} className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center" title="First page">&laquo;</Link>
+                )}
+                {playerPage > 1 && (
+                  <Link href={playerPageUrl(Math.max(1, playerPage - 10))} className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center" title="Back 10 pages">&lt;</Link>
+                )}
+                {Array.from({ length: Math.min(5, totalPlayerPages) }, (_, i) => {
+                  let p: number;
+                  if (totalPlayerPages <= 5) p = i + 1;
+                  else if (playerPage <= 3) p = i + 1;
+                  else if (playerPage >= totalPlayerPages - 2) p = totalPlayerPages - 4 + i;
+                  else p = playerPage - 2 + i;
+                  return (
+                    <Link key={p} href={playerPageUrl(p)} className={`w-8 h-8 rounded text-xs font-mono transition-colors flex items-center justify-center ${p === playerPage ? "bg-[#F4119E] text-white font-700" : "text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30"}`}>
+                      {p}
+                    </Link>
+                  );
+                })}
+                {playerPage < totalPlayerPages && (
+                  <Link href={playerPageUrl(Math.min(totalPlayerPages, playerPage + 10))} className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center" title="Forward 10 pages">&gt;</Link>
+                )}
+                {playerPage < totalPlayerPages && (
+                  <Link href={playerPageUrl(totalPlayerPages)} className="w-8 h-8 rounded text-xs font-mono text-chalk-400 hover:text-chalk-100 border border-chalk-100/10 hover:border-chalk-100/30 flex items-center justify-center" title="Last page">&raquo;</Link>
+                )}
+              </div>
+            </div>
+          </>
         );
       })()}
     </div>

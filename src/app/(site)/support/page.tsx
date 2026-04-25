@@ -40,6 +40,14 @@ const UPDATES: Update[] = [
 
 const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2026-04-25",
+    changes: [
+      "New Players tab on every tournament page with stats of every player who appeared in that tournament.",
+      "Top 4 awards highlighted at the top of the tab: Golden Boot, Playmaker, Golden Glove and Best Passer.",
+      "Stat-view filters and min apps filter on the tournament Players table.",
+    ],
+  },
+  {
     date: "2026-04-24",
     changes: [
       "Match detail titles fully redesigned: new positive (Lethal, Sniper, Aerial Threat, Visionary, Threat, Maestro, Aggressive, Cross Catcher) and negative (Ghost, Bad Shots, Ball Hogger, Bad Passes, Low Int., Own Goal, Exposed) titles with refined awarding logic.",
