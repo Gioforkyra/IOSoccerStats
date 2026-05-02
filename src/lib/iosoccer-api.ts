@@ -9,15 +9,63 @@ const HEADERS = {
   Referer: "https://www.iosoccer.com/",
 };
 
+const CIRCUIT_COOLDOWN_MS = 60 * 60 * 1000;
+
+type CircuitState = { downUntil: number; reason: string | null };
+const g = globalThis as unknown as { __iosoccerCircuit?: CircuitState };
+g.__iosoccerCircuit ??= { downUntil: 0, reason: null };
+const circuit = g.__iosoccerCircuit;
+
+export function isFatalConnectionError(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const e = err as { name?: string; code?: string; cause?: { code?: string; name?: string } };
+  const code = e.code || e.cause?.code;
+  const name = e.name || e.cause?.name;
+  if (code === "CERT_HAS_EXPIRED" || code === "ECONNREFUSED" || code === "ENOTFOUND" || code === "ECONNRESET") return true;
+  if (name === "TimeoutError" || name === "AbortError") return true;
+  return false;
+}
+
+export function isIosoccerApiDown(): boolean {
+  return Date.now() < circuit.downUntil;
+}
+
+export function tripIosoccerApiCircuit(reason: string) {
+  const wasDown = Date.now() < circuit.downUntil;
+  circuit.downUntil = Date.now() + CIRCUIT_COOLDOWN_MS;
+  circuit.reason = reason;
+  if (!wasDown) {
+    console.warn(`[iosoccer-api] circuit tripped: ${reason} — skipping calls for ${CIRCUIT_COOLDOWN_MS / 1000}s`);
+  }
+}
+
+const tripCircuit = tripIosoccerApiCircuit;
+
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: { ...HEADERS, ...init?.headers },
-    signal: init?.signal ?? AbortSignal.timeout(30_000),
-    next: { revalidate: 60 },
-  });
-  if (!res.ok) throw new Error(`IOSoccer API ${path}: ${res.status}`);
-  return res.json();
+  if (Date.now() < circuit.downUntil) {
+    throw new Error(`IOSoccer API ${path}: circuit open (${circuit.reason ?? "down"})`);
+  }
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      ...init,
+      headers: { ...HEADERS, ...init?.headers },
+      signal: init?.signal ?? AbortSignal.timeout(30_000),
+      next: { revalidate: 60 },
+    });
+    if (!res.ok) {
+      if (res.status >= 500) tripCircuit(`HTTP ${res.status}`);
+      throw new Error(`IOSoccer API ${path}: ${res.status}`);
+    }
+    return res.json();
+  } catch (err) {
+    if (isFatalConnectionError(err)) {
+      const code = (err as { code?: string; cause?: { code?: string } }).code
+        ?? (err as { cause?: { code?: string } }).cause?.code
+        ?? "fetch failed";
+      tripCircuit(code);
+    }
+    throw err;
+  }
 }
 
 /* ------------------------------------------------------------------ */

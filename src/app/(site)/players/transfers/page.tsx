@@ -23,17 +23,24 @@ export default async function TransfersPage({
   const filter = params.filter === "free" ? "free" : "all";
   const nameQuery = params.q?.trim() || "";
 
-  const data = await getTransfers({
-    regionId: 1,
-    page,
-    pageSize: PAGE_SIZE,
-    freeAgentsOnly: filter === "free",
-    playerName: nameQuery || null,
-  });
-
-  const transfers = data.items;
-  const totalTransfers = data.totalItems;
-  const totalPages = Math.max(1, data.totalPages);
+  let transfers: Awaited<ReturnType<typeof getTransfers>>["items"] = [];
+  let totalTransfers = 0;
+  let totalPages = 1;
+  let apiUnavailable = false;
+  try {
+    const data = await getTransfers({
+      regionId: 1,
+      page,
+      pageSize: PAGE_SIZE,
+      freeAgentsOnly: filter === "free",
+      playerName: nameQuery || null,
+    });
+    transfers = data.items;
+    totalTransfers = data.totalItems;
+    totalPages = Math.max(1, data.totalPages);
+  } catch {
+    apiUnavailable = true;
+  }
 
   // Resolve steamIDs and avatars for player profile links (parallel)
   const uniquePlayerIds = [...new Set(transfers.map((t) => t.playerId))];
@@ -256,7 +263,9 @@ export default async function TransfersPage({
             {transfers.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-4 py-12 text-center text-chalk-400 font-body">
-                  No transfers found.
+                  {apiUnavailable
+                    ? "The IOSoccer API is currently unreachable. Please try again in a few minutes."
+                    : "No transfers found."}
                 </td>
               </tr>
             )}

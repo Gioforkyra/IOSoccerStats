@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { getTeamRoster } from "@/lib/iosoccer-api";
 import SquadClient, { type SquadPlayer } from "./SquadClient";
+import ApiUnavailableNotice from "@/components/ApiUnavailableNotice";
 
 type PlayerMeta = {
   steam_id: string;
@@ -26,10 +27,11 @@ export default async function TeamSquadPage({
 
   // 1. Get current squad from IOSoccer API (live, authoritative)
   let rosterEntries: Awaited<ReturnType<typeof getTeamRoster>> = [];
+  let apiUnavailable = false;
   try {
     rosterEntries = await getTeamRoster(teamId, false);
   } catch {
-    // API unavailable – show empty squad
+    apiUnavailable = true;
   }
 
   const steamIds = rosterEntries.map((e) => e.player.steamID).filter(Boolean);
@@ -108,6 +110,7 @@ export default async function TeamSquadPage({
       <h3 className="font-display font-700 text-lg tracking-wider text-chalk-100 uppercase mb-4">
         Current Squad
       </h3>
+      {apiUnavailable && <ApiUnavailableNotice />}
       <SquadClient squad={squad} />
     </div>
   );

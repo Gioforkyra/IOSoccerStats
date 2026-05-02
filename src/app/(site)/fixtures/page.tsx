@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getMatches, badgeSmallUrl } from "@/lib/iosoccer-api";
+import ApiUnavailableNotice from "@/components/ApiUnavailableNotice";
 
 export const revalidate = 60;
 
@@ -55,15 +56,21 @@ export default async function FixturesPage({
   const params = await searchParams;
   const page = Math.max(1, parseInt(params.page || "1", 10));
 
-  const data = await getMatches({
-    page,
-    pageSize: PAGE_SIZE,
-    matchType: 2,
-    includePast: false,
-  });
-
-  const matches = data.items ?? [];
-  const totalPages = data.totalPages ?? 1;
+  let matches: Awaited<ReturnType<typeof getMatches>>["items"] = [];
+  let totalPages = 1;
+  let apiUnavailable = false;
+  try {
+    const data = await getMatches({
+      page,
+      pageSize: PAGE_SIZE,
+      matchType: 2,
+      includePast: false,
+    });
+    matches = data.items ?? [];
+    totalPages = data.totalPages ?? 1;
+  } catch {
+    apiUnavailable = true;
+  }
 
   function pageUrl(p: number) {
     return p === 1 ? "/fixtures" : `/fixtures?page=${p}`;
@@ -77,7 +84,11 @@ export default async function FixturesPage({
       </div>
 
       {matches.length === 0 ? (
-        <div className="text-center py-16 text-chalk-400 font-body">No upcoming fixtures found.</div>
+        apiUnavailable ? (
+          <ApiUnavailableNotice variant="empty" />
+        ) : (
+          <div className="text-center py-16 text-chalk-400 font-body">No upcoming fixtures found.</div>
+        )
       ) : (
         <div className="rounded-lg border border-chalk-100/8 overflow-x-auto bg-pitch-900/40">
           <table className="w-full text-sm">

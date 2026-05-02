@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { isIosoccerApiDown, tripIosoccerApiCircuit, isFatalConnectionError } from "@/lib/iosoccer-api";
 
 export const revalidate = 30;
 
@@ -143,6 +144,16 @@ async function persistCompletedMatches(data: unknown) {
 }
 
 export async function GET(request: Request) {
+  if (isIosoccerApiDown()) {
+    return NextResponse.json([], {
+      headers: {
+        "Cache-Control": "public, max-age=30, s-maxage=30",
+        "CDN-Cache-Control": "public, s-maxage=30",
+        "X-IOS-Api-Status": "circuit-open",
+      },
+    });
+  }
+
   try {
     const res = await fetch(
       "https://iosoccer.com:44380/api/match/live-scores/1",
@@ -155,10 +166,10 @@ export async function GET(request: Request) {
     );
 
     if (!res.ok) {
-      return NextResponse.json(
-        { error: "Upstream API error", status: res.status },
-        { status: 502 },
-      );
+      if (res.status >= 500) tripIosoccerApiCircuit(`HTTP ${res.status}`);
+      return NextResponse.json([], {
+        headers: { "Cache-Control": "public, max-age=30, s-maxage=30" },
+      });
     }
 
     const data = await res.json();
@@ -191,10 +202,16 @@ export async function GET(request: Request) {
       },
     });
   } catch (err) {
-    console.error("[live-scores] fetch failed:", err);
-    return NextResponse.json(
-      { error: "Failed to fetch live scores" },
-      { status: 500 },
-    );
+    if (isFatalConnectionError(err)) {
+      const code = (err as { code?: string; cause?: { code?: string } }).code
+        ?? (err as { cause?: { code?: string } }).cause?.code
+        ?? "fetch failed";
+      tripIosoccerApiCircuit(code);
+    } else {
+      console.error("[live-scores] fetch failed:", err);
+    }
+    return NextResponse.json([], {
+      headers: { "Cache-Control": "public, max-age=30, s-maxage=30" },
+    });
   }
 }

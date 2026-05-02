@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getPastTournaments, getCurrentTournaments, badgeSmallUrl, type ApiTournament } from "@/lib/iosoccer-api";
+import ApiUnavailableNotice from "@/components/ApiUnavailableNotice";
 
 export const revalidate = 300;
 
@@ -31,10 +32,13 @@ export default async function TournamentsPage({
   const statusFilter = params.status || "active";
   const typeFilter = params.type || "all";
 
-  const [current, past] = await Promise.all([
-    getCurrentTournaments(),
-    getPastTournaments(),
+  const [currentRes, pastRes] = await Promise.all([
+    getCurrentTournaments().then((v) => ({ ok: true as const, v })).catch(() => ({ ok: false as const, v: [] as ApiTournament[] })),
+    getPastTournaments().then((v) => ({ ok: true as const, v })).catch(() => ({ ok: false as const, v: [] as ApiTournament[] })),
   ]);
+  const current = currentRes.v;
+  const past = pastRes.v;
+  const apiUnavailable = !currentRes.ok && !pastRes.ok;
 
   const all: (ApiTournament & { _active: boolean })[] = [
     ...current.map((t) => ({ ...t, _active: true })),
@@ -91,7 +95,11 @@ export default async function TournamentsPage({
       </div>
 
       {display.length === 0 ? (
-        <div className="text-center py-16 text-chalk-400 font-body">No tournaments found.</div>
+        apiUnavailable ? (
+          <ApiUnavailableNotice variant="empty" />
+        ) : (
+          <div className="text-center py-16 text-chalk-400 font-body">No tournaments found.</div>
+        )
       ) : (
         <div className="rounded-lg border border-chalk-100/8 overflow-x-auto bg-pitch-900/40">
           <table className="w-full text-sm">

@@ -36,7 +36,8 @@ export async function GET(req: NextRequest) {
       .filter(Boolean);
 
     return NextResponse.json({ teams });
-  } catch (err) {
-    return NextResponse.json({ teams: [], error: String(err) }, { status: 500 });
+  } catch {
+    // API unavailable — return empty teams so the homepage degrades gracefully
+    return NextResponse.json({ teams: [] });
   }
 }

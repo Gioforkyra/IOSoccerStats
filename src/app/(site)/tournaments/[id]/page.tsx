@@ -13,6 +13,7 @@ import {
   type ApiMatchListItem,
   type ApiTournamentPhase,
 } from "@/lib/iosoccer-api";
+import ApiUnavailableNotice from "@/components/ApiUnavailableNotice";
 
 export const revalidate = 300;
 
@@ -253,10 +254,28 @@ export default async function TournamentDetailPage({
   const tournamentId = parseInt(id, 10);
   if (isNaN(tournamentId)) return notFound();
 
-  const [past, current] = await Promise.all([getPastTournaments(), getCurrentTournaments()]);
-  const all = [...current, ...past];
+  const [pastRes, currentRes] = await Promise.all([
+    getPastTournaments().then((v) => ({ ok: true as const, v })).catch(() => ({ ok: false as const, v: [] as Awaited<ReturnType<typeof getPastTournaments>> })),
+    getCurrentTournaments().then((v) => ({ ok: true as const, v })).catch(() => ({ ok: false as const, v: [] as Awaited<ReturnType<typeof getCurrentTournaments>> })),
+  ]);
+  const all = [...currentRes.v, ...pastRes.v];
   const tournament = all.find((t) => t.id === tournamentId);
-  if (!tournament) return notFound();
+  const tournamentListUnavailable = !pastRes.ok && !currentRes.ok;
+
+  if (!tournament) {
+    // If API is down we cannot verify the tournament exists — show banner instead of 404
+    if (tournamentListUnavailable) {
+      return (
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+          <div className="text-xs font-mono text-chalk-400 mb-6">
+            <Link href="/tournaments" className="hover:text-grass-500 transition-colors">Tournaments</Link>
+          </div>
+          <ApiUnavailableNotice />
+        </div>
+      );
+    }
+    return notFound();
+  }
 
   const isCup = /\bcup\b/i.test(tournament.name);
   const isDraft = tournament.teamType === 4;
@@ -280,9 +299,16 @@ export default async function TournamentDetailPage({
     : 0;
 
   // Fetch matches page + API standings in parallel
+  let apiUnavailable = false;
   const [standingsRaw, matchData] = await Promise.all([
-    getTournamentStandings(tournamentId).catch(() => []),
-    getMatches({ tournamentId, pageSize: 10, page: currentPage }),
+    getTournamentStandings(tournamentId).catch(() => {
+      apiUnavailable = true;
+      return [];
+    }),
+    getMatches({ tournamentId, pageSize: 10, page: currentPage }).catch(() => {
+      apiUnavailable = true;
+      return { items: [] as ApiMatchListItem[], totalItems: 0, totalPages: 1, page: 1, pageSize: 10 };
+    }),
   ]);
 
   let apiStandings = standingsRaw as Awaited<ReturnType<typeof getTournamentStandings>>;
@@ -467,7 +493,7 @@ export default async function TournamentDetailPage({
     }
   }
 
-  const isActive = current.some((t) => t.id === tournamentId);
+  const isActive = currentRes.v.some((t) => t.id === tournamentId);
   const org = tournament.tournamentSeries?.organisation?.acronym ?? null;
   const winnerLogo = badgeSmallUrl(tournament.winningTeam?.badgeImage ?? null);
 
@@ -496,6 +522,8 @@ export default async function TournamentDetailPage({
         <span className="mx-2">/</span>
         <span className="text-chalk-200">{tournament.name}</span>
       </div>
+
+      {apiUnavailable && <ApiUnavailableNotice />}
 
       {/* Header */}
       <div className="rounded-xl border border-chalk-100/8 bg-pitch-900/40 p-5 mb-6">

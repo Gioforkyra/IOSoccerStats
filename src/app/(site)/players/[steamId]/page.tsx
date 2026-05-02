@@ -69,7 +69,7 @@ export default async function PlayerOverallPage({
   `;
 
   // Fetch all past tournaments from the live API (no scraper needed)
-  const pastTournaments = await getPastTournaments();
+  const pastTournaments = await getPastTournaments().catch(() => []);
 
   // Filter: winning team must be one the player was part of during that tournament
   const titles = pastTournaments.filter((t) => {

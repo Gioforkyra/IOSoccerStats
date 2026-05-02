@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getMatches, badgeSmallUrl } from "@/lib/iosoccer-api";
+import ApiUnavailableNotice from "@/components/ApiUnavailableNotice";
 
 export const metadata: Metadata = {
   title: "Matches — IOSHUBv2",
@@ -57,10 +58,18 @@ export default async function MatchesPage({
   const regionId = regionFilter === "all" ? undefined : regionFilter === "am" ? 2 : 1;
   const matchFormat = formatFilter === "4v4" ? 4 : 8;
 
-  const data = await getMatches({ page, pageSize: PAGE_SIZE, matchType, matchFormat, regionId });
-  const matches = data.items;
-  const totalMatches = data.totalItems;
-  const totalPages = data.totalPages;
+  let matches: Awaited<ReturnType<typeof getMatches>>["items"] = [];
+  let totalMatches = 0;
+  let totalPages = 1;
+  let apiUnavailable = false;
+  try {
+    const data = await getMatches({ page, pageSize: PAGE_SIZE, matchType, matchFormat, regionId });
+    matches = data.items;
+    totalMatches = data.totalItems;
+    totalPages = data.totalPages;
+  } catch {
+    apiUnavailable = true;
+  }
 
   function pageUrl(p: number, t = matchTypeFilter, r = regionFilter, f = formatFilter) {
     const q = new URLSearchParams();
@@ -237,9 +246,13 @@ export default async function MatchesPage({
       </div>
 
       {matches.length === 0 && (
-        <div className="text-center py-16 text-chalk-400 font-body">
-          No matches found. Data is being scraped...
-        </div>
+        apiUnavailable ? (
+          <ApiUnavailableNotice variant="empty" />
+        ) : (
+          <div className="text-center py-16 text-chalk-400 font-body">
+            No matches found. Data is being scraped...
+          </div>
+        )
       )}
 
       {/* Pagination */}

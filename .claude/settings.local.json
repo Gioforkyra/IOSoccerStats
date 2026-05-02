@@ -7,7 +7,8 @@
       "Bash(wmic process:*)",
       "Bash(taskkill //F //IM python3.11.exe)",
       "Bash(PGPASSWORD=diodiobibo201 psql -U postgres -d iosoccer_stats -c \":*)",
-      "Bash(python3)"
+      "Bash(python3)",
+      "Bash(curl -so /dev/null -w \"%{http_code}\\\\n\" \"http://localhost:3000/players/transfers\")"
     ]
   }
 }

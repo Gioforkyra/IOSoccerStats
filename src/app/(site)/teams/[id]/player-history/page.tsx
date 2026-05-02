@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTeamRoster } from "@/lib/iosoccer-api";
+import ApiUnavailableNotice from "@/components/ApiUnavailableNotice";
 
 export const revalidate = 120;
 
@@ -34,10 +35,11 @@ export default async function TeamPlayerHistoryPage({
 
   // 1. Get full roster history from IOSoccer API
   let rosterEntries: Awaited<ReturnType<typeof getTeamRoster>> = [];
+  let apiUnavailable = false;
   try {
     rosterEntries = await getTeamRoster(teamId, true);
   } catch {
-    // API unavailable
+    apiUnavailable = true;
   }
 
   // Deduplicate steam IDs (a player may have multiple stints)
@@ -146,6 +148,7 @@ export default async function TeamPlayerHistoryPage({
       <h3 className="font-display font-700 text-lg tracking-wider text-chalk-100 uppercase mb-4">
         All-Time Player History
       </h3>
+      {apiUnavailable && <ApiUnavailableNotice />}
       <div className="flex items-center justify-between mb-4">
         <p className="text-xs font-mono text-chalk-400">
           {totalPlayers.toLocaleString()} players have represented this team.

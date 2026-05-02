@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { getActiveTeams, type ApiTeamSummary } from "@/lib/iosoccer-api";
 import TeamsGrid from "./TeamsGrid";
+import ApiUnavailableNotice from "@/components/ApiUnavailableNotice";
 
 export const revalidate = 120;
 
@@ -29,10 +30,11 @@ export default async function TeamsPage({
   const teamTypeInt = parseInt(typeFilter);
 
   let activeTeams: ApiTeamSummary[] = [];
+  let apiUnavailable = false;
   try {
     activeTeams = await getActiveTeams(1, teamTypeInt);
   } catch {
-    // API unavailable
+    apiUnavailable = true;
   }
 
   // avg_rating for active teams
@@ -105,6 +107,7 @@ export default async function TeamsPage({
         </div>
       </div>
 
+      {apiUnavailable && <ApiUnavailableNotice />}
       <TeamsGrid activeTeams={teamsWithRating} inactiveTeams={inactiveTeams} />
     </div>
   );

@@ -4,18 +4,22 @@ import ParallaxSections from "@/components/ParallaxSections";
 export const revalidate = 120;
 
 import { getActiveTeams, getPlayers } from "@/lib/iosoccer-api";
+import { prisma } from "@/lib/prisma";
 import ParticlesBackground from "@/components/ParticlesBackground";
 import Footer from "@/components/Footer";
 
 
 export default async function HomePage() {
-  const [playerData, activeTeams] = await Promise.all([
-    getPlayers({ page: 1, pageSize: 1 }),
-    getActiveTeams(1, 1),
+  const [playersCount, teamsCount] = await Promise.all([
+    getPlayers({ page: 1, pageSize: 1 })
+      .then((p) => p.totalItems)
+      .catch(() => prisma.player.count().catch(() => 0)),
+    getActiveTeams(1, 1)
+      .then((t) => t.length)
+      .catch(() =>
+        prisma.team.count({ where: { inactive: false, teamType: 1 } }).catch(() => 0),
+      ),
   ]);
-
-  const playersCount = playerData.totalItems;
-  const teamsCount = activeTeams.length;
 
   return (
     <div className="min-h-screen relative bg-pitch-950 flex flex-col">
