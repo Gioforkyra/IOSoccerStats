@@ -205,7 +205,6 @@ export default async function PlayerMatchesPage({
               const isHome = m.team_side === "home";
               const won = isHome ? m.home_score > m.away_score : m.away_score > m.home_score;
               const draw = m.home_score === m.away_score;
-              const passAcc = m.passes > 0 ? ((m.passes_completed / m.passes) * 100).toFixed(0) : "0";
               const dist = (m.distance_run / 1000).toFixed(2);
 
               return (
@@ -242,7 +241,7 @@ export default async function PlayerMatchesPage({
                   <td className="px-2 py-2.5 text-center font-mono text-xs text-chalk-300">{m.passes}</td>
                   <td className="px-2 py-2.5 text-center font-mono text-xs text-chalk-300">{m.passes_completed}</td>
                   <td className="px-2 py-2.5 text-center font-mono text-xs text-chalk-300">{m.interceptions}</td>
-                  <td className="px-2 py-2.5 text-center font-mono text-xs text-chalk-300">{passAcc}%</td>
+                  <td className="px-2 py-2.5 text-center font-mono text-xs text-chalk-300">{m.possession.toFixed(0)}%</td>
                   <td className={`px-2 py-2.5 text-center font-mono text-xs ${m.saves > 0 ? "text-cyan-400" : "text-chalk-300"}`}>{m.saves}</td>
                   <td className="px-2 py-2.5 text-center font-mono text-xs text-chalk-300">{m.goals_conceded}</td>
                   <td className="px-2 py-2.5 text-center font-mono text-xs text-chalk-300">{m.offsides}</td>

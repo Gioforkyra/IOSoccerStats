@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { proxyImg } from "@/lib/img";
 import { getRelatedSteamIds } from "@/lib/player-aliases";
-import { getPlayerTeams } from "@/lib/iosoccer-api";
+import { getPlayerTeamHistory } from "@/lib/iosoccer-api";
 import TeamHistoryClient, { type TeamHistoryEntry } from "./TeamHistoryClient";
 
 // System/exhibition teams to exclude
@@ -50,21 +50,28 @@ export default async function PlayerTeamHistoryPage({
   const steamIds = await getRelatedSteamIds(steamId);
 
   // --- API path: use IOSoccer API if the player has an iosoccerId ---
+  // The API is the source of truth and matches the official hub. When it
+  // succeeds we render exactly what the hub shows, even if the list is empty.
+  // We only fall through to the scraped-transfers DB fallback when the API
+  // call itself fails (so we still show *something* during outages).
   if (player.iosoccerId != null) {
-    let apiEntries: Awaited<ReturnType<typeof getPlayerTeams>> = [];
+    let apiEntries: Awaited<ReturnType<typeof getPlayerTeamHistory>> = [];
+    let apiOk = false;
     try {
-      apiEntries = await getPlayerTeams(player.iosoccerId, true);
+      apiEntries = await getPlayerTeamHistory(player.iosoccerId);
+      apiOk = true;
     } catch {
       // fall through to DB path below
     }
 
-    if (apiEntries.length > 0) {
+    if (apiOk) {
       // Filter out system/exhibition teams
       const filtered = apiEntries.filter(
-        (e) => !EXCLUDED_TEAMS.includes(e.team.name)
+        (e) => !EXCLUDED_TEAMS.includes(e.playerTeam.team.name)
       );
 
-      const teamIds = [...new Set(filtered.map((e) => e.teamId))];
+      // Note: playerTeam.teamId is 0 on this endpoint — real id is on team.id.
+      const teamIds = [...new Set(filtered.map((e) => e.playerTeam.team.id))];
 
       // Fetch team logos/colors from DB (API may have null badgeImage)
       const teamRows: TeamRow[] = teamIds.length > 0
@@ -110,23 +117,27 @@ export default async function PlayerTeamHistoryPage({
 
       // Sort by joinDate DESC (most recent stints first)
       const sorted = [...filtered].sort((a, b) => {
-        const da = a.joinDate ? new Date(a.joinDate).getTime() : 0;
-        const db = b.joinDate ? new Date(b.joinDate).getTime() : 0;
+        const da = a.playerTeam.joinDate ? new Date(a.playerTeam.joinDate).getTime() : 0;
+        const db = b.playerTeam.joinDate ? new Date(b.playerTeam.joinDate).getTime() : 0;
         return db - da;
       });
 
       const entries: TeamHistoryEntry[] = sorted.map((e) => {
-        const meta = teamMeta.get(e.teamId);
-        const stats = statsMap.get(e.teamId);
+        const pt = e.playerTeam;
+        const teamId = pt.team.id;
+        const meta = teamMeta.get(teamId);
+        const stats = statsMap.get(teamId);
         return {
-          team_id: e.teamId,
-          team_name: meta?.name ?? e.team.name,
+          team_id: teamId,
+          team_name: meta?.name ?? pt.team.name,
           team_logo: meta?.logo ? proxyImg(meta.logo) : null,
-          team_color: meta?.color ?? e.team.color,
-          team_type_id: meta?.team_type ?? e.team.teamType,
-          join_date: fmtDate(e.joinDate),
-          leave_date: e.isCurrentTeam ? null : fmtDate(e.leaveDate),
-          is_current: e.isCurrentTeam,
+          team_color: meta?.color ?? pt.team.color,
+          // The /team-history endpoint returns teamType=0 for every team — fall
+          // back to our DB metadata for the Club/National/Draft filter.
+          team_type_id: meta?.team_type ?? null,
+          join_date: fmtDate(pt.joinDate),
+          leave_date: pt.isCurrentTeam ? null : fmtDate(pt.leaveDate),
+          is_current: pt.isCurrentTeam,
           apps: Number(stats?.apps ?? 0),
           goals: Number(stats?.goals ?? 0),
           assists: Number(stats?.assists ?? 0),

@@ -244,6 +244,37 @@ export async function getPlayerTeams(playerId: number, includeInactive = true) {
   });
 }
 
+// Mirrors the official hub's player profile "Teams" tab. The /player-team/player
+// endpoint returns extra ghost rows (pending invites, never-played stints) that
+// the hub filters out before rendering — this endpoint already returns just the
+// stints the hub shows.
+export type ApiPlayerTeamHistoryEntry = {
+  playerTeam: {
+    // Always 0 on this endpoint — use team.id for the real team id.
+    teamId: number;
+    team: {
+      id: number;
+      name: string;
+      color: string | null;
+      // Always 0 on this endpoint — fetch the real team type from our DB.
+      teamType: number;
+      inactive: boolean;
+      badgeImage: ApiBadgeImage | null;
+    };
+    teamRole: number;
+    isCurrentTeam: boolean;
+    joinDate: string | null;
+    leaveDate: string | null;
+  };
+  appearances: number;
+  goals: number;
+  assists: number;
+};
+
+export async function getPlayerTeamHistory(playerId: number) {
+  return apiFetch<ApiPlayerTeamHistoryEntry[]>(`/player/${playerId}/team-history`);
+}
+
 /* ------------------------------------------------------------------ */
 /*  Matches                                                            */
 /* ------------------------------------------------------------------ */
