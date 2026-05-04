@@ -46,6 +46,8 @@ const CHANGELOG: ChangelogEntry[] = [
       "Ratings page now defaults to a 100+ matches-played filter for a cleaner distribution view.",
       "Rating delta on player profiles now reflects the change vs the previous snapshot (not vs the very first one).",
       "Match detail negative title renamed from 'Low Int.' to 'Low Ints'.",
+      "Region filter on the Teams page (Europe / South America / North America / Asia) — defaults to Europe.",
+      "Team type (Club / National / Mix / Draft) and region filters on the Teams page now apply strictly to inactive teams as well.",
     ],
   },
   {

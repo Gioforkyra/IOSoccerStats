@@ -18,21 +18,30 @@ const TEAM_TYPES = [
   { value: "4", label: "DRAFT TEAMS" },
 ];
 
+const REGIONS = [
+  { value: "1", label: "EUROPE" },
+  { value: "2", label: "SOUTH AMERICA" },
+  { value: "3", label: "NORTH AMERICA" },
+  { value: "4", label: "ASIA" },
+];
+
 export type TeamWithRating = ApiTeamSummary & { avgRating: number | null; isInactive?: boolean; dbLogo?: string | null };
 
 export default async function TeamsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ type?: string }>;
+  searchParams: Promise<{ type?: string; region?: string }>;
 }) {
   const params = await searchParams;
   const typeFilter = params.type || "1";
   const teamTypeInt = parseInt(typeFilter);
+  const regionFilter = params.region || "1";
+  const regionInt = parseInt(regionFilter);
 
   let activeTeams: ApiTeamSummary[] = [];
   let apiUnavailable = false;
   try {
-    activeTeams = await getActiveTeams(1, teamTypeInt);
+    activeTeams = await getActiveTeams(regionInt, teamTypeInt);
   } catch {
     apiUnavailable = true;
   }
@@ -60,7 +69,8 @@ export default async function TeamsPage({
     SELECT id, name, slug, logo, color, region, avg_rating, team_type
     FROM teams
     WHERE inactive = true
-      AND (team_type = ${teamTypeInt} OR team_type IS NULL)
+      AND team_type = ${teamTypeInt}
+      AND region_id = ${regionInt}
     ORDER BY name ASC
   `;
 
@@ -90,20 +100,37 @@ export default async function TeamsPage({
             {teamsWithRating.length} {currentTypeLabel.toLowerCase()} · active
           </p>
         </div>
-        <div className="flex items-center gap-1 text-xs font-mono flex-wrap">
-          {TEAM_TYPES.map((t) => (
-            <a
-              key={t.value}
-              href={`/teams?type=${t.value}`}
-              className={`px-3 py-1.5 rounded border transition-colors ${
-                typeFilter === t.value
-                  ? "border-[#F4119E] text-[#F4119E] bg-[#F4119E]/10"
-                  : "border-chalk-100/10 text-chalk-400 hover:border-[#F4119E]/40 hover:text-[#F4119E]"
-              }`}
-            >
-              {t.label}
-            </a>
-          ))}
+        <div className="flex flex-col gap-2 items-end">
+          <div className="flex items-center gap-1 text-xs font-mono flex-wrap">
+            {TEAM_TYPES.map((t) => (
+              <a
+                key={t.value}
+                href={`/teams?type=${t.value}&region=${regionFilter}`}
+                className={`px-3 py-1.5 rounded border transition-colors ${
+                  typeFilter === t.value
+                    ? "border-[#F4119E] text-[#F4119E] bg-[#F4119E]/10"
+                    : "border-chalk-100/10 text-chalk-400 hover:border-[#F4119E]/40 hover:text-[#F4119E]"
+                }`}
+              >
+                {t.label}
+              </a>
+            ))}
+          </div>
+          <div className="flex items-center gap-1 text-xs font-mono flex-wrap">
+            {REGIONS.map((r) => (
+              <a
+                key={r.value}
+                href={`/teams?type=${typeFilter}&region=${r.value}`}
+                className={`px-3 py-1.5 rounded border transition-colors ${
+                  regionFilter === r.value
+                    ? "border-chalk-100/40 text-chalk-100 bg-chalk-100/10"
+                    : "border-chalk-100/10 text-chalk-400 hover:border-chalk-100/30 hover:text-chalk-200"
+                }`}
+              >
+                {r.label}
+              </a>
+            ))}
+          </div>
         </div>
       </div>
 
