@@ -100,8 +100,8 @@ export default function RatingChart({ points }: { points: Point[] }) {
   const minR = Math.min(...ratings);
   const maxR = Math.max(...ratings);
   const current = points[points.length - 1].rating;
-  const first = points[0].rating;
-  const delta = current - first;
+  const previous = points.length > 1 ? points[points.length - 2].rating : current;
+  const delta = current - previous;
   const peak = Math.max(...ratings);
   const padding = Math.max((maxR - minR) * 0.2, 0.1);
   const domainMin = Math.max(0, minR - padding);

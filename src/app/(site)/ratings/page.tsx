@@ -20,7 +20,7 @@ function fmtPeriod(ym: string) {
 function buildHref(period: string, minMatches: number) {
   const params = new URLSearchParams();
   params.set("period", period);
-  if (minMatches > 0) params.set("min", String(minMatches));
+  params.set("min", String(minMatches));
   return `/ratings?${params.toString()}`;
 }
 
@@ -30,7 +30,7 @@ export default async function RatingsPage({
   searchParams: Promise<{ period?: string; min?: string }>;
 }) {
   const { period, min } = await searchParams;
-  const minMatches = Math.max(0, parseInt(min ?? "0") || 0);
+  const minMatches = min === undefined ? 100 : Math.max(0, parseInt(min) || 0);
 
   const periodsRaw = await prisma.$queryRaw<{ period: string }[]>`
     SELECT TO_CHAR(DATE_TRUNC('month', recorded_at), 'YYYY-MM') AS period
