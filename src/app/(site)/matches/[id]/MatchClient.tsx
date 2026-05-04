@@ -1731,7 +1731,7 @@ function getPlayerLabels(
         negatives.push({ text: "Bad Passes", sentiment: "negative" });
       }
       if (p.interceptions < 3 && p.minutes_played >= 50) {
-        negatives.push({ text: "Low Int.", sentiment: "negative" });
+        negatives.push({ text: "Low Ints", sentiment: "negative" });
       }
     }
   }
@@ -1798,7 +1798,7 @@ const TITLE_DESCRIPTIONS: Record<string, string> = {
   "Bad Shots": "Shot a lot but didn't convert.",
   "Ball Hogger": "Held the ball without producing much.",
   "Bad Passes": "Misplaced too many passes.",
-  "Low Int.": "Didn't read defensive plays well.",
+  "Low Ints": "Didn't read defensive plays well.",
   "Own Goal": "Put the ball into his own net.",
   // Carry tier
   "Wall": "Was nearly impossible to beat.",

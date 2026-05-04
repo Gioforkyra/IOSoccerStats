@@ -40,6 +40,15 @@ const UPDATES: Update[] = [
 
 const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2026-05-04",
+    changes: [
+      "May 2026 player ratings imported — new values shown on every player profile and as a new period on the /ratings distribution page.",
+      "Ratings page now defaults to a 100+ matches-played filter for a cleaner distribution view.",
+      "Rating delta on player profiles now reflects the change vs the previous snapshot (not vs the very first one).",
+      "Match detail negative title renamed from 'Low Int.' to 'Low Ints'.",
+    ],
+  },
+  {
     date: "2026-04-25",
     changes: [
       "New Players tab on every tournament page with stats of every player who appeared in that tournament.",
@@ -50,7 +59,7 @@ const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-04-24",
     changes: [
-      "Match detail titles fully redesigned: new positive (Lethal, Sniper, Aerial Threat, Visionary, Threat, Maestro, Aggressive, Cross Catcher) and negative (Ghost, Bad Shots, Ball Hogger, Bad Passes, Low Int., Own Goal, Exposed) titles with refined awarding logic.",
+      "Match detail titles fully redesigned: new positive (Lethal, Sniper, Aerial Threat, Visionary, Threat, Maestro, Aggressive, Cross Catcher) and negative (Ghost, Bad Shots, Ball Hogger, Bad Passes, Low Ints, Own Goal, Exposed) titles with refined awarding logic.",
       "New 'carry' title tier with animated gradient: Wall (GK), Striker, Artist, All Rounder, plus personal Carry for big individual contributions.",
       "Hover descriptions on every title badge.",
       "Bracket page on Cup tournaments and Draft leagues showing matches grouped by knockout phase (Round 1, Quarter-Final, Semi-Final, Final, ...) with winner highlighted.",
