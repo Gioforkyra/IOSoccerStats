@@ -26,15 +26,20 @@ function ordinal(n: number): string {
 
 export default async function TeamTournamentsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ filter?: string }>;
 }) {
   const { id } = await params;
+  const sp = await searchParams;
   const teamId = parseInt(id, 10);
   if (isNaN(teamId)) return notFound();
 
   const team = await prisma.team.findUnique({ where: { id: teamId } });
   if (!team) return notFound();
+
+  const showOnlyWins = sp.filter === "wins";
 
   const tournaments = await prisma.$queryRaw<TournamentRow[]>`
     SELECT
@@ -88,15 +93,44 @@ export default async function TeamTournamentsPage({
   };
   const teamTypes: Record<number, string> = { 1: "Club", 2: "National", 3: "Mix", 4: "Draft" };
 
+  const wonCount = tournaments.filter((t) => t.winning_team_id === teamId).length;
+  const visibleTournaments = showOnlyWins
+    ? tournaments.filter((t) => t.winning_team_id === teamId)
+    : tournaments;
+
   return (
     <>
-      <h3 className="font-display font-700 text-lg tracking-wider text-chalk-100 uppercase mb-4">
-        Tournaments
-      </h3>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <h3 className="font-display font-700 text-lg tracking-wider text-chalk-100 uppercase">
+          Tournaments
+        </h3>
+        <div className="flex items-center gap-1 text-xs font-mono">
+          <Link
+            href={`/teams/${teamId}/tournaments`}
+            className={`px-3 py-1.5 rounded border transition-colors ${
+              !showOnlyWins
+                ? "border-[#F4119E] text-[#F4119E] bg-[#F4119E]/10"
+                : "border-chalk-100/10 text-chalk-400 hover:border-[#F4119E]/40 hover:text-[#F4119E]"
+            }`}
+          >
+            ALL
+          </Link>
+          <Link
+            href={`/teams/${teamId}/tournaments?filter=wins`}
+            className={`px-3 py-1.5 rounded border transition-colors ${
+              showOnlyWins
+                ? "border-[#F4119E] text-[#F4119E] bg-[#F4119E]/10"
+                : "border-chalk-100/10 text-chalk-400 hover:border-[#F4119E]/40 hover:text-[#F4119E]"
+            }`}
+          >
+            WON [{wonCount}]
+          </Link>
+        </div>
+      </div>
 
-      {tournaments.length === 0 ? (
+      {visibleTournaments.length === 0 ? (
         <div className="text-center py-12 text-chalk-400 font-body">
-          No tournament data found for this team.
+          {showOnlyWins ? "No tournaments won by this team." : "No tournament data found for this team."}
         </div>
       ) : (
         <div className="rounded-lg border border-chalk-100/8 overflow-x-auto bg-pitch-900/40">
@@ -114,7 +148,7 @@ export default async function TeamTournamentsPage({
               </tr>
             </thead>
             <tbody>
-              {tournaments.map((t, i) => {
+              {visibleTournaments.map((t, i) => {
                 const isWinner = t.winning_team_id === teamId;
                 const pos = t.standing_position ? Number(t.standing_position) : null;
                 return (

@@ -23,12 +23,6 @@ export async function generateMetadata({
   };
 }
 
-type TeamStint = {
-  team_id: number;
-  join_date: Date;
-  leave_date: Date;
-};
-
 const FORMAT_LABELS: Record<number, string> = {
   1: "League", 2: "Knockout", 3: "Group + Knockout",
   4: "Custom", 5: "Swiss", 6: "Round Robin",
@@ -49,37 +43,27 @@ export default async function PlayerOverallPage({
 
   const steamIds = await getRelatedSteamIds(steamId);
 
-  // Get player's team stints from DB transfers
-  const stints = await prisma.$queryRaw<TeamStint[]>`
-    SELECT
-      tr.to_team_id AS team_id,
-      tr.date AS join_date,
-      COALESCE(
-        (SELECT MIN(tr2.date) FROM transfers tr2
-         WHERE tr2.player_steam_id = ANY(${steamIds})
-           AND tr2.from_team_id = tr.to_team_id
-           AND tr2.type = 'leave'
-           AND tr2.date > tr.date),
-        NOW()
-      ) AS leave_date
-    FROM transfers tr
-    WHERE tr.player_steam_id = ANY(${steamIds})
-      AND tr.type = 'join'
-      AND tr.to_team_id IS NOT NULL
+  // (tournament_id, team_id) pairs where the player has at least one appearance
+  const appearances = await prisma.$queryRaw<{ tournament_id: number; team_id: number }[]>`
+    SELECT DISTINCT
+      m.tournament_id,
+      CASE WHEN mps.team_side = 'home' THEN m.home_team_id ELSE m.away_team_id END AS team_id
+    FROM match_player_stats mps
+    JOIN matches m ON m.id = mps.match_id
+    WHERE mps.player_steam_id = ANY(${steamIds})
+      AND m.tournament_id IS NOT NULL
   `;
+  const appearanceKeys = new Set(
+    appearances.map((a) => `${a.tournament_id}:${a.team_id}`)
+  );
 
   // Fetch all past tournaments from the live API (no scraper needed)
   const pastTournaments = await getPastTournaments().catch(() => []);
 
-  // Filter: winning team must be one the player was part of during that tournament
+  // A title counts only if the player has at least one appearance in that tournament for the winning team.
   const titles = pastTournaments.filter((t) => {
     if (!t.winningTeamId) return false;
-    return stints.some((s) => {
-      if (s.team_id !== t.winningTeamId) return false;
-      if (t.startDate && new Date(t.startDate) > new Date(s.leave_date)) return false;
-      if (t.endDate && new Date(t.endDate) < new Date(s.join_date)) return false;
-      return true;
-    });
+    return appearanceKeys.has(`${t.id}:${t.winningTeamId}`);
   });
 
   // Sort by end date descending
@@ -140,7 +124,9 @@ export default async function PlayerOverallPage({
                     {org || "-"}
                   </td>
                   <td className="px-4 py-1.5 font-body text-chalk-200">
-                    {t.name}
+                    <Link href={`/tournaments/${t.id}`} className="hover:text-[#F4119E] transition-colors">
+                      {t.name}
+                    </Link>
                   </td>
                   <td className="px-4 py-1.5 font-mono text-xs text-chalk-400">
                     {FORMAT_LABELS[t.format] || "-"}

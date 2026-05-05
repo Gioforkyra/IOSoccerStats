@@ -316,51 +316,32 @@ async function fetchTitlesBoard(): Promise<LeaderboardRow[]> {
     );
     if (winning.length === 0) return [];
 
-    const winningTeamIds = Array.from(
-      new Set(winning.map((t) => t.winningTeamId as number))
-    );
-
-    const stints = await prisma.$queryRaw<
-      { steam_id: string; team_id: number; join_date: Date; leave_date: Date }[]
+    // For each (tournament, winning team), find every player who appeared in at
+    // least one match of that tournament for that team.
+    const appearances = await prisma.$queryRaw<
+      { steam_id: string; tournament_id: number; team_id: number }[]
     >`
-      SELECT
-        tr.player_steam_id AS steam_id,
-        tr.to_team_id AS team_id,
-        tr.date AS join_date,
-        COALESCE(
-          (SELECT MIN(tr2.date) FROM transfers tr2
-           WHERE tr2.player_steam_id = tr.player_steam_id
-             AND tr2.from_team_id = tr.to_team_id
-             AND tr2.type = 'leave'
-             AND tr2.date > tr.date),
-          NOW()
-        ) AS leave_date
-      FROM transfers tr
-      WHERE tr.type = 'join'
-        AND tr.to_team_id = ANY(${winningTeamIds}::int[])
+      SELECT DISTINCT
+        mps.player_steam_id AS steam_id,
+        m.tournament_id,
+        CASE WHEN mps.team_side = 'home' THEN m.home_team_id ELSE m.away_team_id END AS team_id
+      FROM match_player_stats mps
+      JOIN matches m ON m.id = mps.match_id
+      WHERE m.tournament_id IS NOT NULL
     `;
 
-    const stintsByTeam = new Map<number, typeof stints>();
-    for (const s of stints) {
-      const arr = stintsByTeam.get(s.team_id) ?? [];
-      arr.push(s);
-      stintsByTeam.set(s.team_id, arr);
+    const playersByKey = new Map<string, Set<string>>();
+    for (const a of appearances) {
+      const key = `${a.tournament_id}:${a.team_id}`;
+      const set = playersByKey.get(key) ?? new Set<string>();
+      set.add(a.steam_id);
+      playersByKey.set(key, set);
     }
 
     const counts = new Map<string, number>();
     for (const t of winning) {
-      const teamStints = stintsByTeam.get(t.winningTeamId as number);
-      if (!teamStints) continue;
-      const tStart = t.startDate ? new Date(t.startDate).getTime() : 0;
-      const tEnd = t.endDate ? new Date(t.endDate).getTime() : Date.now();
-      const winners = new Set<string>();
-      for (const s of teamStints) {
-        const sJoin = new Date(s.join_date).getTime();
-        const sLeave = new Date(s.leave_date).getTime();
-        if (tStart <= sLeave && tEnd >= sJoin) {
-          winners.add(s.steam_id);
-        }
-      }
+      const winners = playersByKey.get(`${t.id}:${t.winningTeamId as number}`);
+      if (!winners) continue;
       for (const w of winners) {
         counts.set(w, (counts.get(w) ?? 0) + 1);
       }
@@ -501,7 +482,7 @@ export default async function LeaderboardsPage({
               return (
                 <li
                   key={`${selected.key}-${p.steamID}-${i}`}
-                  className={`stat-row flex items-center gap-2 pl-2 pr-4 py-2 ${
+                  className={`stat-row flex items-center gap-2 pl-2 pr-4 py-1 ${
                     i % 2 === 0 ? "trow-odd" : "trow-even"
                   }`}
                 >
