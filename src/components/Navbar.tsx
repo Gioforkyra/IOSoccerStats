@@ -73,8 +73,43 @@ export default function Navbar() {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [showResults, setShowResults] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [hidden, setHidden] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const lastScrollYRef = useRef(0);
+
+  // Hide on scroll down, show on scroll up or when the cursor is near the top.
+  useEffect(() => {
+    const NAV_HEIGHT = 44; // h-11
+    const SCROLL_THRESHOLD = 5;
+
+    const handleScroll = () => {
+      const currentY = window.scrollY;
+      const lastY = lastScrollYRef.current;
+      if (currentY <= 0) {
+        setHidden(false);
+      } else if (currentY > lastY + SCROLL_THRESHOLD && currentY > NAV_HEIGHT) {
+        setHidden(true);
+      } else if (currentY < lastY - SCROLL_THRESHOLD) {
+        setHidden(false);
+      }
+      lastScrollYRef.current = currentY;
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (e.clientY < NAV_HEIGHT) setHidden(false);
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("mousemove", handleMouseMove);
+    };
+  }, []);
+
+  // Keep navbar visible while mobile menu or search dropdown are open.
+  const navHidden = hidden && !open && !showResults;
 
   const doSearch = useCallback(async (q: string) => {
     if (q.length < 2) {
@@ -158,7 +193,16 @@ export default function Navbar() {
   );
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-chalk-100/5 bg-pitch-950/90 backdrop-blur-md">
+    <>
+    <div className="h-11 shrink-0" aria-hidden />
+    <nav
+      className="fixed top-0 left-0 right-0 z-50 border-b border-chalk-100/5 bg-pitch-950/90 backdrop-blur-md"
+      style={{
+        transform: navHidden ? "translateY(-100%)" : "translateY(0)",
+        transition: "transform 200ms ease-out",
+        willChange: "transform",
+      }}
+    >
       <div className="max-w-5xl mx-auto px-4 sm:px-6 flex items-center h-11 gap-4 md:gap-8">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 shrink-0">
@@ -300,5 +344,6 @@ export default function Navbar() {
         </div>
       )}
     </nav>
+    </>
   );
 }
