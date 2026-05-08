@@ -97,7 +97,39 @@ const CHANGELOG: ChangelogEntry[] = [
   },
 ];
 
-export default function SupportPage() {
+const MONTH_NAMES = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+function periodKey(date: string): string {
+  return date.slice(0, 7); // YYYY-MM
+}
+
+function periodLabel(key: string): string {
+  const [y, m] = key.split("-");
+  const idx = parseInt(m, 10) - 1;
+  return `${MONTH_NAMES[idx] ?? m} ${y}`;
+}
+
+export default async function SupportPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ period?: string }>;
+}) {
+  const sp = await searchParams;
+
+  const periods = Array.from(
+    new Set(CHANGELOG.map((e) => periodKey(e.date)))
+  ).sort((a, b) => b.localeCompare(a));
+
+  const selectedPeriod =
+    sp.period && periods.includes(sp.period) ? sp.period : periods[0];
+
+  const visibleChangelog = selectedPeriod
+    ? CHANGELOG.filter((e) => periodKey(e.date) === selectedPeriod)
+    : CHANGELOG;
+
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-12">
       <div className="mb-8">
@@ -230,28 +262,48 @@ export default function SupportPage() {
             </p>
           </div>
         ) : (
-          <ol className="space-y-3">
-            {CHANGELOG.map((entry, i) => (
-              <li
-                key={`${entry.date}-${i}`}
-                className="rounded-lg border border-chalk-100/8 bg-pitch-900/40 px-4 py-3"
-              >
-                <div className="text-[10px] font-mono uppercase tracking-wider text-[#F4119E] mb-2">
-                  {entry.date}
-                </div>
-                <ul className="space-y-1.5">
-                  {entry.changes.map((c, j) => (
-                    <li
-                      key={j}
-                      className="text-sm font-body text-chalk-300"
-                    >
-                      {c}
-                    </li>
-                  ))}
-                </ul>
-              </li>
-            ))}
-          </ol>
+          <>
+            {periods.length > 1 && (
+              <div className="flex items-center gap-1.5 mb-4 flex-wrap">
+                {periods.map((p) => {
+                  const active = p === selectedPeriod;
+                  const cn = `px-3 py-1.5 rounded text-xs font-mono border transition-colors ${
+                    active
+                      ? "border-[#F4119E] text-[#F4119E] bg-[#F4119E]/10 cursor-default"
+                      : "border-chalk-100/10 text-chalk-400 hover:border-[#F4119E]/40 hover:text-[#F4119E]"
+                  }`;
+                  const label = periodLabel(p);
+                  return active ? (
+                    <span key={p} className={cn} aria-current="page">{label}</span>
+                  ) : (
+                    <Link key={p} href={`/support?period=${p}`} className={cn}>{label}</Link>
+                  );
+                })}
+              </div>
+            )}
+            <ol className="space-y-3">
+              {visibleChangelog.map((entry, i) => (
+                <li
+                  key={`${entry.date}-${i}`}
+                  className="rounded-lg border border-chalk-100/8 bg-pitch-900/40 px-4 py-3"
+                >
+                  <div className="text-[10px] font-mono uppercase tracking-wider text-[#F4119E] mb-2">
+                    {entry.date}
+                  </div>
+                  <ul className="space-y-1.5">
+                    {entry.changes.map((c, j) => (
+                      <li
+                        key={j}
+                        className="text-sm font-body text-chalk-300"
+                      >
+                        {c}
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              ))}
+            </ol>
+          </>
         )}
       </section>
 
