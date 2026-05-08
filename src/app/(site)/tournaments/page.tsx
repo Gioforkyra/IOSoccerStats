@@ -77,20 +77,26 @@ export default async function TournamentsPage({
       {/* Filters */}
       <div className="flex items-center gap-3 mb-6 flex-wrap">
         <div className="flex items-center gap-1 text-xs font-mono">
-          {[{ v: "active", l: "ACTIVE" }, { v: "completed", l: "COMPLETED" }, { v: "all", l: "ALL" }].map(({ v, l }) => (
-            <Link key={v} href={filterUrl({ status: v })}
-              className={`px-3 py-1.5 rounded border transition-colors ${statusFilter === v ? "border-[#F4119E] text-[#F4119E] bg-[#F4119E]/10" : "border-chalk-100/10 text-chalk-400 hover:border-[#F4119E]/40 hover:text-[#F4119E]"}`}>
-              {l}
-            </Link>
-          ))}
+          {[{ v: "active", l: "ACTIVE" }, { v: "completed", l: "COMPLETED" }, { v: "all", l: "ALL" }].map(({ v, l }) => {
+            const active = statusFilter === v;
+            const cn = `px-3 py-1.5 rounded border transition-colors ${active ? "border-[#F4119E] text-[#F4119E] bg-[#F4119E]/10 cursor-default" : "border-chalk-100/10 text-chalk-400 hover:border-[#F4119E]/40 hover:text-[#F4119E]"}`;
+            return active ? (
+              <span key={v} className={cn} aria-current="page">{l}</span>
+            ) : (
+              <Link key={v} href={filterUrl({ status: v })} className={cn}>{l}</Link>
+            );
+          })}
         </div>
         <div className="flex items-center gap-1 text-xs font-mono ml-auto">
-          {[{ v: "all", l: "ALL" }, { v: "1", l: "CLUB" }, { v: "2", l: "NATIONAL" }, { v: "3", l: "MIX" }, { v: "4", l: "DRAFT" }].map(({ v, l }) => (
-            <Link key={v} href={filterUrl({ type: v })}
-              className={`px-3 py-1.5 rounded border transition-colors ${typeFilter === v ? "border-[#F4119E] text-[#F4119E] bg-[#F4119E]/10" : "border-chalk-100/10 text-chalk-400 hover:border-[#F4119E]/40 hover:text-[#F4119E]"}`}>
-              {l}
-            </Link>
-          ))}
+          {[{ v: "all", l: "ALL" }, { v: "1", l: "CLUB" }, { v: "2", l: "NATIONAL" }, { v: "3", l: "MIX" }, { v: "4", l: "DRAFT" }].map(({ v, l }) => {
+            const active = typeFilter === v;
+            const cn = `px-3 py-1.5 rounded border transition-colors ${active ? "border-[#F4119E] text-[#F4119E] bg-[#F4119E]/10 cursor-default" : "border-chalk-100/10 text-chalk-400 hover:border-[#F4119E]/40 hover:text-[#F4119E]"}`;
+            return active ? (
+              <span key={v} className={cn} aria-current="page">{l}</span>
+            ) : (
+              <Link key={v} href={filterUrl({ type: v })} className={cn}>{l}</Link>
+            );
+          })}
         </div>
       </div>
 

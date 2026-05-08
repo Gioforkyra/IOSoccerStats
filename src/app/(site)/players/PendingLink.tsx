@@ -40,7 +40,10 @@ export function PendingLink({ href, className, title, children, showSpinner = fa
 
     if (typeof window !== "undefined") {
       const current = window.location.pathname + window.location.search;
-      if (href === current) return;
+      if (href === current) {
+        e.preventDefault();
+        return;
+      }
     }
 
     setIsPending(true);

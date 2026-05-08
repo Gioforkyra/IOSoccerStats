@@ -99,19 +99,19 @@ export default async function MatchesPage({
           { key: "eu", label: "EU" },
           { key: "am", label: "AM" },
           { key: "all", label: "ALL" },
-        ].map((r) => (
-          <Link
-            key={r.key}
-            href={pageUrl(1, matchTypeFilter, r.key, formatFilter)}
-            className={`h-8 px-3 rounded text-xs font-mono border transition-colors flex items-center ${
-              regionFilter === r.key
-                ? "bg-[#F4119E] text-white border-[#F4119E]"
-                : "text-chalk-400 border-chalk-100/10 hover:text-chalk-100 hover:border-chalk-100/30"
-            }`}
-          >
-            {r.label}
-          </Link>
-        ))}
+        ].map((r) => {
+          const active = regionFilter === r.key;
+          const cn = `h-8 px-3 rounded text-xs font-mono border transition-colors flex items-center ${
+            active
+              ? "bg-[#F4119E] text-white border-[#F4119E] cursor-default"
+              : "text-chalk-400 border-chalk-100/10 hover:text-chalk-100 hover:border-chalk-100/30"
+          }`;
+          return active ? (
+            <span key={r.key} className={cn} aria-current="page">{r.label}</span>
+          ) : (
+            <Link key={r.key} href={pageUrl(1, matchTypeFilter, r.key, formatFilter)} className={cn}>{r.label}</Link>
+          );
+        })}
 
         <div className="w-px h-6 bg-chalk-100/15 mx-1" />
 
@@ -119,38 +119,38 @@ export default async function MatchesPage({
           { key: "all", label: "ALL" },
           { key: "comp", label: "COMP" },
           { key: "friendly", label: "FRIENDLY" },
-        ].map((t) => (
-          <Link
-            key={t.key}
-            href={pageUrl(1, t.key, regionFilter, formatFilter)}
-            className={`h-8 px-3 rounded text-xs font-mono border transition-colors flex items-center ${
-              matchTypeFilter === t.key
-                ? "bg-[#F4119E] text-white border-[#F4119E]"
-                : "text-chalk-400 border-chalk-100/10 hover:text-chalk-100 hover:border-chalk-100/30"
-            }`}
-          >
-            {t.label}
-          </Link>
-        ))}
+        ].map((t) => {
+          const active = matchTypeFilter === t.key;
+          const cn = `h-8 px-3 rounded text-xs font-mono border transition-colors flex items-center ${
+            active
+              ? "bg-[#F4119E] text-white border-[#F4119E] cursor-default"
+              : "text-chalk-400 border-chalk-100/10 hover:text-chalk-100 hover:border-chalk-100/30"
+          }`;
+          return active ? (
+            <span key={t.key} className={cn} aria-current="page">{t.label}</span>
+          ) : (
+            <Link key={t.key} href={pageUrl(1, t.key, regionFilter, formatFilter)} className={cn}>{t.label}</Link>
+          );
+        })}
 
         <div className="w-px h-6 bg-chalk-100/15 mx-1" />
 
         {[
           { key: "8v8", label: "8V8" },
           { key: "4v4", label: "4V4" },
-        ].map((f) => (
-          <Link
-            key={f.key}
-            href={pageUrl(1, matchTypeFilter, regionFilter, f.key)}
-            className={`h-8 px-3 rounded text-xs font-mono border transition-colors flex items-center ${
-              formatFilter === f.key
-                ? "bg-[#F4119E] text-white border-[#F4119E]"
-                : "text-chalk-400 border-chalk-100/10 hover:text-chalk-100 hover:border-chalk-100/30"
-            }`}
-          >
-            {f.label}
-          </Link>
-        ))}
+        ].map((f) => {
+          const active = formatFilter === f.key;
+          const cn = `h-8 px-3 rounded text-xs font-mono border transition-colors flex items-center ${
+            active
+              ? "bg-[#F4119E] text-white border-[#F4119E] cursor-default"
+              : "text-chalk-400 border-chalk-100/10 hover:text-chalk-100 hover:border-chalk-100/30"
+          }`;
+          return active ? (
+            <span key={f.key} className={cn} aria-current="page">{f.label}</span>
+          ) : (
+            <Link key={f.key} href={pageUrl(1, matchTypeFilter, regionFilter, f.key)} className={cn}>{f.label}</Link>
+          );
+        })}
       </div>
 
       <div className="rounded-lg border border-chalk-100/8 bg-pitch-900/40 overflow-x-auto">

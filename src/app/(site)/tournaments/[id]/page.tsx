@@ -565,32 +565,22 @@ export default async function TournamentDetailPage({
 
       {/* Tabs */}
       <div className="flex items-center gap-1 mb-5 font-mono text-xs">
-        <Link
-          href={tabUrl("matches")}
-          className={`px-4 py-2 rounded border transition-colors ${tab === "matches" ? "border-[#F4119E] text-[#F4119E] bg-[#F4119E]/10" : "border-chalk-100/10 text-chalk-400 hover:border-[#F4119E]/40 hover:text-[#F4119E]"}`}
-        >
-          MATCHES <span className={tab === "matches" ? "text-[#F4119E]/70" : "text-chalk-500"}>({totalMatches})</span>
-        </Link>
-        <Link
-          href={tabUrl("standings")}
-          className={`px-4 py-2 rounded border transition-colors ${tab === "standings" ? "border-[#F4119E] text-[#F4119E] bg-[#F4119E]/10" : "border-chalk-100/10 text-chalk-400 hover:border-[#F4119E]/40 hover:text-[#F4119E]"}`}
-        >
-          STANDINGS
-        </Link>
-        {hasBracket && (
-          <Link
-            href={tabUrl("bracket")}
-            className={`px-4 py-2 rounded border transition-colors ${tab === "bracket" ? "border-[#F4119E] text-[#F4119E] bg-[#F4119E]/10" : "border-chalk-100/10 text-chalk-400 hover:border-[#F4119E]/40 hover:text-[#F4119E]"}`}
-          >
-            BRACKET
-          </Link>
-        )}
-        <Link
-          href={tabUrl("players")}
-          className={`px-4 py-2 rounded border transition-colors ${tab === "players" ? "border-[#F4119E] text-[#F4119E] bg-[#F4119E]/10" : "border-chalk-100/10 text-chalk-400 hover:border-[#F4119E]/40 hover:text-[#F4119E]"}`}
-        >
-          PLAYERS
-        </Link>
+        {(["matches", "standings", ...(hasBracket ? ["bracket" as const] : []), "players"] as const).map((tabKey) => {
+          const active = tab === tabKey;
+          const cn = `px-4 py-2 rounded border transition-colors ${
+            active
+              ? "border-[#F4119E] text-[#F4119E] bg-[#F4119E]/10 cursor-default"
+              : "border-chalk-100/10 text-chalk-400 hover:border-[#F4119E]/40 hover:text-[#F4119E]"
+          }`;
+          const content = tabKey === "matches" ? (
+            <>MATCHES <span className={active ? "text-[#F4119E]/70" : "text-chalk-500"}>({totalMatches})</span></>
+          ) : tabKey.toUpperCase();
+          return active ? (
+            <span key={tabKey} className={cn} aria-current="page">{content}</span>
+          ) : (
+            <Link key={tabKey} href={tabUrl(tabKey)} className={cn}>{content}</Link>
+          );
+        })}
       </div>
 
       {/* MATCHES TAB */}
@@ -1058,27 +1048,28 @@ export default async function TournamentDetailPage({
             {/* View + min apps filters */}
             <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
               <div className="flex items-center gap-2 flex-wrap">
-                {PLAYER_STAT_VIEWS.map((sv) => (
-                  <Link
-                    key={sv.key}
-                    href={viewUrl(sv.key)}
-                    className={`px-3 py-1.5 rounded text-xs font-mono transition-colors ${playerView === sv.key ? "bg-[#F4119E]/15 text-[#F4119E] border border-[#F4119E]/40" : "border border-chalk-100/10 text-chalk-400 hover:border-[#F4119E]/30 hover:text-chalk-200"}`}
-                  >
-                    {sv.label.toUpperCase()}
-                  </Link>
-                ))}
+                {PLAYER_STAT_VIEWS.map((sv) => {
+                  const active = playerView === sv.key;
+                  const cn = `px-3 py-1.5 rounded text-xs font-mono transition-colors ${active ? "bg-[#F4119E]/15 text-[#F4119E] border border-[#F4119E]/40 cursor-default" : "border border-chalk-100/10 text-chalk-400 hover:border-[#F4119E]/30 hover:text-chalk-200"}`;
+                  return active ? (
+                    <span key={sv.key} className={cn} aria-current="page">{sv.label.toUpperCase()}</span>
+                  ) : (
+                    <Link key={sv.key} href={viewUrl(sv.key)} className={cn}>{sv.label.toUpperCase()}</Link>
+                  );
+                })}
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-[10px] font-mono uppercase text-chalk-500 tracking-wider">Min apps</span>
-                {MIN_PLAYER_APPS_OPTIONS.map((min) => (
-                  <Link
-                    key={min}
-                    href={minAppsUrl(min)}
-                    className={`px-2.5 py-1 rounded text-xs font-mono transition-colors ${playerMinApps === min ? "bg-[#F4119E]/15 text-[#F4119E] border border-[#F4119E]/40" : "border border-chalk-100/10 text-chalk-400 hover:border-[#F4119E]/30 hover:text-chalk-200"}`}
-                  >
-                    {min === 0 ? "ALL" : `${min}+`}
-                  </Link>
-                ))}
+                {MIN_PLAYER_APPS_OPTIONS.map((min) => {
+                  const active = playerMinApps === min;
+                  const cn = `px-2.5 py-1 rounded text-xs font-mono transition-colors ${active ? "bg-[#F4119E]/15 text-[#F4119E] border border-[#F4119E]/40 cursor-default" : "border border-chalk-100/10 text-chalk-400 hover:border-[#F4119E]/30 hover:text-chalk-200"}`;
+                  const label = min === 0 ? "ALL" : `${min}+`;
+                  return active ? (
+                    <span key={min} className={cn} aria-current="page">{label}</span>
+                  ) : (
+                    <Link key={min} href={minAppsUrl(min)} className={cn}>{label}</Link>
+                  );
+                })}
               </div>
             </div>
 

@@ -130,19 +130,19 @@ export default async function TeamResultsPage({
           <span className="text-chalk-300 text-xs">({totalMatches} total)</span>
         </div>
         <div className="flex items-center gap-1 text-xs font-mono ml-auto">
-          {[{ v: "all", l: "ALL" }, { v: "comp", l: "COMP" }, { v: "friendly", l: "FRIENDLY" }].map(({ v, l }) => (
-            <Link
-              key={v}
-              href={typeUrl(v)}
-              className={`px-3 py-1.5 rounded border transition-colors ${
-                typeFilter === v
-                  ? "border-[#F4119E] text-[#F4119E] bg-[#F4119E]/10"
-                  : "border-chalk-100/10 text-chalk-400 hover:border-[#F4119E]/40 hover:text-[#F4119E]"
-              }`}
-            >
-              {l}
-            </Link>
-          ))}
+          {[{ v: "all", l: "ALL" }, { v: "comp", l: "COMP" }, { v: "friendly", l: "FRIENDLY" }].map(({ v, l }) => {
+            const active = typeFilter === v;
+            const cn = `px-3 py-1.5 rounded border transition-colors ${
+              active
+                ? "border-[#F4119E] text-[#F4119E] bg-[#F4119E]/10 cursor-default"
+                : "border-chalk-100/10 text-chalk-400 hover:border-[#F4119E]/40 hover:text-[#F4119E]"
+            }`;
+            return active ? (
+              <span key={v} className={cn} aria-current="page">{l}</span>
+            ) : (
+              <Link key={v} href={typeUrl(v)} className={cn}>{l}</Link>
+            );
+          })}
         </div>
       </div>
       <div className="rounded-lg border border-chalk-100/8 bg-pitch-900/40 overflow-x-auto">

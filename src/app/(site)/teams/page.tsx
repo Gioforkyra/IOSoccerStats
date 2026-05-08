@@ -102,34 +102,34 @@ export default async function TeamsPage({
         </div>
         <div className="flex flex-col gap-2 items-end">
           <div className="flex items-center gap-1 text-xs font-mono flex-wrap">
-            {TEAM_TYPES.map((t) => (
-              <a
-                key={t.value}
-                href={`/teams?type=${t.value}&region=${regionFilter}`}
-                className={`px-3 py-1.5 rounded border transition-colors ${
-                  typeFilter === t.value
-                    ? "border-[#F4119E] text-[#F4119E] bg-[#F4119E]/10"
-                    : "border-chalk-100/10 text-chalk-400 hover:border-[#F4119E]/40 hover:text-[#F4119E]"
-                }`}
-              >
-                {t.label}
-              </a>
-            ))}
+            {TEAM_TYPES.map((t) => {
+              const active = typeFilter === t.value;
+              const cn = `px-3 py-1.5 rounded border transition-colors ${
+                active
+                  ? "border-[#F4119E] text-[#F4119E] bg-[#F4119E]/10 cursor-default"
+                  : "border-chalk-100/10 text-chalk-400 hover:border-[#F4119E]/40 hover:text-[#F4119E]"
+              }`;
+              return active ? (
+                <span key={t.value} className={cn} aria-current="page">{t.label}</span>
+              ) : (
+                <a key={t.value} href={`/teams?type=${t.value}&region=${regionFilter}`} className={cn}>{t.label}</a>
+              );
+            })}
           </div>
           <div className="flex items-center gap-1 text-xs font-mono flex-wrap">
-            {REGIONS.map((r) => (
-              <a
-                key={r.value}
-                href={`/teams?type=${typeFilter}&region=${r.value}`}
-                className={`px-3 py-1.5 rounded border transition-colors ${
-                  regionFilter === r.value
-                    ? "border-chalk-100/40 text-chalk-100 bg-chalk-100/10"
-                    : "border-chalk-100/10 text-chalk-400 hover:border-chalk-100/30 hover:text-chalk-200"
-                }`}
-              >
-                {r.label}
-              </a>
-            ))}
+            {REGIONS.map((r) => {
+              const active = regionFilter === r.value;
+              const cn = `px-3 py-1.5 rounded border transition-colors ${
+                active
+                  ? "border-chalk-100/40 text-chalk-100 bg-chalk-100/10 cursor-default"
+                  : "border-chalk-100/10 text-chalk-400 hover:border-chalk-100/30 hover:text-chalk-200"
+              }`;
+              return active ? (
+                <span key={r.value} className={cn} aria-current="page">{r.label}</span>
+              ) : (
+                <a key={r.value} href={`/teams?type=${typeFilter}&region=${r.value}`} className={cn}>{r.label}</a>
+              );
+            })}
           </div>
         </div>
       </div>

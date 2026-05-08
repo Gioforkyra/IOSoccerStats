@@ -194,7 +194,6 @@ async function fetchBoard(
     filters: {
       excludePlayers: [],
       includeSubstituteAppearances: true,
-      matchFormat: 8,
       regionId: 1,
       timePeriod: 0,
       ...(board.minApps ? { minimumAppearances: board.minApps } : {}),

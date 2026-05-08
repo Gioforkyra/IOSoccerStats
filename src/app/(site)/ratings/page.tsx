@@ -87,19 +87,19 @@ export default async function RatingsPage({
       <div className="flex flex-wrap items-center gap-4 mb-6">
         {/* Period selector */}
         <div className="flex flex-wrap gap-2">
-          {periods.map((p) => (
-            <Link
-              key={p}
-              href={buildHref(p, minMatches)}
-              className={`px-3 py-1.5 rounded text-xs font-mono font-600 transition-colors border ${
-                p === selectedPeriod
-                  ? "bg-[#F4119E]/15 border-[#F4119E]/50 text-chalk-100"
-                  : "bg-pitch-900/40 border-chalk-100/10 text-chalk-400 hover:text-chalk-100 hover:border-chalk-100/20"
-              }`}
-            >
-              {fmtPeriod(p)}
-            </Link>
-          ))}
+          {periods.map((p) => {
+            const active = p === selectedPeriod;
+            const cn = `px-3 py-1.5 rounded text-xs font-mono font-600 transition-colors border ${
+              active
+                ? "bg-[#F4119E]/15 border-[#F4119E]/50 text-chalk-100 cursor-default"
+                : "bg-pitch-900/40 border-chalk-100/10 text-chalk-400 hover:text-chalk-100 hover:border-chalk-100/20"
+            }`;
+            return active ? (
+              <span key={p} className={cn} aria-current="page">{fmtPeriod(p)}</span>
+            ) : (
+              <Link key={p} href={buildHref(p, minMatches)} className={cn}>{fmtPeriod(p)}</Link>
+            );
+          })}
         </div>
 
         <div className="w-px h-4 bg-chalk-100/10" />
@@ -108,19 +108,20 @@ export default async function RatingsPage({
         <div className="flex items-center gap-2">
           <span className="text-[10px] font-mono text-chalk-500 uppercase tracking-wider">min matches</span>
           <div className="flex gap-1">
-            {MIN_MATCHES_OPTIONS.map((m) => (
-              <Link
-                key={m}
-                href={buildHref(selectedPeriod ?? "", m)}
-                className={`px-2.5 py-1 rounded text-xs font-mono transition-colors border ${
-                  m === minMatches
-                    ? "bg-chalk-100/10 border-chalk-100/30 text-chalk-100"
-                    : "bg-transparent border-chalk-100/8 text-chalk-500 hover:text-chalk-300 hover:border-chalk-100/20"
-                }`}
-              >
-                {m === 0 ? "all" : `${m}+`}
-              </Link>
-            ))}
+            {MIN_MATCHES_OPTIONS.map((m) => {
+              const active = m === minMatches;
+              const cn = `px-2.5 py-1 rounded text-xs font-mono transition-colors border ${
+                active
+                  ? "bg-chalk-100/10 border-chalk-100/30 text-chalk-100 cursor-default"
+                  : "bg-transparent border-chalk-100/8 text-chalk-500 hover:text-chalk-300 hover:border-chalk-100/20"
+              }`;
+              const label = m === 0 ? "all" : `${m}+`;
+              return active ? (
+                <span key={m} className={cn} aria-current="page">{label}</span>
+              ) : (
+                <Link key={m} href={buildHref(selectedPeriod ?? "", m)} className={cn}>{label}</Link>
+              );
+            })}
           </div>
         </div>
 

@@ -125,19 +125,19 @@ export default async function TransfersPage({
         {[
           { key: "all", label: "ALL" },
           { key: "free", label: "FREE AGENTS ONLY" },
-        ].map((f) => (
-          <Link
-            key={f.key}
-            href={filterUrl(f.key)}
-            className={`px-3 py-1.5 rounded text-xs font-mono transition-colors ${
-              filter === f.key
-                ? "bg-[#F4119E]/15 text-[#F4119E] border border-[#F4119E]/40"
-                : "border border-chalk-100/10 text-chalk-400 hover:border-[#F4119E]/30 hover:text-chalk-200"
-            }`}
-          >
-            {f.label}
-          </Link>
-        ))}
+        ].map((f) => {
+          const active = filter === f.key;
+          const cn = `px-3 py-1.5 rounded text-xs font-mono transition-colors ${
+            active
+              ? "bg-[#F4119E]/15 text-[#F4119E] border border-[#F4119E]/40 cursor-default"
+              : "border border-chalk-100/10 text-chalk-400 hover:border-[#F4119E]/30 hover:text-chalk-200"
+          }`;
+          return active ? (
+            <span key={f.key} className={cn} aria-current="page">{f.label}</span>
+          ) : (
+            <Link key={f.key} href={filterUrl(f.key)} className={cn}>{f.label}</Link>
+          );
+        })}
       </div>
 
       {/* Table */}

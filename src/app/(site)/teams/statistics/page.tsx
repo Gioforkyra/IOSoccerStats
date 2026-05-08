@@ -339,51 +339,52 @@ export default async function TeamStatisticsPage({
 
       {/* Filters row 1: Region + Team type */}
       <div className="flex items-center gap-2 mb-2 flex-wrap">
-        {REGIONS.map((r) => (
-          <Link
-            key={r.value}
-            href={filterUrl({ region: r.value })}
-            className={`px-3 py-1.5 rounded text-xs font-mono border transition-colors ${
-              regionFilter === r.value
-                ? "border-[#F4119E] text-[#F4119E] bg-[#F4119E]/10"
-                : "border-chalk-100/10 text-chalk-400 hover:border-[#F4119E]/30 hover:text-chalk-200"
-            }`}
-          >
-            {r.label}
-          </Link>
-        ))}
+        {REGIONS.map((r) => {
+          const active = regionFilter === r.value;
+          const cn = `px-3 py-1.5 rounded text-xs font-mono border transition-colors ${
+            active
+              ? "border-[#F4119E] text-[#F4119E] bg-[#F4119E]/10 cursor-default"
+              : "border-chalk-100/10 text-chalk-400 hover:border-[#F4119E]/30 hover:text-chalk-200"
+          }`;
+          return active ? (
+            <span key={r.value} className={cn} aria-current="page">{r.label}</span>
+          ) : (
+            <Link key={r.value} href={filterUrl({ region: r.value })} className={cn}>{r.label}</Link>
+          );
+        })}
         <span className="text-chalk-100/10 text-xs">|</span>
-        {TEAM_TYPES.map((t) => (
-          <Link
-            key={t.value}
-            href={filterUrl({ type: t.value })}
-            className={`px-3 py-1.5 rounded text-xs font-mono border transition-colors ${
-              String(teamType) === t.value
-                ? "border-chalk-300/60 text-chalk-200 bg-chalk-100/5"
-                : "border-chalk-100/10 text-chalk-400 hover:border-chalk-100/30 hover:text-chalk-200"
-            }`}
-          >
-            {t.label}
-          </Link>
-        ))}
+        {TEAM_TYPES.map((t) => {
+          const active = String(teamType) === t.value;
+          const cn = `px-3 py-1.5 rounded text-xs font-mono border transition-colors ${
+            active
+              ? "border-chalk-300/60 text-chalk-200 bg-chalk-100/5 cursor-default"
+              : "border-chalk-100/10 text-chalk-400 hover:border-chalk-100/30 hover:text-chalk-200"
+          }`;
+          return active ? (
+            <span key={t.value} className={cn} aria-current="page">{t.label}</span>
+          ) : (
+            <Link key={t.value} href={filterUrl({ type: t.value })} className={cn}>{t.label}</Link>
+          );
+        })}
       </div>
 
       {/* Filters row 2: Min matches */}
       <div className="flex items-center gap-1.5 mb-4 flex-wrap">
         <span className="text-xs font-mono text-chalk-500">MIN MATCHES</span>
-        {MIN_MATCHES_OPTIONS.map((v) => (
-          <Link
-            key={v}
-            href={filterUrl({ minMatches: String(v) })}
-            className={`px-2 py-1 rounded text-xs font-mono border transition-colors ${
-              minMatches === v
-                ? "border-[#F4119E] text-[#F4119E] bg-[#F4119E]/10"
-                : "border-chalk-100/10 text-chalk-400 hover:border-chalk-100/30 hover:text-chalk-200"
-            }`}
-          >
-            {v === 0 ? "ALL" : v}
-          </Link>
-        ))}
+        {MIN_MATCHES_OPTIONS.map((v) => {
+          const active = minMatches === v;
+          const cn = `px-2 py-1 rounded text-xs font-mono border transition-colors ${
+            active
+              ? "border-[#F4119E] text-[#F4119E] bg-[#F4119E]/10 cursor-default"
+              : "border-chalk-100/10 text-chalk-400 hover:border-chalk-100/30 hover:text-chalk-200"
+          }`;
+          const label = v === 0 ? "ALL" : v;
+          return active ? (
+            <span key={v} className={cn} aria-current="page">{label}</span>
+          ) : (
+            <Link key={v} href={filterUrl({ minMatches: String(v) })} className={cn}>{label}</Link>
+          );
+        })}
       </div>
 
       {/* Table */}
