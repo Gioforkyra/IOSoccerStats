@@ -25,6 +25,7 @@ type ChangelogEntry = {
 };
 
 const SUPPORTERS: Supporter[] = [
+  { name: "Hiei", method: "Support" },
   { name: "Edwar", method: "Support & Feedback" },
   { name: "Labelo", method: "Support" },
   { name: "Robifera", method: "Logo & Feedback" },
