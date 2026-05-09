@@ -40,6 +40,13 @@ const UPDATES: Update[] = [
 
 const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2026-05-09",
+    changes: [
+      "Loading screen on the Ratings page so it's clear when the data is being fetched.",
+      "Pink loading spinner next to the Ratings filters when switching period or min matches.",
+    ],
+  },
+  {
     date: "2026-05-05",
     changes: [
       "Player titles now require at least one appearance in the respective tournament for the winning team — rostered-but-never-played stints no longer count.",

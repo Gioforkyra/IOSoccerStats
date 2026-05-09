@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
-import Link from "next/link";
 import RatingsDistributionChart from "@/components/RatingsDistributionChart";
+import { RatingsFilters } from "./RatingsFilters";
 
 export const metadata: Metadata = {
   title: "Player Ratings — IOSHUBv2",
@@ -9,20 +9,6 @@ export const metadata: Metadata = {
 };
 
 export const revalidate = 604800; // 1 week
-
-const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-const MIN_MATCHES_OPTIONS = [0, 50, 100, 500, 1000, 2000];
-function fmtPeriod(ym: string) {
-  const [y, m] = ym.split("-");
-  return `${MONTHS[parseInt(m) - 1]} ${y}`;
-}
-
-function buildHref(period: string, minMatches: number) {
-  const params = new URLSearchParams();
-  params.set("period", period);
-  params.set("min", String(minMatches));
-  return `/ratings?${params.toString()}`;
-}
 
 export default async function RatingsPage({
   searchParams,
@@ -83,52 +69,11 @@ export default async function RatingsPage({
         </p>
       </div>
 
-      {/* Filters row */}
-      <div className="flex flex-wrap items-center gap-4 mb-6">
-        {/* Period selector */}
-        <div className="flex flex-wrap gap-2">
-          {periods.map((p) => {
-            const active = p === selectedPeriod;
-            const cn = `px-3 py-1.5 rounded text-xs font-mono font-600 transition-colors border ${
-              active
-                ? "bg-[#F4119E]/15 border-[#F4119E]/50 text-chalk-100 cursor-default"
-                : "bg-pitch-900/40 border-chalk-100/10 text-chalk-400 hover:text-chalk-100 hover:border-chalk-100/20"
-            }`;
-            return active ? (
-              <span key={p} className={cn} aria-current="page">{fmtPeriod(p)}</span>
-            ) : (
-              <Link key={p} href={buildHref(p, minMatches)} className={cn}>{fmtPeriod(p)}</Link>
-            );
-          })}
-        </div>
-
-        <div className="w-px h-4 bg-chalk-100/10" />
-
-        {/* Min matches filter */}
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] font-mono text-chalk-500 uppercase tracking-wider">min matches</span>
-          <div className="flex gap-1">
-            {MIN_MATCHES_OPTIONS.map((m) => {
-              const active = m === minMatches;
-              const cn = `px-2.5 py-1 rounded text-xs font-mono transition-colors border ${
-                active
-                  ? "bg-chalk-100/10 border-chalk-100/30 text-chalk-100 cursor-default"
-                  : "bg-transparent border-chalk-100/8 text-chalk-500 hover:text-chalk-300 hover:border-chalk-100/20"
-              }`;
-              const label = m === 0 ? "all" : `${m}+`;
-              return active ? (
-                <span key={m} className={cn} aria-current="page">{label}</span>
-              ) : (
-                <Link key={m} href={buildHref(selectedPeriod ?? "", m)} className={cn}>{label}</Link>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="w-px h-4 bg-chalk-100/10" />
-
-        <span className="text-[10px] font-mono text-chalk-500 uppercase tracking-wider">EU players only</span>
-      </div>
+      <RatingsFilters
+        periods={periods}
+        selectedPeriod={selectedPeriod ?? ""}
+        minMatches={minMatches}
+      />
 
       {rows.length === 0 ? (
         <div className="text-center py-16 text-chalk-400 font-body">
