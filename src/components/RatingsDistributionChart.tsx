@@ -397,9 +397,9 @@ export default function RatingsDistributionChart({ players }: { players: Player[
     }
     const binsArray = Array.from(binMap.entries()).sort((a, b) => a[0] - b[0]);
     const data: Point[] = [];
-    for (const [, group] of binsArray) {
+    for (const [bin, group] of binsArray) {
       group.forEach((p, i) => {
-        data.push({ ...p, x: p.rating, y: (i + 1) * DOT_SPACING });
+        data.push({ ...p, x: bin, y: (i + 1) * DOT_SPACING });
       });
     }
     return { binsArray, data, min: minR, max: maxR, mean };
