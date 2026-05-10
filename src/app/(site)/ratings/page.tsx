@@ -28,29 +28,21 @@ const getPeriods = unstable_cache(
 const getRatingsForPeriod = unstable_cache(
   async (selectedPeriod: string, minMatches: number) => {
     return prisma.$queryRaw<{ steam_id: string; username: string; rating: number }[]>`
+      WITH eu_match_counts AS (
+        SELECT mps.player_steam_id, COUNT(DISTINCT mps.match_id) AS cnt
+        FROM match_player_stats mps
+        JOIN matches m ON m.id = mps.match_id
+        JOIN teams t ON t.id = m.home_team_id OR t.id = m.away_team_id
+        WHERE t.region_id = 1
+        GROUP BY mps.player_steam_id
+      )
       SELECT prh.steam_id, p.username, AVG(prh.rating)::float AS rating
       FROM player_rating_history prh
       JOIN players p ON p.steam_id = prh.steam_id
+      JOIN eu_match_counts emc ON emc.player_steam_id = prh.steam_id
       WHERE TO_CHAR(DATE_TRUNC('month', prh.recorded_at), 'YYYY-MM') = ${selectedPeriod}
         AND prh.rating > 0
-        AND EXISTS (
-          SELECT 1 FROM match_player_stats mps
-          JOIN matches m ON m.id = mps.match_id
-          JOIN teams t ON t.id = m.home_team_id OR t.id = m.away_team_id
-          WHERE mps.player_steam_id = prh.steam_id
-            AND t.region_id = 1
-        )
-        AND (
-          ${minMatches} = 0
-          OR (
-            SELECT COUNT(DISTINCT mps2.match_id)
-            FROM match_player_stats mps2
-            JOIN matches m2 ON m2.id = mps2.match_id
-            JOIN teams t2 ON t2.id = m2.home_team_id OR t2.id = m2.away_team_id
-            WHERE mps2.player_steam_id = prh.steam_id
-              AND t2.region_id = 1
-          ) >= ${minMatches}
-        )
+        AND emc.cnt >= ${minMatches}
       GROUP BY prh.steam_id, p.username
       HAVING AVG(prh.rating) > 0
       ORDER BY rating ASC
