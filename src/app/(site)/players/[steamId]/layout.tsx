@@ -8,6 +8,13 @@ import { getPlayerTeams } from "@/lib/iosoccer-api";
 import { getCardContrastPalette } from "@/lib/card-contrast";
 import PlayerTabs from "./PlayerTabs";
 import { ActivityHeatmap } from "@/components/ActivityHeatmap";
+import {
+  getPlayerLabels,
+  labelClass,
+  sentimentForTitle,
+  TITLE_DESCRIPTIONS,
+  type LabelInputs,
+} from "@/lib/player-labels";
 
 type CurrentTeam = {
   team_id: number;
@@ -122,6 +129,103 @@ export default async function PlayerLayout({
     const draw = m.home_score === m.away_score;
     return draw ? "D" : won ? "W" : "L";
   });
+
+  // Common titles (last 30 days) — derived per-match via getPlayerLabels.
+  // Note: Sniper / Aerial Threat / Cross Catcher require shots data (only in live API),
+  // so they're not detected here; all other 17+ titles work.
+  type LabelMatchRow = {
+    match_id: number;
+    team_side: string;
+    position: string | null;
+    minutes_played: number;
+    goals: number;
+    assists: number;
+    shots: number;
+    passes: number;
+    passes_completed: number;
+    key_passes: number;
+    chances_created: number;
+    interceptions: number;
+    saves: number;
+    own_goals: number;
+    goals_conceded: number;
+    possession: number;
+    is_potm: boolean;
+    total_possession: number;
+  };
+  const labelRows = await prisma.$queryRaw<LabelMatchRow[]>`
+    SELECT
+      mps.match_id,
+      mps.team_side,
+      mps.position,
+      mps.minutes_played,
+      mps.goals,
+      mps.assists,
+      mps.shots,
+      mps.passes,
+      mps.passes_completed,
+      mps.key_passes,
+      mps.chances_created,
+      mps.interceptions,
+      mps.saves,
+      mps.own_goals,
+      mps.goals_conceded,
+      mps.possession,
+      mps.is_potm,
+      COALESCE((
+        SELECT SUM(possession)
+        FROM match_player_stats mps2
+        WHERE mps2.match_id = mps.match_id
+      ), 0) AS total_possession
+    FROM match_player_stats mps
+    JOIN matches m ON m.id = mps.match_id
+    WHERE mps.player_steam_id = ANY(${steamIds})
+      AND m.date >= NOW() - INTERVAL '30 days'
+  `;
+
+  const labelCounts = new Map<string, number>();
+  for (const row of labelRows) {
+    const inputs: LabelInputs = {
+      position: row.position,
+      player_steam_id: steamId,
+      profile_steam_id: steamId,
+      minutes_played: Number(row.minutes_played),
+      goals: Number(row.goals),
+      assists: Number(row.assists),
+      shots: Number(row.shots),
+      passes: Number(row.passes),
+      passes_completed: Number(row.passes_completed),
+      key_passes: Number(row.key_passes),
+      chances_created: Number(row.chances_created),
+      interceptions: Number(row.interceptions),
+      saves: Number(row.saves),
+      own_goals: Number(row.own_goals),
+      goals_conceded: Number(row.goals_conceded),
+      possession: Number(row.possession),
+    };
+    const potm = row.is_potm ? steamId : null;
+    const labels = getPlayerLabels(
+      inputs,
+      0, // pxg unavailable without shots data
+      potm,
+      Number(row.total_possession),
+      0, // headerGoals unavailable
+      0, // gkHeadersSaved unavailable
+    );
+    for (const lbl of labels) {
+      labelCounts.set(lbl.text, (labelCounts.get(lbl.text) || 0) + 1);
+    }
+  }
+
+  const topLabels = Array.from(labelCounts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([text, count]) => ({
+      text,
+      count,
+      sentiment: sentimentForTitle(text),
+      description: TITLE_DESCRIPTIONS[text] ?? text,
+    }));
 
   const avatarUrl = await getSteamAvatar(player.steamId, player.avatar, player.avatarUpdatedAt);
   const teamColor = currentTeam?.team_color ?? null;
@@ -261,6 +365,52 @@ export default async function PlayerLayout({
                         {r}
                       </span>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {topLabels.length > 0 && (
+                <div>
+                  <div className="text-[10px] font-mono uppercase" style={{ color: isNoTeam ? "var(--player-no-team-muted, rgba(209,213,219,0.9))" : cardPalette.mutedText }}>Traits</div>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    {topLabels.map((lbl) => {
+                      const tooltip = `${lbl.description} (${lbl.count}x in last 30 days)`;
+                      if (lbl.sentiment === "potm") {
+                        return (
+                          <span
+                            key={lbl.text}
+                            title={tooltip}
+                            className="rounded px-1.5 py-0.5 text-[11px] font-mono font-bold leading-tight text-slate-900 shadow-md cursor-help"
+                            style={{ background: "linear-gradient(90deg, hsla(141,81%,87%,1) 0%, hsla(41,88%,75%,1) 50%, hsla(358,82%,71%,1) 100%)" }}
+                          >
+                            {lbl.text}
+                            <span className="opacity-70 ml-1">×{lbl.count}</span>
+                          </span>
+                        );
+                      }
+                      if (lbl.sentiment === "carry") {
+                        return (
+                          <span
+                            key={lbl.text}
+                            title={tooltip}
+                            className="carry-title rounded px-1.5 py-0.5 text-[11px] font-mono font-bold leading-tight cursor-help"
+                          >
+                            {lbl.text}
+                            <span className="opacity-70 ml-1">×{lbl.count}</span>
+                          </span>
+                        );
+                      }
+                      return (
+                        <span
+                          key={lbl.text}
+                          title={tooltip}
+                          className={`rounded px-1.5 py-0.5 text-[11px] font-mono font-bold leading-tight cursor-help ${labelClass(lbl.sentiment)}`}
+                        >
+                          {lbl.text}
+                          <span className="opacity-60 ml-1">×{lbl.count}</span>
+                        </span>
+                      );
+                    })}
                   </div>
                 </div>
               )}

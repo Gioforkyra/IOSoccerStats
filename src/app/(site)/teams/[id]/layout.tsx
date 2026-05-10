@@ -218,9 +218,9 @@ export default async function TeamLayout({
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-4">
         {[
           { label: "Played", value: matches.toLocaleString(), colorClass: "text-chalk-100" },
-          { label: "Wins", value: wins.toLocaleString(), colorClass: "text-chalk-100" },
+          { label: "Wins", value: wins.toLocaleString(), colorClass: "text-green-400" },
           { label: "Draws", value: draws.toLocaleString(), colorClass: "text-chalk-100" },
-          { label: "Losses", value: losses.toLocaleString(), colorClass: "text-chalk-100" },
+          { label: "Losses", value: losses.toLocaleString(), colorClass: "text-red-400" },
           {
             label: "Win%",
             value: `${winPct}%`,
