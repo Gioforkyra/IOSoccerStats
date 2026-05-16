@@ -25,6 +25,7 @@ type ChangelogEntry = {
 };
 
 const SUPPORTERS: Supporter[] = [
+  { name: "Seny", method: "Support" },
   { name: "Hiei", method: "Support" },
   { name: "Edwar", method: "Support & Feedback" },
   { name: "Labelo", method: "Support" },
@@ -40,6 +41,13 @@ const UPDATES: Update[] = [
 ];
 
 const CHANGELOG: ChangelogEntry[] = [
+  {
+    date: "2026-05-15",
+    changes: [
+      "Historical 2025 player ratings imported — April, May, July and September 2025 now available as new periods on the /ratings distribution page and visible on every player profile rating chart.",
+      "Player profile rating chart now defaults to 'All' instead of 'Recent' so the full history is visible at a glance.",
+    ],
+  },
   {
     date: "2026-05-09",
     changes: [
