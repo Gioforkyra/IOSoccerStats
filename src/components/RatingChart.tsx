@@ -103,7 +103,7 @@ export default function RatingChart({ points }: { points: Point[] }) {
     return Array.from(set).sort((a, b) => b - a);
   }, [points]);
 
-  const [selectedRange, setSelectedRange] = useState<RangeOption>("last6");
+  const [selectedRange, setSelectedRange] = useState<RangeOption>("all");
 
   const filtered = useMemo(() => {
     if (selectedRange === "last6") {
