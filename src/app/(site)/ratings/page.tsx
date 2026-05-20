@@ -21,7 +21,7 @@ const getPeriods = unstable_cache(
     `;
     return periodsRaw.map((r) => r.period);
   },
-  ["ratings-periods"],
+  ["ratings-periods-v2"],
   { revalidate: 604800, tags: ["ratings"] }
 );
 
@@ -48,7 +48,7 @@ const getRatingsForPeriod = unstable_cache(
       ORDER BY rating ASC
     `;
   },
-  ["ratings-by-period"],
+  ["ratings-by-period-v2"],
   { revalidate: 604800, tags: ["ratings"] }
 );
 
