@@ -21,29 +21,49 @@ HEADERS = {
 }
 LOANED_ROLE = 3
 TOP_N = 10
-CONCURRENCY = 20
+CONCURRENCY = 3
+MAX_RETRIES = 6
+
+
+class RosterFetchError(Exception):
+    """Raised when a team's roster could not be fetched after all retries."""
 
 
 async def fetch_roster(client: httpx.AsyncClient, team_id: int) -> list[str]:
-    """Return list of non-loaned steam IDs for a team."""
-    try:
-        resp = await client.post(
-            f"{API_BASE}/player-team/team",
-            json={"id": team_id, "includeInactive": False},
-            timeout=10,
-        )
-        if resp.status_code != 200:
-            return []
-        entries = resp.json()
-        return [
-            e["player"]["steamID"]
-            for e in entries
-            if isinstance(e, dict)
-            and e.get("teamRole") != LOANED_ROLE
-            and e.get("player", {}).get("steamID")
-        ]
-    except Exception:
-        return []
+    """Return list of non-loaned steam IDs for a team.
+
+    Retries on transient failures (timeouts, rate limiting, connection
+    errors). Raises RosterFetchError if it never succeeds, so callers can
+    distinguish "no players" from "fetch failed" instead of silently
+    storing NULL.
+    """
+    last_err: Exception | None = None
+    for attempt in range(MAX_RETRIES):
+        try:
+            resp = await client.post(
+                f"{API_BASE}/player-team/team",
+                json={"id": team_id, "includeInactive": False},
+                timeout=20,
+            )
+            if resp.status_code == 200:
+                entries = resp.json()
+                return [
+                    e["player"]["steamID"]
+                    for e in entries
+                    if isinstance(e, dict)
+                    and e.get("teamRole") != LOANED_ROLE
+                    and e.get("player", {}).get("steamID")
+                ]
+            # Retry on rate limiting / transient server errors
+            if resp.status_code in (429, 500, 502, 503, 504):
+                last_err = RosterFetchError(f"HTTP {resp.status_code}")
+            else:
+                # Non-retryable HTTP status -> treat as genuinely empty roster
+                return []
+        except Exception as e:  # noqa: BLE001 - retry any transport error
+            last_err = e
+        await asyncio.sleep(0.5 * (2 ** attempt))
+    raise RosterFetchError(f"team {team_id}: {last_err}")
 
 
 async def process_team(
