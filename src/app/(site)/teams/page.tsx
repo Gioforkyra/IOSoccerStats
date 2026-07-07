@@ -38,27 +38,55 @@ export default async function TeamsPage({
   const regionFilter = params.region || "1";
   const regionInt = parseInt(regionFilter);
 
-  let activeTeams: ApiTeamSummary[] = [];
+  let teamsWithRating: TeamWithRating[] = [];
   let apiUnavailable = false;
   try {
-    activeTeams = await getActiveTeams(regionInt, teamTypeInt);
+    const activeTeams = await getActiveTeams(regionInt, teamTypeInt);
+
+    // avg_rating for active teams
+    const activeIds = activeTeams.map((t) => t.id);
+    const dbActive = activeIds.length > 0
+      ? await prisma.$queryRaw<{ id: number; avg_rating: number | null }[]>`
+          SELECT id, avg_rating FROM teams WHERE id = ANY(${activeIds})
+        `
+      : [];
+    const ratingMap = new Map(dbActive.map((r) => [r.id, r.avg_rating]));
+
+    teamsWithRating = activeTeams.map((t) => ({
+      ...t,
+      avgRating: ratingMap.get(t.id) ?? null,
+    }));
   } catch {
-    apiUnavailable = true;
+    // Live API is down — serve active teams from our own DB so the page still
+    // renders instead of an "API unreachable" message.
+    const activeRows = await prisma.$queryRaw<{
+      id: number; name: string; slug: string; logo: string | null;
+      color: string | null; region: string | null; avg_rating: number | null;
+      team_type: number | null;
+    }[]>`
+      SELECT id, name, slug, logo, color, region, avg_rating, team_type
+      FROM teams
+      WHERE inactive = false
+        AND team_type = ${teamTypeInt}
+        AND region_id = ${regionInt}
+      ORDER BY name ASC
+    `;
+    teamsWithRating = activeRows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      slug: r.slug,
+      badgeImageId: null,
+      badgeImage: null,
+      color: r.color,
+      region: r.region,
+      inactive: false,
+      teamType: r.team_type ?? teamTypeInt,
+      avgRating: r.avg_rating,
+      isInactive: false,
+      dbLogo: r.logo,
+    }));
+    if (teamsWithRating.length === 0) apiUnavailable = true;
   }
-
-  // avg_rating for active teams
-  const activeIds = activeTeams.map((t) => t.id);
-  const dbActive = activeIds.length > 0
-    ? await prisma.$queryRaw<{ id: number; avg_rating: number | null }[]>`
-        SELECT id, avg_rating FROM teams WHERE id = ANY(${activeIds})
-      `
-    : [];
-  const ratingMap = new Map(dbActive.map((r) => [r.id, r.avg_rating]));
-
-  const teamsWithRating: TeamWithRating[] = activeTeams.map((t) => ({
-    ...t,
-    avgRating: ratingMap.get(t.id) ?? null,
-  }));
 
   // Inactive teams from DB
   const inactiveRows = await prisma.$queryRaw<{

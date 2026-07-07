@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getMatches, badgeSmallUrl } from "@/lib/iosoccer-api";
+import { getMatches, badgeSmallUrl, type ApiMatchListItem } from "@/lib/iosoccer-api";
 import ApiUnavailableNotice from "@/components/ApiUnavailableNotice";
+import { prisma } from "@/lib/prisma";
 
 export const revalidate = 60;
 
@@ -69,7 +70,51 @@ export default async function FixturesPage({
     matches = data.items ?? [];
     totalPages = data.totalPages ?? 1;
   } catch {
-    apiUnavailable = true;
+    // Live API is down — try upcoming matches from our DB. Fixtures are future
+    // matches which the scrapers may not store, so this can legitimately be
+    // empty; in that case we show a neutral "no fixtures" state rather than the
+    // alarming "API unreachable" message.
+    try {
+      const offset = (page - 1) * PAGE_SIZE;
+      const rows = await prisma.$queryRaw<{
+        id: number; date: Date; home_team_id: number; away_team_id: number;
+        home_name: string; away_name: string; home_logo: string | null; away_logo: string | null;
+        match_type: string; server: string | null; tournament_id: number | null; tournament_name: string | null;
+      }[]>`
+        SELECT
+          m.id, m.date, m.home_team_id, m.away_team_id,
+          th.name AS home_name, ta.name AS away_name,
+          th.logo AS home_logo, ta.logo AS away_logo,
+          m.match_type, m.server, m.tournament_id,
+          tr.name AS tournament_name
+        FROM matches m
+        JOIN teams th ON th.id = m.home_team_id
+        JOIN teams ta ON ta.id = m.away_team_id
+        LEFT JOIN tournaments tr ON tr.id = m.tournament_id
+        WHERE m.date > NOW() AND m.match_type = 'competitive'
+        ORDER BY m.date ASC
+        LIMIT ${PAGE_SIZE} OFFSET ${offset}
+      `;
+      matches = rows.map((r) => ({
+        id: r.id,
+        teamHomeId: r.home_team_id,
+        teamAwayId: r.away_team_id,
+        teamHome: { name: r.home_name, badgeImage: r.home_logo ? { smallUrl: r.home_logo } : null, color: null },
+        teamAway: { name: r.away_name, badgeImage: r.away_logo ? { smallUrl: r.away_logo } : null, color: null },
+        matchStatistics: null,
+        kickOff: new Date(r.date).toISOString(),
+        matchType: r.match_type === "competitive" ? 2 : 1,
+        format: null,
+        server: r.server ? { name: r.server } : null,
+        playerOfTheMatch: null,
+        tournament: r.tournament_id ? { id: r.tournament_id, name: r.tournament_name ?? "" } : null,
+        tournamentGroupMatches: null,
+      })) satisfies ApiMatchListItem[];
+      // DB reached (even if empty) — don't show the unreachable notice.
+      apiUnavailable = false;
+    } catch {
+      apiUnavailable = true;
+    }
   }
 
   function pageUrl(p: number) {

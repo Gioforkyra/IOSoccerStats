@@ -75,7 +75,7 @@ export default async function TeamSquadPage({
 
   const ROLE_ORDER: Record<number, number> = { 6: 0, 5: 1, 4: 2, 2: 3, 3: 4, 1: 5 };
 
-  const squad: SquadPlayer[] = rosterEntries
+  let squad: SquadPlayer[] = rosterEntries
     .map((entry) => {
       const meta = metaMap.get(entry.player.steamID);
       return {
@@ -104,6 +104,52 @@ export default async function TeamSquadPage({
       if (ar !== br) return ar - br;
       return b.apps - a.apps;
     });
+
+  // Live API is down — approximate the current squad from players who have
+  // appeared for this team in the last 90 days (the DB has no roster table).
+  // Roles/join dates aren't available in this mode.
+  if (apiUnavailable) {
+    const dbSquad = await prisma.$queryRaw<(PlayerMeta & { last_played: Date })[]>`
+      SELECT
+        p.steam_id,
+        p.username,
+        p.position,
+        p.rating,
+        COUNT(DISTINCT mps.match_id)       AS apps,
+        COALESCE(SUM(mps.goals), 0)        AS goals,
+        COALESCE(SUM(mps.assists), 0)      AS assists,
+        COALESCE(SUM(mps.yellow_cards), 0) AS yellow_cards,
+        COALESCE(SUM(mps.red_cards), 0)    AS red_cards,
+        MAX(m.date)                        AS last_played
+      FROM match_player_stats mps
+      JOIN matches m ON m.id = mps.match_id
+      JOIN players p ON p.steam_id = mps.player_steam_id
+      WHERE (
+        (mps.team_side = 'home' AND m.home_team_id = ${teamId}) OR
+        (mps.team_side = 'away' AND m.away_team_id = ${teamId})
+      )
+      GROUP BY p.steam_id, p.username, p.position, p.rating
+      HAVING MAX(m.date) >= NOW() - INTERVAL '90 days'
+      ORDER BY apps DESC
+    `;
+
+    if (dbSquad.length > 0) {
+      squad = dbSquad.map((r) => ({
+        steam_id: r.steam_id,
+        username: r.username,
+        position: r.position,
+        role: null,
+        rating: r.rating != null ? Number(r.rating) : null,
+        join_date: null,
+        apps: Number(r.apps),
+        goals: Number(r.goals),
+        assists: Number(r.assists),
+        yellow_cards: Number(r.yellow_cards),
+        red_cards: Number(r.red_cards),
+      }));
+      apiUnavailable = false;
+    }
+  }
 
   return (
     <div>

@@ -111,7 +111,7 @@ export default async function TeamPlayerHistoryPage({
     is_current: boolean;
   };
 
-  const allPlayers: CombinedPlayer[] = uniqueEntries.map((entry) => {
+  let allPlayers: CombinedPlayer[] = uniqueEntries.map((entry) => {
     const meta = metaMap.get(entry.player.steamID);
     const dates = datesMap.get(entry.player.steamID);
     const isCurrentTeam = rosterEntries.some(
@@ -129,6 +129,51 @@ export default async function TeamPlayerHistoryPage({
       is_current: isCurrentTeam,
     };
   });
+
+  // Live API is down — reconstruct the all-time player history from everyone who
+  // has appeared for this team (the DB has no roster table). Join/leave dates are
+  // approximated from first/last appearance.
+  if (apiUnavailable) {
+    const rows = await prisma.$queryRaw<{
+      steam_id: string; username: string; position: string | null;
+      apps: bigint; goals: bigint; assists: bigint;
+      first_played: Date | null; last_played: Date | null;
+    }[]>`
+      SELECT
+        p.steam_id,
+        p.username,
+        p.position,
+        COUNT(DISTINCT mps.match_id)  AS apps,
+        COALESCE(SUM(mps.goals), 0)   AS goals,
+        COALESCE(SUM(mps.assists), 0) AS assists,
+        MIN(m.date)                   AS first_played,
+        MAX(m.date)                   AS last_played
+      FROM match_player_stats mps
+      JOIN matches m ON m.id = mps.match_id
+      JOIN players p ON p.steam_id = mps.player_steam_id
+      WHERE (
+        (mps.team_side = 'home' AND m.home_team_id = ${teamId}) OR
+        (mps.team_side = 'away' AND m.away_team_id = ${teamId})
+      )
+      GROUP BY p.steam_id, p.username, p.position
+      ORDER BY apps DESC
+    `;
+
+    if (rows.length > 0) {
+      allPlayers = rows.map((r) => ({
+        steam_id: r.steam_id,
+        username: r.username,
+        position: r.position,
+        apps: Number(r.apps),
+        goals: Number(r.goals),
+        assists: Number(r.assists),
+        join_date: r.first_played ? new Date(r.first_played).toISOString() : null,
+        leave_date: r.last_played ? new Date(r.last_played).toISOString() : null,
+        is_current: false,
+      }));
+      apiUnavailable = false;
+    }
+  }
 
   allPlayers.sort((a, b) => b.apps - a.apps);
 

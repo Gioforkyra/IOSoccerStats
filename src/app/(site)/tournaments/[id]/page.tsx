@@ -12,6 +12,7 @@ import {
   badgeSmallUrl,
   type ApiMatchListItem,
   type ApiTournamentPhase,
+  type ApiTournament,
 } from "@/lib/iosoccer-api";
 import ApiUnavailableNotice from "@/components/ApiUnavailableNotice";
 
@@ -259,8 +260,52 @@ export default async function TournamentDetailPage({
     getCurrentTournaments().then((v) => ({ ok: true as const, v })).catch(() => ({ ok: false as const, v: [] as Awaited<ReturnType<typeof getCurrentTournaments>> })),
   ]);
   const all = [...currentRes.v, ...pastRes.v];
-  const tournament = all.find((t) => t.id === tournamentId);
+  let tournament = all.find((t) => t.id === tournamentId);
   const tournamentListUnavailable = !pastRes.ok && !currentRes.ok;
+
+  // Live API is down — look up tournament metadata from our own DB so the page
+  // can still render instead of showing the "unreachable" banner.
+  if (!tournament && tournamentListUnavailable) {
+    const [row] = await prisma.$queryRaw<{
+      id: number; name: string; status: string;
+      start_date: Date | null; end_date: Date | null;
+      match_format: number | null; team_type_id: number | null;
+      winning_team_id: number | null; organisation: string | null;
+      winner_name: string | null; winner_logo: string | null; winner_color: string | null;
+    }[]>`
+      SELECT t.id, t.name, t.status, t.start_date, t.end_date,
+             t.match_format, t.team_type_id, t.winning_team_id, t.organisation,
+             w.name AS winner_name, w.logo AS winner_logo, w.color AS winner_color
+      FROM tournaments t
+      LEFT JOIN teams w ON w.id = t.winning_team_id
+      WHERE t.id = ${tournamentId}
+    `;
+    if (row) {
+      tournament = {
+        id: row.id,
+        name: row.name,
+        tournamentType: 0,
+        teamType: row.team_type_id ?? 0,
+        format: row.match_format ?? 0,
+        startDate: row.start_date ? new Date(row.start_date).toISOString() : null,
+        endDate: row.end_date ? new Date(row.end_date).toISOString() : null,
+        hasStarted: true,
+        hasEnded: row.status !== "active",
+        winningTeamId: row.winning_team_id,
+        winningTeam: row.winning_team_id && row.winner_name
+          ? {
+              id: row.winning_team_id,
+              name: row.winner_name,
+              badgeImage: row.winner_logo ? { smallUrl: row.winner_logo } : null,
+              color: row.winner_color,
+            }
+          : null,
+        tournamentSeries: row.organisation
+          ? { name: row.organisation, organisation: { name: row.organisation, acronym: row.organisation } }
+          : null,
+      } satisfies ApiTournament;
+    }
+  }
 
   if (!tournament) {
     // If API is down we cannot verify the tournament exists — show banner instead of 404
@@ -299,12 +344,12 @@ export default async function TournamentDetailPage({
     : 0;
 
   // Fetch matches page + API standings in parallel
+  // Note: the standings endpoint 404s for many tournaments (league standings are
+  // then computed from matches below) — a standings failure is NOT an outage, so
+  // only a matches failure flips apiUnavailable and triggers the DB fallback.
   let apiUnavailable = false;
   const [standingsRaw, matchData] = await Promise.all([
-    getTournamentStandings(tournamentId).catch(() => {
-      apiUnavailable = true;
-      return [];
-    }),
+    getTournamentStandings(tournamentId).catch(() => [] as Awaited<ReturnType<typeof getTournamentStandings>>),
     getMatches({ tournamentId, pageSize: 10, page: currentPage }).catch(() => {
       apiUnavailable = true;
       return { items: [] as ApiMatchListItem[], totalItems: 0, totalPages: 1, page: 1, pageSize: 10 };
@@ -312,15 +357,104 @@ export default async function TournamentDetailPage({
   ]);
 
   let apiStandings = standingsRaw as Awaited<ReturnType<typeof getTournamentStandings>>;
-  const matches = matchData.items;
-  const totalPages = matchData.totalPages;
-  const totalMatches = matchData.totalItems;
+  let matches = matchData.items;
+  let totalPages = matchData.totalPages;
+  let totalMatches = matchData.totalItems;
 
-  // If on standings tab and API returned nothing, compute from all matches
+  // Live API is down — serve this tournament's matches and standings from our
+  // own DB so the page renders real data instead of the "unreachable" banner.
+  if (apiUnavailable) {
+    try {
+      const [cnt] = await prisma.$queryRaw<[{ total: bigint }]>`
+        SELECT COUNT(*) AS total FROM matches WHERE tournament_id = ${tournamentId}
+      `;
+      totalMatches = Number(cnt?.total ?? 0);
+      totalPages = Math.max(1, Math.ceil(totalMatches / 10));
+
+      const mrows = await prisma.$queryRaw<{
+        id: number; date: Date; home_team_id: number; away_team_id: number;
+        home_name: string; away_name: string; home_logo: string | null; away_logo: string | null;
+        home_score: number; away_score: number; match_type: string;
+        potm: string | null; potm_steam_id: string | null; server: string | null;
+      }[]>`
+        SELECT
+          m.id, m.date, m.home_team_id, m.away_team_id,
+          th.name AS home_name, ta.name AS away_name,
+          th.logo AS home_logo, ta.logo AS away_logo,
+          m.home_score, m.away_score, m.match_type, m.potm,
+          (SELECT p.steam_id FROM players p WHERE LOWER(p.username) = LOWER(m.potm) LIMIT 1) AS potm_steam_id,
+          m.server
+        FROM matches m
+        JOIN teams th ON th.id = m.home_team_id
+        JOIN teams ta ON ta.id = m.away_team_id
+        WHERE m.tournament_id = ${tournamentId}
+        ORDER BY m.date DESC, m.id DESC
+        LIMIT 10 OFFSET ${(currentPage - 1) * 10}
+      `;
+      matches = mrows.map((r) => ({
+        id: r.id,
+        teamHomeId: r.home_team_id,
+        teamAwayId: r.away_team_id,
+        teamHome: { name: r.home_name, badgeImage: r.home_logo ? { smallUrl: r.home_logo } : null, color: null },
+        teamAway: { name: r.away_name, badgeImage: r.away_logo ? { smallUrl: r.away_logo } : null, color: null },
+        matchStatistics: { matchGoalsHome: r.home_score, matchGoalsAway: r.away_score },
+        kickOff: new Date(r.date).toISOString(),
+        matchType: r.match_type === "competitive" ? 2 : 1,
+        format: null,
+        server: r.server ? { name: r.server } : null,
+        playerOfTheMatch: r.potm ? { name: r.potm, steamID: r.potm_steam_id ?? "" } : null,
+        tournament: { id: tournamentId, name: tournament.name },
+        tournamentGroupMatches: null,
+      })) satisfies ApiMatchListItem[];
+
+      // Standings are computed from matches below (the tournament_standings
+      // table isn't populated), so we only need the matches page here.
+      apiUnavailable = false;
+    } catch {
+      // keep apiUnavailable = true → notice still shown as last resort
+    }
+  }
+
+  // If on standings tab and API returned nothing, compute from all matches.
+  // The standings endpoint 404s for most tournaments, so this is the normal
+  // path. Uses the live API when up, and the DB during an outage.
   let computedStandings: ComputedStanding[] | null = null;
   if (tab === "standings" && apiStandings.length === 0) {
-    const allMatches = await getMatches({ tournamentId, pageSize: 500, noCache: true }).catch(() => null);
-    if (allMatches) computedStandings = computeStandings(allMatches.items);
+    const apiAll = await getMatches({ tournamentId, pageSize: 500, noCache: true }).catch(() => null);
+    let allItems: ApiMatchListItem[] | null = apiAll?.items ?? null;
+    if (!allItems) {
+      const rows = await prisma.$queryRaw<{
+        home_team_id: number; away_team_id: number;
+        home_name: string; away_name: string;
+        home_logo: string | null; away_logo: string | null;
+        home_score: number; away_score: number;
+      }[]>`
+        SELECT m.home_team_id, m.away_team_id,
+               th.name AS home_name, ta.name AS away_name,
+               th.logo AS home_logo, ta.logo AS away_logo,
+               m.home_score, m.away_score
+        FROM matches m
+        JOIN teams th ON th.id = m.home_team_id
+        JOIN teams ta ON ta.id = m.away_team_id
+        WHERE m.tournament_id = ${tournamentId}
+      `;
+      allItems = rows.map((r) => ({
+        id: 0,
+        teamHomeId: r.home_team_id,
+        teamAwayId: r.away_team_id,
+        teamHome: { name: r.home_name, badgeImage: r.home_logo ? { smallUrl: r.home_logo } : null, color: null },
+        teamAway: { name: r.away_name, badgeImage: r.away_logo ? { smallUrl: r.away_logo } : null, color: null },
+        matchStatistics: { matchGoalsHome: r.home_score, matchGoalsAway: r.away_score },
+        kickOff: new Date().toISOString(),
+        matchType: 2,
+        format: null,
+        server: null,
+        playerOfTheMatch: null,
+        tournament: null,
+        tournamentGroupMatches: null,
+      })) satisfies ApiMatchListItem[];
+    }
+    if (allItems) computedStandings = computeStandings(allItems);
   }
 
   // For Cups: undefeated teams (matches played > 0, 0 losses) always pinned on top.

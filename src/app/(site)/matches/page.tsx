@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getMatches, badgeSmallUrl } from "@/lib/iosoccer-api";
+import { getMatches, badgeSmallUrl, type ApiMatchListItem } from "@/lib/iosoccer-api";
 import ApiUnavailableNotice from "@/components/ApiUnavailableNotice";
+import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = {
   title: "Matches — IOSHUBv2",
@@ -43,6 +44,90 @@ function getServerFlag(server: string | null): string {
   return "-";
 }
 
+type DbMatchRow = {
+  id: number;
+  date: Date;
+  home_team_id: number;
+  away_team_id: number;
+  home_name: string;
+  away_name: string;
+  home_logo: string | null;
+  away_logo: string | null;
+  home_score: number;
+  away_score: number;
+  match_type: string;
+  potm: string | null;
+  potm_steam_id: string | null;
+  server: string | null;
+};
+
+// Fallback used when the live IOSoccer API is unreachable: serve matches from
+// our own DB (kept fresh by the scrapers) so the page always renders real data
+// instead of an "API unreachable" message. Region is filtered via the home
+// team; match format (8v8/4v4) isn't stored, so it's not filtered here.
+async function getMatchesFromDb(opts: {
+  page: number;
+  pageSize: number;
+  regionId?: number;
+  matchType?: number;
+}): Promise<{ items: ApiMatchListItem[]; totalItems: number; totalPages: number }> {
+  const offset = (opts.page - 1) * opts.pageSize;
+  const regionParam = opts.regionId ?? 0; // 0 = all regions
+  const typeParam = opts.matchType === 2 ? "competitive" : opts.matchType === 1 ? "friendly" : "";
+
+  const [countRow] = await prisma.$queryRaw<[{ total: bigint }]>`
+    SELECT COUNT(*) AS total
+    FROM matches m
+    JOIN teams th ON th.id = m.home_team_id
+    WHERE (${typeParam}::text = '' OR m.match_type = ${typeParam}::text)
+      AND (${regionParam}::int = 0 OR th.region_id = ${regionParam}::int)
+  `;
+  const totalItems = Number(countRow?.total ?? 0);
+
+  const rows = await prisma.$queryRaw<DbMatchRow[]>`
+    SELECT
+      m.id,
+      m.date,
+      m.home_team_id,
+      m.away_team_id,
+      th.name AS home_name,
+      ta.name AS away_name,
+      th.logo AS home_logo,
+      ta.logo AS away_logo,
+      m.home_score,
+      m.away_score,
+      m.match_type,
+      m.potm,
+      (SELECT p.steam_id FROM players p WHERE LOWER(p.username) = LOWER(m.potm) LIMIT 1) AS potm_steam_id,
+      m.server
+    FROM matches m
+    JOIN teams th ON th.id = m.home_team_id
+    JOIN teams ta ON ta.id = m.away_team_id
+    WHERE (${typeParam}::text = '' OR m.match_type = ${typeParam}::text)
+      AND (${regionParam}::int = 0 OR th.region_id = ${regionParam}::int)
+    ORDER BY m.date DESC, m.id DESC
+    LIMIT ${opts.pageSize} OFFSET ${offset}
+  `;
+
+  const items: ApiMatchListItem[] = rows.map((r) => ({
+    id: r.id,
+    teamHomeId: r.home_team_id,
+    teamAwayId: r.away_team_id,
+    teamHome: { name: r.home_name, badgeImage: r.home_logo ? { smallUrl: r.home_logo } : null, color: null },
+    teamAway: { name: r.away_name, badgeImage: r.away_logo ? { smallUrl: r.away_logo } : null, color: null },
+    matchStatistics: { matchGoalsHome: r.home_score, matchGoalsAway: r.away_score },
+    kickOff: new Date(r.date).toISOString(),
+    matchType: r.match_type === "competitive" ? 2 : 1,
+    format: null,
+    server: r.server ? { name: r.server } : null,
+    playerOfTheMatch: r.potm ? { name: r.potm, steamID: r.potm_steam_id ?? "" } : null,
+    tournament: null,
+    tournamentGroupMatches: null,
+  }));
+
+  return { items, totalItems, totalPages: Math.max(1, Math.ceil(totalItems / opts.pageSize)) };
+}
+
 export default async function MatchesPage({
   searchParams,
 }: {
@@ -68,7 +153,17 @@ export default async function MatchesPage({
     totalMatches = data.totalItems;
     totalPages = data.totalPages;
   } catch {
-    apiUnavailable = true;
+    // Live API is down — fall back to our own DB so the page still shows real
+    // data instead of an "unreachable" message.
+    try {
+      const db = await getMatchesFromDb({ page, pageSize: PAGE_SIZE, regionId, matchType });
+      matches = db.items;
+      totalMatches = db.totalItems;
+      totalPages = db.totalPages;
+      if (db.items.length === 0) apiUnavailable = true;
+    } catch {
+      apiUnavailable = true;
+    }
   }
 
   function pageUrl(p: number, t = matchTypeFilter, r = regionFilter, f = formatFilter) {

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getPastTournaments, getCurrentTournaments, badgeSmallUrl, type ApiTournament } from "@/lib/iosoccer-api";
 import ApiUnavailableNotice from "@/components/ApiUnavailableNotice";
+import { prisma } from "@/lib/prisma";
 
 export const revalidate = 300;
 
@@ -36,9 +37,55 @@ export default async function TournamentsPage({
     getCurrentTournaments().then((v) => ({ ok: true as const, v })).catch(() => ({ ok: false as const, v: [] as ApiTournament[] })),
     getPastTournaments().then((v) => ({ ok: true as const, v })).catch(() => ({ ok: false as const, v: [] as ApiTournament[] })),
   ]);
-  const current = currentRes.v;
-  const past = pastRes.v;
-  const apiUnavailable = !currentRes.ok && !pastRes.ok;
+  let current = currentRes.v;
+  let past = pastRes.v;
+  let apiUnavailable = !currentRes.ok && !pastRes.ok;
+
+  // Live API is down — serve the tournament list from our own DB.
+  if (apiUnavailable) {
+    const rows = await prisma.$queryRaw<{
+      id: number; name: string; status: string;
+      start_date: Date | null; end_date: Date | null;
+      match_format: number | null; team_type_id: number | null;
+      winning_team_id: number | null; organisation: string | null;
+      winner_name: string | null; winner_logo: string | null; winner_color: string | null;
+    }[]>`
+      SELECT t.id, t.name, t.status, t.start_date, t.end_date,
+             t.match_format, t.team_type_id, t.winning_team_id, t.organisation,
+             w.name AS winner_name, w.logo AS winner_logo, w.color AS winner_color
+      FROM tournaments t
+      LEFT JOIN teams w ON w.id = t.winning_team_id
+      ORDER BY t.start_date DESC NULLS LAST
+    `;
+    if (rows.length > 0) {
+      const toApi = (r: (typeof rows)[number]): ApiTournament => ({
+        id: r.id,
+        name: r.name,
+        tournamentType: 0,
+        teamType: r.team_type_id ?? 0,
+        format: r.match_format ?? 0,
+        startDate: r.start_date ? new Date(r.start_date).toISOString() : null,
+        endDate: r.end_date ? new Date(r.end_date).toISOString() : null,
+        hasStarted: true,
+        hasEnded: r.status !== "active",
+        winningTeamId: r.winning_team_id,
+        winningTeam: r.winning_team_id && r.winner_name
+          ? {
+              id: r.winning_team_id,
+              name: r.winner_name,
+              badgeImage: r.winner_logo ? { smallUrl: r.winner_logo } : null,
+              color: r.winner_color,
+            }
+          : null,
+        tournamentSeries: r.organisation
+          ? { name: r.organisation, organisation: { name: r.organisation, acronym: r.organisation } }
+          : null,
+      });
+      current = rows.filter((r) => r.status === "active").map(toApi);
+      past = rows.filter((r) => r.status !== "active").map(toApi);
+      apiUnavailable = false;
+    }
+  }
 
   const all: (ApiTournament & { _active: boolean })[] = [
     ...current.map((t) => ({ ...t, _active: true })),

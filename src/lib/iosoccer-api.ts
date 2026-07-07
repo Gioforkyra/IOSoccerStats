@@ -1,6 +1,8 @@
 import { proxyImg } from "./img";
 
-const API_BASE = "https://iosoccer.com:44380/api";
+// Overridable so we can point at a dead port locally to simulate the
+// production TLS-drop failure (see IOSOCCER_API_BASE in the test notes).
+const API_BASE = process.env.IOSOCCER_API_BASE ?? "https://iosoccer.com:44380/api";
 
 const HEADERS = {
   Accept: "application/json",
@@ -9,7 +11,11 @@ const HEADERS = {
   Referer: "https://www.iosoccer.com/",
 };
 
-const CIRCUIT_COOLDOWN_MS = 60 * 60 * 1000;
+// A single intermittent TLS/socket drop used to keep the circuit open for a
+// full hour, so one blip blacked out every page. Keep the cooldown short and
+// retry transient drops first — the upstream almost always succeeds on retry.
+const CIRCUIT_COOLDOWN_MS = Number(process.env.IOSOCCER_CIRCUIT_COOLDOWN_MS) || 60_000;
+const MAX_CONNECTION_RETRIES = 2;
 
 type CircuitState = { downUntil: number; reason: string | null };
 const g = globalThis as unknown as { __iosoccerCircuit?: CircuitState };
@@ -45,26 +51,35 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   if (Date.now() < circuit.downUntil) {
     throw new Error(`IOSoccer API ${path}: circuit open (${circuit.reason ?? "down"})`);
   }
-  try {
-    const res = await fetch(`${API_BASE}${path}`, {
-      ...init,
-      headers: { ...HEADERS, ...init?.headers },
-      signal: init?.signal ?? AbortSignal.timeout(30_000),
-      next: { revalidate: 60 },
-    });
-    if (!res.ok) {
-      if (res.status >= 500) tripCircuit(`HTTP ${res.status}`);
-      throw new Error(`IOSoccer API ${path}: ${res.status}`);
+
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const res = await fetch(`${API_BASE}${path}`, {
+        ...init,
+        headers: { ...HEADERS, ...init?.headers },
+        signal: init?.signal ?? AbortSignal.timeout(8_000),
+        next: { revalidate: 60 },
+      });
+      if (!res.ok) {
+        if (res.status >= 500) tripCircuit(`HTTP ${res.status}`);
+        throw new Error(`IOSoccer API ${path}: ${res.status}`);
+      }
+      return res.json();
+    } catch (err) {
+      if (isFatalConnectionError(err)) {
+        // Transient TLS/socket drop (the production failure mode): retry a few
+        // times with a short backoff before giving up and tripping the circuit.
+        if (attempt < MAX_CONNECTION_RETRIES) {
+          await new Promise((r) => setTimeout(r, 250 * (attempt + 1)));
+          continue;
+        }
+        const code = (err as { code?: string; cause?: { code?: string } }).code
+          ?? (err as { cause?: { code?: string } }).cause?.code
+          ?? "fetch failed";
+        tripCircuit(code);
+      }
+      throw err;
     }
-    return res.json();
-  } catch (err) {
-    if (isFatalConnectionError(err)) {
-      const code = (err as { code?: string; cause?: { code?: string } }).code
-        ?? (err as { cause?: { code?: string } }).cause?.code
-        ?? "fetch failed";
-      tripCircuit(code);
-    }
-    throw err;
   }
 }
 
