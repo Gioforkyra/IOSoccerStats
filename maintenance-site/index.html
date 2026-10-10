@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#171717">
+  <title>IOSHUBv2</title>
+  <link rel="icon" href="./favicon-96x96.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --background: #171717;
+      --panel: #1c1c1c;
+      --text: #f0f4ff;
+      --muted: #a8b3c7;
+      --pink: #f4119e;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      color: var(--text);
+      background:
+        linear-gradient(rgba(0, 230, 118, 0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 230, 118, 0.025) 1px, transparent 1px),
+        var(--background);
+      background-size: 48px 48px;
+      font-family: 'DM Sans', sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    main {
+      width: min(100%, 780px);
+      min-height: 560px;
+      padding: clamp(48px, 8vw, 84px) clamp(32px, 8vw, 88px);
+      text-align: center;
+      background: rgba(28, 28, 28, 0.92);
+      border: 1px solid rgba(240, 244, 255, 0.09);
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.32);
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--text);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: clamp(2.3rem, 7.5vw, 3.5rem);
+      font-weight: 900;
+      letter-spacing: 0;
+      line-height: 1;
+      text-transform: uppercase;
+    }
+
+    .brand-logo {
+      width: 52px;
+      height: 52px;
+      flex: 0 0 auto;
+      object-fit: contain;
+    }
+
+    .brand span { color: var(--pink); }
+
+    h1 {
+      margin: 42px 0 0;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: clamp(2rem, 6vw, 3.2rem);
+      font-weight: 800;
+      line-height: 1;
+      text-transform: uppercase;
+    }
+
+    p {
+      max-width: 600px;
+      margin: 34px auto 0;
+      color: var(--muted);
+      font-size: 1.1rem;
+      line-height: 1.8;
+    }
+
+    p + p {
+      margin-top: 120px;
+    }
+
+  </style>
+</head>
+<body>
+  <main>
+    <div class="brand" aria-label="IOSHUBv2">
+      <img class="brand-logo" src="./favicon-96x96.png" alt="IOSHUBv2 logo">
+      IOS<span>HUB</span>v2
+    </div>
+    <p>
+      I am happy that many of the new features and design tweaks I introduced
+      or came up with for IOSHUBv2 later inspired the official website, which
+      subsequently implemented them. 
+      That was the main reason I started this project in the first place.
+    </p>
+    <p>
+      Once again, thank you to everyone who supported, gave feedback and used the site.
+      Until the next...
+    </p>
+  </main>
+</body>
+</html>
